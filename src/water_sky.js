@@ -5,7 +5,7 @@ import { Water } from 'three/addons/objects/Water.js';
 import { TEX } from './textures.js';
 import { CFG } from './util.js';
 
-export function buildSkyWater(scene, renderer) {
+export function buildSkyWater(scene, renderer, opts = {}) {
   // ----- sun direction -----
   const sunDir = new THREE.Vector3().setFromSphericalCoords(
     1,
@@ -53,7 +53,10 @@ export function buildSkyWater(scene, renderer) {
   const sun = new THREE.DirectionalLight(0xffe6c4, 3.6);
   sun.position.copy(sunDir).multiplyScalar(600);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  // 2048 is the desktop map; a phone gets a quarter of the texels for most of the
+  // look, and it is the single biggest thing the tile-based GPUs choke on here.
+  const shadowSize = opts.shadowMapSize || 2048;
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
   const sc = sun.shadow.camera;
   sc.left = -120; sc.right = 120; sc.top = 120; sc.bottom = -120;
   sc.near = 50; sc.far = 1400;

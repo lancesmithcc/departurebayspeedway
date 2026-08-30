@@ -121,6 +121,7 @@ export class Game {
       lbName: document.getElementById('lb-name'),
       lbRows: document.getElementById('lb-rows'),
       lbPrompt: document.getElementById('lb-prompt'),
+      lbSave: document.getElementById('lb-save'),
     };
     this.el.title.classList.remove('hidden');
   }
@@ -853,6 +854,11 @@ export class Game {
       // focus after the overlay is actually on screen, or Safari drops it
       setTimeout(() => { try { input.focus(); input.select(); } catch { /* no focus, no problem */ } }, 60);
       input.oninput = () => { input.value = sanitiseName(input.value); };
+      // A phone has no ENTER until a field is focused, and even then the return key is
+      // whatever that keyboard decided to put there. The button is the reliable path.
+      if (this.el.lbSave) {
+        this.el.lbSave.onclick = (e) => { e.preventDefault(); e.stopPropagation(); this.submitName(); };
+      }
       input.onkeydown = (e) => {
         e.stopPropagation();
         if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); this.submitName(); }

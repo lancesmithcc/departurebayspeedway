@@ -34,6 +34,25 @@ tab title.
 
 Land square to bank the STYLE score; land badly and you bin it.
 
+## On a phone
+
+Open it on a handset and it puts a thumb pad on the bottom edge: steering on the left,
+gas, jump, brake and bars on the right, and a thin strip of camera / respawn / mute
+between them. Turn the phone sideways — portrait still works and still fits, but it is
+a letterbox of road under a lot of sky, so there is a hint saying so until you do.
+
+The pad writes the same key codes the keyboard listener does and calls the same
+handler, so everything built on top of the keys works untouched: double-tap GAS still
+pops a wheelie, JUMP in the air is still a no-hander, holding a steer button in the
+air is still a whip, and BAR still goes full auto under a bar crate. Every button
+captures its own pointer, because without that a thumb sliding off the gas mid-corner
+sends the release to whatever was underneath and the throttle sticks on for the rest
+of the run.
+
+The scene is identical on a phone; what gives is how it is drawn — pixel ratio capped
+at 1.5, a 1024 shadow map instead of 2048, and no multisampling, which a tile-based
+mobile GPU charges a lot for at that resolution.
+
 ## Powerups
 
 Pickups sit down the middle of the road, each one a timed modifier — only one at a

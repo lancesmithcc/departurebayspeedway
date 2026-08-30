@@ -20,14 +20,25 @@ import { Powerups } from './powerups.js';
 import { AudioSys } from './audio.js';
 import { Game } from './game.js';
 import { Apocalypse } from './apocalypse.js';
+import { initTouchControls, isTouchDevice } from './touch.js';
 
 async function boot() {
   // ---- renderer ----
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  // A phone GPU will happily accept everything the desktop path asks for and then run
+  // it at twelve frames a second. The scene is identical either way; what gives is the
+  // resolution it is drawn at, the size of the shadow map and the multisampling.
+  const touch = isTouchDevice();
+  // The class gates the touch-only CSS (the pad, the tap prompts, the compact title),
+  // and the title card is on screen long before the controls get built, so it goes on
+  // as soon as the answer is known rather than at the end of the boot.
+  if (touch) document.body.classList.add('touch');
+  const renderer = new THREE.WebGLRenderer({ antialias: !touch, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // A 3x phone display is 9x the pixels of a 1x one for a screen you hold at arm's
+  // length; 1.5 is the point where more stops being visible and only costs.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, touch ? 1.5 : 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = touch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.78;
   document.getElementById('app').appendChild(renderer.domElement);
@@ -78,7 +89,7 @@ async function boot() {
   const terrain = new Terrain(map);
 
   // ---- sky / water / lights ----
-  const skyWater = buildSkyWater(scene, renderer);
+  const skyWater = buildSkyWater(scene, renderer, { shadowMapSize: touch ? 1024 : 2048 });
 
   // ---- world ----
   scene.add(terrain.buildMesh());
@@ -331,7 +342,8 @@ async function boot() {
 
   // ---- post processing ----
   const rt = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-    type: THREE.HalfFloatType, samples: 4,
+    // MSAA on a tile-based mobile GPU costs more than it is worth at this pixel ratio
+    type: THREE.HalfFloatType, samples: touch ? 0 : 4,
   });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
@@ -361,7 +373,10 @@ async function boot() {
   }
 
   // expose for debugging
-  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio };
+  // the on-screen pad writes the same key codes the keyboard listener does
+  if (touch) initTouchControls(game);
+
+  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio, touch };
 
   // ---- loop (setTimeout: rAF is suspended in some embedded browser guests) ----
   const clock = new THREE.Clock();
