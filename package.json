@@ -1,0 +1,12 @@
+{
+  "name": "departure-bay-speedway",
+  "version": "1.0.0",
+  "description": "GTA-style dirtbike racing game map of Departure Bay, Nanaimo. Map data (c) OpenStreetMap contributors.",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs",
+    "serve": "node serve.mjs",
+    "bake": "node tools/bake.mjs",
+    "voices": "python3 tools/make_voices.py"
+  }
+}

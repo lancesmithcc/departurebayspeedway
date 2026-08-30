@@ -1,0 +1,387 @@
+// main.js — bootstrap: load map data, build world, run loop
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { buildTextures, TEX } from './textures.js';
+import { Terrain } from './terrain.js';
+import { buildRoads } from './roads.js';
+import { buildBuildings, buildingCollide } from './buildings.js';
+import { buildTrees, buildStreetlights, buildPiers, buildFerry, buildGasStation, pylonSign, buildBeachClutter, buildSevenEleven, buildRoadEdges, buildJunctionSigns, buildTrafficFurniture, buildWellingtonSchool, buildWellingtonRoadSign, buildRockCitySchool, buildDepartureBaySchool, buildReaderBoard, buildBaptistChurch } from './props.js';
+import { Corridor } from './corridor.js';
+import { Peds } from './peds.js';
+import { loadGLB, fitModel, flatten, decimate, levelModel, loadKit, triangleCount } from './models.js';
+import { buildSkyWater } from './water_sky.js';
+import { Player } from './player.js';
+import { Traffic } from './traffic.js';
+import { Effects } from './effects.js';
+import { Powerups } from './powerups.js';
+import { AudioSys } from './audio.js';
+import { Game } from './game.js';
+
+async function boot() {
+  // ---- renderer ----
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.78;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 9000);
+  camera.position.set(-3000, 60, -1200);
+
+  // ---- data ----
+  buildTextures();
+  const map = await (await fetch('./data/map.json')).json();
+  // authored assets: rider-on-bike and a western redcedar
+  const [riderGLB, cedarGLB, pedKit, carKit, treeKit, houseKit] = await Promise.all([
+    loadGLB('./Main-Character/gla6ndzKeKQ4tFJdAE4lu_model.glb'),
+    loadGLB('./cedar-tree/IoBSQ_9MPEiqnMinwAEP8_model.glb'),
+    // CC0 kits (Kenney) — see assets/CREDITS.md
+    // proper humanoids, frozen mid-walk off their own animation clips
+    loadKit([
+      './assets/peds/person-1.glb', './assets/peds/person-2.glb',
+      './assets/peds/person-3.glb', './assets/peds/person-4.glb',
+      './assets/peds/person-5.glb', './assets/peds/person-6.glb',
+      './assets/peds/person-7.glb', './assets/peds/person-8.glb',
+    ], 1.74, 'y', { poseClip: { match: /walk/i, frames: 6 } }),   // 6 frames of the walk cycle
+    loadKit([
+      './assets/cars/car-1.glb', './assets/cars/car-2.glb', './assets/cars/car-3.glb',
+      './assets/cars/car-4.glb', './assets/cars/car-5.glb', './assets/cars/car-6.glb',
+      './assets/cars/car-7.glb',
+    ], 4.4, 'z', { lengthAlongZ: true, flip: true }),   // these models nose toward +z
+    loadKit([
+      './assets/trees/tree_pineDefaultA.glb', './assets/trees/tree_default.glb',
+      './assets/trees/tree_pineTallA.glb', './assets/trees/tree_detailed.glb',
+    ], 9.5),
+    loadKit([
+      './assets/houses/building-type-a.glb', './assets/houses/building-type-c.glb',
+      './assets/houses/building-type-g.glb', './assets/houses/building-type-h.glb',
+      './assets/houses/building-type-i.glb', './assets/houses/building-type-k.glb',
+    ], 7.0),
+  ]);
+  // thousands of trees get instanced, so trim them down before they hit the scene
+  for (const t of treeKit) {
+    const before = triangleCount(t.geometry);
+    t.geometry = decimate(t.geometry, 0.16);
+    t.tris = triangleCount(t.geometry);
+    t.trisBefore = before;
+  }
+  console.log(`kits: ${pedKit.length} people, ${carKit.length} cars, ${treeKit.length} trees `
+    + `(${treeKit.map(t => `${t.trisBefore | 0}->${t.tris | 0}`).join(', ')}), ${houseKit.length} houses`);
+  const terrain = new Terrain(map);
+
+  // ---- sky / water / lights ----
+  const skyWater = buildSkyWater(scene, renderer);
+
+  // ---- world ----
+  scene.add(terrain.buildMesh());
+  scene.add(buildRoads(map, terrain));
+
+  // ---- effects (ramp + rings) ----
+  const effects = new Effects(scene, terrain, map);
+
+  // The corridor is the road plus a beach chute that funnels the last few metres
+  // onto the ramp, so the finish can't be overshot into the seafront apartments.
+  const chute = (() => {
+    // straight run-in from the road end onto the ramp deck
+    const end = map.route[map.route.length - 1];
+    const base = effects.ramp.base;
+    const dx = base.x - end[0], dz = base.y - end[1];
+    const len = Math.hypot(dx, dz);
+    const steps = Math.max(2, Math.round(len / 6));
+    const pts = [];
+    for (let i = 1; i <= steps; i++) pts.push([end[0] + dx * i / steps, end[1] + dz * i / steps]);
+    return pts;
+  })();
+  const corridor = new Corridor([...map.route, ...chute], terrain, { openTailLength: 6 });
+  // Departure Bay Baptist sits at its real address — OSM way 531377692, on the water
+  // side of the road. The anchor used to be a bare centreline point, which has no side
+  // to it: Math.sign(0) fell through to +1 and put the whole church, lawn and party on
+  // the inland side, mirrored across the carriageway from where it stands.
+  const BAPTIST = [-1902.29, -1574.62];
+  const bapPr = corridor.projectExact(BAPTIST[0], BAPTIST[1]);
+  const bapI = bapPr.i;
+  const bapSide = Math.sign(bapPr.lat) || 1;
+  // The lawn is worked out up front so neither a house nor a fir ends up in the middle
+  // of the bouncy castles. buildBaptistChurch() re-derives the same geometry from the
+  // same anchor.
+  const [bapNx, bapNz] = corridor.normalAt(bapI);
+  const bapOut = corridor.hw[bapI] + 58;
+  const bapAnchor = corridor.pts[bapI];
+  const bapLawn = {
+    x: bapAnchor[0] + bapNx * bapSide * bapOut,
+    z: bapAnchor[1] + bapNz * bapSide * bapOut,
+    r: 54,
+  };
+  // Departure Bay Elementary, down where the road flattens toward the bay
+  const DB_SCHOOL = [-966.58, -1270.75];
+
+  const buildings = buildBuildings(map, terrain,
+    [map.circleK, map.fuelStation && map.fuelStation.p, map.sevenEleven && map.sevenEleven.p,
+      [-2360, -1410], DB_SCHOOL, [bapLawn.x, bapLawn.z]].filter(Boolean), corridor, houseKit);
+  console.log(`houses from kit: ${buildings.houses}`);
+  scene.add(buildings.group);
+  // The cedar is 21k triangles as authored — far too heavy to instance by the
+  // thousand, so it is decimated for the roadside planting and the cheap procedural
+  // firs keep filling the distant forest.
+  let cedar = null;
+  if (cedarGLB) {
+    fitModel(cedarGLB, 17);                    // a real roadside redcedar
+    const flat = flatten(cedarGLB);
+    if (flat) {
+      const lod = decimate(flat.geometry, 0.22);
+      console.log(`cedar: ${triangleCount(flat.geometry) | 0} tris -> ${triangleCount(lod) | 0}`);
+      cedar = { geometry: lod, material: flat.material };
+    }
+  }
+  const keepClear = [
+    bapLawn,
+    { x: -2360, z: -1410, r: 78 },     // Rock City Elementary
+    { x: DB_SCHOOL[0], z: DB_SCHOOL[1], r: 78 },   // Departure Bay Elementary
+    { x: -2922, z: -1414, r: 86 },     // Wellington Secondary
+    { x: -2963, z: -1145, r: 34 },     // St. Andrew's
+    { x: map.circleK[0], z: map.circleK[1], r: 40 },
+    { x: map.sevenEleven ? map.sevenEleven.p[0] : 0, z: map.sevenEleven ? map.sevenEleven.p[1] : 0, r: 34 },
+  ];
+  const trees = buildTrees(map, terrain, buildings.buildingGrid, corridor, cedar, keepClear, treeKit);
+  scene.add(trees.inst);
+  scene.add(trees.leaf);
+  if (trees.cedar) scene.add(trees.cedar);
+  scene.add(buildStreetlights(corridor, terrain));
+  scene.add(buildPiers(map, terrain));
+  // Wellington Secondary School at its real coordinates (Wildcats sign faces the road)
+  scene.add(buildWellingtonSchool(terrain));
+  scene.add(buildWellingtonRoadSign(corridor, terrain));
+
+  // Rock City Elementary: landmark block, reader board and a marked school crossing
+  const rockCity = buildRockCitySchool(map, corridor, terrain);
+  scene.add(rockCity.group);
+
+  // Departure Bay Elementary, same treatment: reader board, painted crossing and
+  // SLOW / children-crossing diamonds on both approaches
+  const dbSchool = buildDepartureBaySchool(map, corridor, terrain, DB_SCHOOL);
+  scene.add(dbSchool.group);
+
+  // St. Andrew's Presbyterian — Pastor Jeremy's reader board, right by the start
+  const church = buildReaderBoard(corridor, terrain, [-2963, -1145], TEX.stAndrews, {
+    width: 8.2, height: 3.6, postColor: 0x7a6550, trimColor: 0x5b1f2e, setback: 4.6,
+  });
+  scene.add(church.group);
+
+  // Departure Bay Baptist — lawn party in full swing on the water side, roughly half
+  // way down the hill where the road opens out toward the bay
+  const baptist = buildBaptistChurch(corridor, terrain, BAPTIST, { pedKit });
+  scene.add(baptist.group);
+  // the rail lets go over the church lawn — hitting a bouncy castle is the point
+  corridor.addOpenZone(baptist.entry.x, baptist.entry.z, baptist.entry.r);
+
+  scene.add(buildRoadEdges(corridor, terrain));
+  scene.add(buildBeachClutter(terrain, [effects.ramp.base.x, effects.ramp.base.y], 120));
+  scene.add(buildJunctionSigns(map, corridor, terrain));
+  scene.add(buildTrafficFurniture(map, corridor, terrain));
+
+  // 7-Eleven — real Departure Bay branch, on the water side at the finish
+  if (map.sevenEleven) {
+    const pr = corridor.projectExact(map.sevenEleven.p[0], map.sevenEleven.p[1]);
+    const tan = corridor.tan[pr.i];
+    scene.add(buildSevenEleven(map.sevenEleven, terrain, Math.atan2(tan[0], tan[1]) + Math.PI / 2));
+  }
+
+  // Circle K station (start)
+  const ckHeading = Math.PI * 0.75;
+  scene.add(buildGasStation((map.fuelStation && map.fuelStation.p) || map.circleK, ckHeading, terrain));
+  // Country Club Centre pylon
+  const mall = map.buildings.find(b => b.t === 'mall');
+  if (mall) {
+    let cx = 0, cz = 0;
+    for (const p of mall.p) { cx += p[0]; cz += p[1]; }
+    cx /= mall.p.length; cz /= mall.p.length;
+    scene.add(pylonSign([cx + 60, cz - 20], TEX.countryClub, terrain, 9, 4.5, 12, Math.PI * 0.5));
+  }
+  // BC Ferries sign + ships
+  const berth = map.berth ? map.berth[0] : [350, 310];
+  scene.add(pylonSign([berth[0] - 90, berth[1] - 60], TEX.bcFerries, terrain, 7, 3.5, 9, -Math.PI * 0.4));
+  const ferry = buildFerry();
+  ferry.position.set(berth[0] + 30, 0, berth[1] - 40);
+  ferry.rotation.y = 1.25;
+  scene.add(ferry);
+  const ferry2 = buildFerry();
+  ferry2.position.set(2300, 0, 400);
+  ferry2.rotation.y = -0.6;
+  scene.add(ferry2);
+
+
+  // ---- player ----
+  const startPos = [map.route[0][0], map.route[0][1]];
+  const player = new Player(scene, terrain, {
+    effects,
+    corridor,
+    buildingGrid: buildings.buildingGrid,
+    treeGrid: trees.treeGrid,
+    buildingCollide,
+    startPos,
+    startHeading: Math.PI, // placeholder; game sets exact
+    callbacks: {},
+  });
+
+  if (riderGLB) {
+    // the asset is authored mid-stunt, so level it off its own principal axes first,
+    // then size it by wheelbase and stand it on the ground
+    const levelled = levelModel(riderGLB) || riderGLB;
+    fitModel(levelled, 2.15, 'z');
+    // levelModel puts the wheelbase on z; the asset's nose is the +z end, so spin it
+    // to face the game's forward (-z). ?ry= stays as a tuning escape hatch.
+    const tune = new URLSearchParams(location.search);
+    levelled.rotation.y += Math.PI + Number(tune.get('ry') || 0);
+    levelled.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    player.useModel(levelled);
+  }
+
+  // ---- traffic ----
+  const traffic = new Traffic(scene, map, terrain, carKit);
+
+  // ---- audio + game ----
+  const audio = new AudioSys();
+
+  // ---- people on the sidewalks and the school crossing ----
+  const peds = new Peds(scene, corridor, terrain, {
+    audio, effects,
+    models: pedKit,
+    crossings: [rockCity.crossing, dbSchool.crossing],
+    partySpot: baptist.party,
+    splatTexture: TEX.splat,
+    // walls are walls for people too, not just for the bike
+    buildingGrid: buildings.buildingGrid,
+    buildingCollide,
+    blockers: baptist.blockers || [],
+    // the church lawn is a flat disc laid over sloping ground: stand the party on it
+    platforms: baptist.lawn ? [baptist.lawn] : [],
+  });
+  player.ctx.peds = peds;
+  player.ctx.castles = baptist.castles;
+
+  // Jesus joins the pedestrian system as a named character: a bar or the front wheel
+  // puts him down like anybody else, and going down is what turns him.
+  // He does not stay down. Three seconds face down in the grass and he is back up —
+  // as the other one — and the congregation goes out of its Sunday whites with him.
+  if (baptist.jesusSpot) {
+    peds.addSpecial(baptist.jesus, baptist.jesusSpot.x, baptist.jesusSpot.z, {
+      name: 'jesus',
+      heading: baptist.jesusSpot.heading,
+      hitRadius: 1.4,
+      fallLength: 0.95,
+      riseDelay: 3.0,
+      onDeath: () => baptist.becomeSatan(),
+      onRise: () => {
+        baptist.riseAsSatan();
+        peds.damnCongregation();
+        game.onSatanRisen();
+      },
+      onRevive: () => baptist.reviveJesus(),
+    });
+  }
+
+  // ---- roadside powerups ----
+  const powerups = new Powerups(scene, corridor, terrain, { effects, audio });
+  const game = new Game(map, terrain, player, traffic, effects, skyWater, audio, camera, {
+    scene, buildCollide: buildingCollide, corridor, peds, powerups, baptist,
+    // zones that announce themselves as the rider arrives
+    zones: [
+      { x: rockCity.crossing[0], z: rockCity.crossing[1], r: 70, voice: 'school1', caption: 'SCHOOL ZONE — ROCK CITY ELEMENTARY' },
+      { x: dbSchool.crossing[0], z: dbSchool.crossing[1], r: 70, voice: 'school1', caption: 'SCHOOL ZONE — DEPARTURE BAY ELEMENTARY' },
+      { x: baptist.party.x, z: baptist.party.z, r: 95, voice: 'church1', caption: 'DEPARTURE BAY BAPTIST — LAWN PARTY IN FULL SWING' },
+    ],
+  });
+  player.ctx.callbacks = {
+    onCrash: (r) => game.onCrash(r),
+    onWater: () => game.onWater(),
+    onTrick: (name, pts, total) => game.onTrick(name, pts, total),
+    onJump: () => game.onJump(),
+    onRail: (x, y, z, f) => game.onRail(x, y, z, f),
+    onBounce: (x, y, z) => game.onBounce(x, y, z),
+  };
+
+  // ---- post processing ----
+  const rt = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+    type: THREE.HalfFloatType, samples: 4,
+  });
+  const composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.26, 0.5, 0.86);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('title').classList.remove('hidden');
+
+  // demo autopilot: start riding automatically (no input needed)
+  if (game.demo) setTimeout(() => game.startRide(), 1500);
+
+  // ?school=1: park by the Wellington sign and orbit it (sign check view)
+  if (new URLSearchParams(location.search).has('school')) {
+    player.reset([-2922, -1372], Math.PI);
+    player.cameraMode = 3;
+    player._orbitR = 34;
+    player._orbitH = 9;
+  }
+
+  // expose for debugging
+  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist };
+
+  // ---- loop (setTimeout: rAF is suspended in some embedded browser guests) ----
+  const clock = new THREE.Clock();
+  let loopErr = null;
+  let frames = 0;
+  if (game.debug) {
+    setInterval(() => { document.title = 'DBS ' + frames + 'f' + (loopErr ? ' ERR' : ''); frames = 0; }, 1000);
+  }
+  const tick = () => {
+    frames++;
+    try {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const t = clock.elapsedTime;
+      game.update(dt, t);
+      skyWater.update(dt, camera.position);
+      // departing ferry drifts
+      if (baptist.animate) baptist.animate(t, dt);
+      ferry2.position.x += 3.4 * dt;
+      ferry2.position.z -= 2.2 * dt;
+      if (ferry2.position.x > 3600) { ferry2.position.set(1600, 0, 1400); }
+      composer.render();
+    } catch (e) {
+      if (loopErr !== e.message) {
+        loopErr = e.message;
+        console.error(e);
+        let d = document.getElementById('errdump');
+        if (!d) {
+          d = document.createElement('div');
+          d.id = 'errdump';
+          d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:rgba(120,0,0,0.85);color:#fbb;font:12px monospace;padding:6px 10px;white-space:pre-wrap;pointer-events:none;';
+          document.body.appendChild(d);
+        }
+        d.textContent = (e.message || e) + ' @ ' + (e.stack || '').split('\n')[1];
+      }
+    }
+    setTimeout(tick, 1000 / 60);
+  };
+  tick();
+}
+
+boot().catch(err => {
+  console.error(err);
+  const el = document.getElementById('loading');
+  if (el) el.innerHTML = `<div style="color:#f66;font:16px monospace;padding:40px">Failed to load: ${err.message}<br>${err.stack?.split('\n').slice(0,3).join('<br>')}</div>`;
+});

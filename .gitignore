@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# node
+node_modules/
+
+# browser-automation scratch
+.playwright-mcp/
+
+# Kokoro TTS model files — ~115 MB, downloaded on demand by tools/make_voices.py.
+# The voice lines it produces (audio/voices/) are committed, so a clone can play
+# without ever running it.
+tools/kokoro/
+
+# Raw Overpass extracts — 12 MB of input to `npm run bake`, re-fetched with the two
+# curl commands in the README. data/map.json, the baked output the game loads, is
+# committed.
+data/osm_raw.json
+data/osm_extra.json
+
+# Source-model formats the game never loads. main.js loads exactly one .glb out of
+# each of these folders; the .obj/.fbx/.stl/.usdz siblings and their texture maps are
+# 63 MB of the same two models in formats nothing here reads.
+Main-Character/*
+!Main-Character/gla6ndzKeKQ4tFJdAE4lu_model.glb
+!Main-Character/8TyqTVh1HMr625piWaX0B_preview.png
+cedar-tree/*
+!cedar-tree/IoBSQ_9MPEiqnMinwAEP8_model.glb
+!cedar-tree/7FOzOztmAaBc1oaTvUWbq_preview.png
