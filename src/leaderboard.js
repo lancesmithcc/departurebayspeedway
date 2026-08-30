@@ -38,6 +38,8 @@ export function loadBoard() {
         score: Math.max(0, Math.round(e.score)),
         time: Math.max(0, e.time),
         rings: Math.max(0, Math.min(3, Math.round(e.rings || 0))),
+        // whether the run was still under a red sky when it crossed the line
+        satan: !!e.satan,
       }))
       .slice(0, MAX_ENTRIES);
   } catch {
@@ -70,6 +72,7 @@ export function submit(run) {
     score: Math.max(0, Math.round(run.score)),
     time: Math.max(0, run.time),
     rings: run.rings || 0,
+    satan: !!run.satan,
   };
   const board = loadBoard().concat([entry]).sort(rank).slice(0, MAX_ENTRIES);
   saveBoard(board);
@@ -81,12 +84,42 @@ export function fmtTime(t) {
   return `${m}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
 }
 
+// ---- the mark on a name ----
+// Finish while the sky is still red and the name carries an inverted pentagram. Drawn
+// as SVG rather than set as a character: U+26E7 is missing from most system fonts and
+// comes out as a tofu box on exactly the machines that would enjoy it least.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function pentagram() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'lb-sigil');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  const R = 8.4, cx = 10, cy = 10;
+  // point down: the first vertex sits at the bottom rather than the top
+  const pt = (k) => {
+    const a = (Math.PI / 2) + (k * 2 * Math.PI) / 5;
+    return [cx + Math.cos(a) * R, cy + Math.sin(a) * R];
+  };
+  // the star is the {0,2,4,1,3} walk of those five points — one unbroken stroke
+  const d = [0, 2, 4, 1, 3].map((k, n) => {
+    const [x, y] = pt(k);
+    return `${n ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ') + ' Z';
+  const star = document.createElementNS(SVG_NS, 'path');
+  star.setAttribute('d', d);
+  svg.appendChild(star);
+  const ring = document.createElementNS(SVG_NS, 'circle');
+  ring.setAttribute('cx', cx); ring.setAttribute('cy', cy); ring.setAttribute('r', R + 1.1);
+  svg.appendChild(ring);
+  return svg;
+}
+
 // renders into the #leaderboard-rows container; highlight marks the run just entered
 export function renderBoard(el, board, highlight = -1) {
   el.textContent = '';
   board.forEach((e, i) => {
     const row = document.createElement('div');
-    row.className = 'lb-row' + (i === highlight ? ' lb-me' : '');
+    row.className = 'lb-row' + (i === highlight ? ' lb-me' : '') + (e.satan ? ' lb-damned' : '');
     const cells = [
       String(i + 1).padStart(2, '0'),
       e.name,
@@ -94,11 +127,13 @@ export function renderBoard(el, board, highlight = -1) {
       fmtTime(e.time),
       `${e.rings}/3`,
     ];
-    for (const c of cells) {
+    cells.forEach((c, n) => {
       const d = document.createElement('span');
       d.textContent = c;             // textContent, never innerHTML: names are user input
+      // the sigil goes in the name cell, beside the text rather than inside it
+      if (n === 1 && e.satan) d.appendChild(pentagram());
       row.appendChild(d);
-    }
+    });
     el.appendChild(row);
   });
 }

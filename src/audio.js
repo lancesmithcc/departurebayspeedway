@@ -3,6 +3,12 @@ export class AudioSys {
   constructor() {
     this.ready = false;
     this.muted = false;
+    // the single announcer channel: what is on it, how loudly it outranks the rest,
+    // and when it frees up
+    this.voiceSrc = null;
+    this.voiceGain = null;
+    this.voicePriority = 0;
+    this.voiceUntil = 0;
   }
 
   init() {
@@ -339,8 +345,43 @@ export class AudioSys {
   VOICE_KEYS = ['intro', 'intro2', 'sendit', 'ring', 'finish',
     'crash1', 'crash2', 'crash3', 'crash4', 'crash5', 'crash6', 'crash7', 'crash8', 'crash9', 'crash10'];
 
-  async voice(key, vol = 0.95, wet = 0.55) {
+  // ---- one voice at a time ----
+  // There is one announcer channel and one mouth on it. Lines used to be fired the
+  // moment their event happened, so bowling a pedestrian over during a school-zone
+  // callout put three people talking across each other and none of them landed.
+  //
+  // A line takes the channel if it is free, or if it outranks whatever is on it — in
+  // which case the running line is faded out over 120 ms rather than cut, so the
+  // handover reads as an announcer talking over himself and not as a dropout. A line
+  // that loses is dropped, never queued: a reaction that arrives four seconds after
+  // the crash is worse than one that never comes.
+  //
+  // The claim is taken *after* the buffer is ready, because the first play of a key
+  // goes to the network and two lines can be in flight at once.
+  voiceFree(priority) {
+    if (!this.voiceSrc) return true;
+    if (this.now() >= this.voiceUntil) return true;
+    return priority > this.voicePriority;
+  }
+
+  stopVoice(fade = 0.12) {
+    if (!this.voiceSrc) return;
+    const src = this.voiceSrc, g = this.voiceGain;
+    this.voiceSrc = null; this.voiceGain = null; this.voiceUntil = 0; this.voicePriority = 0;
+    const t = this.now();
+    try {
+      if (g) {
+        g.gain.cancelScheduledValues(t);
+        g.gain.setValueAtTime(g.gain.value, t);
+        g.gain.linearRampToValueAtTime(0.0001, t + fade);
+      }
+      src.stop(t + fade + 0.02);
+    } catch { /* already stopped */ }
+  }
+
+  async voice(key, vol = 0.95, wet = 0.55, priority = 1) {
     if (!this.ready || this.muted) return;
+    if (!this.voiceFree(priority)) return;         // cheap reject before the fetch
     try {
       if (!this.voiceBufs) this.voiceBufs = {};
       let buf = this.voiceBufs[key];
@@ -350,6 +391,9 @@ export class AudioSys {
         buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
         this.voiceBufs[key] = buf;
       }
+      if (this.muted) return;
+      if (!this.voiceFree(priority)) return;       // something took the channel while we fetched
+      this.stopVoice();
       const t = this.now();
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
@@ -366,13 +410,27 @@ export class AudioSys {
         g.connect(send); send.connect(this.verbSend);
       }
       src.start(t);
+      this.voiceSrc = src;
+      this.voiceGain = g;
+      this.voicePriority = priority;
+      // a beat of silence on the end, so the next line does not tread on this one
+      this.voiceUntil = t + buf.duration + 0.2;
+      src.onended = () => { if (this.voiceSrc === src) { this.voiceSrc = null; this.voiceGain = null; this.voiceUntil = 0; this.voicePriority = 0; } };
       this.duckMusic(0.4, Math.min(3, buf.duration));
     } catch { /* voice files missing — silent */ }
   }
 
+  // priority 1: background chatter — whoever the bike just hit
   reaction() {
     const n = 1 + Math.floor(Math.random() * 10);
-    return this.voice(`crash${n}`);
+    return this.voice(`crash${n}`, 0.95, 0.55, 1);
+  }
+
+  // priority 3: the announcer calling a pickup. Two takes per kind, so a run with four
+  // cases of Lucky in it does not play the same line four times.
+  powerupLine(kind) {
+    const n = 1 + Math.floor(Math.random() * 2);
+    return this.voice(`pow_${kind}${n}`, 1.0, 0.5, 3);
   }
 
   // ---- Nanaimo bar sounds ----
@@ -386,6 +444,7 @@ export class AudioSys {
 
   setMuted(m) {
     this.muted = m;
+    if (m) this.stopVoice(0.05);
     if (this.ready) this.master.gain.value = m ? 0 : 0.8;
     // elements that never made it into the graph carry their own volume
     if (this.musicEl && !this.music) this.musicEl.volume = m || this.hellOn ? 0 : this.musicVol;

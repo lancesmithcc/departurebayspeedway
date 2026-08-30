@@ -228,7 +228,12 @@ export class Powerups {
           rand(0.3, 0.8), rand(0.4, 1.0), c.r, c.g, c.b, 3, 0.94);
       }
     }
-    if (this.audio) this.audio.ring && this.audio.ring();
+    if (this.audio) {
+      this.audio.ring && this.audio.ring();
+      // the announcer outranks the street chatter, so grabbing a case mid-pileup is
+      // still the thing you hear
+      this.audio.powerupLine && this.audio.powerupLine(it.kind);
+    }
     this.onPickup(it.kind, null);
   }
 }

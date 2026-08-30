@@ -192,6 +192,14 @@
   .lb-row span:nth-child(2) { text-align: left; letter-spacing: 2px; }
   .lb-row span:nth-child(n+3) { text-align: right; }
   .lb-row.lb-me { color: #ffd23f; text-shadow: 0 0 12px rgba(255,180,0,0.6); }
+  /* a run that crossed the line under a red sky */
+  .lb-row.lb-damned span:nth-child(2) { color: #ff4a2a; text-shadow: 0 0 10px rgba(255,40,10,0.55); }
+  .lb-row.lb-me.lb-damned span:nth-child(2) { color: #ff6a3a; }
+  .lb-sigil {
+    width: 1.25em; height: 1.25em; vertical-align: -0.28em; margin-left: 8px;
+    fill: none; stroke: #ff2f10; stroke-width: 1.7; stroke-linejoin: round;
+    filter: drop-shadow(0 0 3px rgba(255,40,10,0.8));
+  }
   #lb-entry { pointer-events: auto; margin-top: 10px; }
   #lb-entry .ask { font-size: 20px; color: #9fd6ff; letter-spacing: 2px; text-shadow: 0 2px 0 #000; }
   #lb-name {

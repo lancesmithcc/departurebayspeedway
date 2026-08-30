@@ -22,7 +22,7 @@ export class Game {
     this.skyWater = skyWater;
     this.audio = audio;
     this.camera = camera;
-    this.refs = refs; // { buildCollide, corridor, peds, powerups, baptist, zones }
+    this.refs = refs; // { buildCollide, corridor, peds, powerups, baptist, apocalypse, zones }
     this.peds = refs.peds || null;
     // school zones and the church, each announced once per run as the rider arrives
     this.zones = (refs.zones || []).map(z => ({ ...z, done: false }));
@@ -438,8 +438,8 @@ export class Game {
       this.traffic.crashRel = 13;
     }
     this.setCaption('Rip down Departure Bay Road — watch for traffic!', 4.5);
-    this.audio.voice('intro');
-    setTimeout(() => { if (this.state === 'riding') this.audio.voice('intro2', 0.8); }, 3400);
+    this.audio.voice('intro', 0.95, 0.55, 4);
+    setTimeout(() => { if (this.state === 'riding') this.audio.voice('intro2', 0.8, 0.55, 4); }, 3400);
   }
 
   restart() {
@@ -712,7 +712,7 @@ export class Game {
       const hits = this.effects.checkRings(this.player);
       if (hits) {
         this.audio.ring();
-        if (Math.random() < 0.4) this.audio.voice('ring', 0.8);
+        if (Math.random() < 0.4) this.audio.voice('ring', 0.8, 0.55, 2);
         this.setCaption(`RING OF FIRE ${this.effects.ringsHit}/3!`, 1.6);
       }
       // dust when offroad
@@ -732,7 +732,7 @@ export class Game {
           this.audio.checkpoint();
           if (i === this.gates.length - 1) {
             this.setCaption('HIT THE RAMP! SEND IT THROUGH THE RINGS OF FIRE!', 4);
-            this.audio.voice('sendit', 0.85);
+            this.audio.voice('sendit', 0.85, 0.55, 2);
           } else {
             this.setCaption(choice([
               'Checkpoint!', 'Nice — keep it pinned!', 'Traffic up ahead!',
@@ -765,7 +765,7 @@ export class Game {
         if (Math.hypot(this.player.pos.x - z.x, this.player.pos.z - z.z) > z.r) continue;
         z.done = true;
         if (z.caption) this.setCaption(z.caption, 2.6);
-        if (z.voice) this.audio.voice(z.voice, 0.9);
+        if (z.voice) this.audio.voice(z.voice, 0.9, 0.55, 2);
       }
 
       // gulls near shore
@@ -804,7 +804,7 @@ export class Game {
         if (this.el.statsPeds) this.el.statsPeds.textContent = this.pedsHit;
         this.audio.duckMusic(0.25, 3.2);
         this.audio.missionPassed();
-        this.audio.voice('finish');
+        this.audio.voice('finish', 0.95, 0.55, 4);
         this.openBoard();
       }
       if (Math.random() < 0.2) {
@@ -835,6 +835,8 @@ export class Game {
       score: this.player.trickScore,
       time: this.time,
       rings: this.effects.ringsHit,
+      // crossed the line while the sky was still red: the name gets the mark
+      satan: !!(this.refs.apocalypse && this.refs.apocalypse.on),
     };
     this.pendingRun = run;
     const board = loadBoard();

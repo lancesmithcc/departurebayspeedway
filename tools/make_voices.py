@@ -39,6 +39,16 @@ LINES = [
     # crossing guard / school zone
     ("school1", "bf_emma", "School zone! Kids crossing, slow down!"),
     ("church1", "am_michael", "Pastor Jeremy says: ride safe, punks."),
+    # pickups — the announcer calls every one of them, two lines apiece so a run
+    # with four cases of Lucky in it does not repeat the same take
+    ("pow_beer1", "am_michael", "Frick yeah! Lucky beer, bud!"),
+    ("pow_beer2", "am_michael", "A case of Lucky! Frick yeah, send it, bud!"),
+    ("pow_coffee1", "am_michael", "Double-double, bud! Frick yeah!"),
+    ("pow_coffee2", "am_michael", "Oh, that's a double-double! Now we're cooking, bud!"),
+    ("pow_bars1", "am_michael", "A whole crate of Nanaimo bars! Frick yeah!"),
+    ("pow_bars2", "am_michael", "Bar crate, bud! Let 'em have it!"),
+    ("pow_blessed1", "am_michael", "Blessed, bud! Frick yeah, you cannot bin it!"),
+    ("pow_blessed2", "am_michael", "The congregation's got you now! Ride on, punk!"),
 ]
 
 

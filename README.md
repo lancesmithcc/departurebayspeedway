@@ -47,6 +47,22 @@ countdown bar.
 | Bar crate | Hold F for rapid-fire Nanaimo bars |
 | Blessing | You cannot bin it for the duration |
 
+The announcer calls every one of them — two takes apiece, so a run with four cases of
+Lucky in it does not play the same line four times.
+
+## One voice at a time
+
+There is one announcer channel and one mouth on it. Lines used to fire the moment
+their event happened, so bowling a pedestrian over during a school-zone callout put
+three people talking across each other and none of them landed.
+
+A line now takes the channel if it is free, or if it outranks whatever is on it — the
+finish and the intro over a pickup, a pickup over a school zone, a school zone over
+the crash and pedestrian chatter. The line being cut into is faded out over 120 ms
+rather than stopped dead, so it reads as an announcer talking over himself. A line
+that loses is dropped, never queued: a reaction that arrives four seconds after the
+crash is worse than one that never comes.
+
 ## People
 
 Pedestrians walk the sidewalks, kids shuttle over both school crossings, and the
@@ -100,6 +116,11 @@ trampolines, so a run at one launches the bike instead of stopping it.
 Finish the run and the Hall of Fame comes up, ranked by STYLE and tie-broken by time.
 Make the top ten and you sign it: eight letters, ENTER to save, ESC to skip. It lives
 in `localStorage`, so it survives a reload and never leaves the browser.
+
+Cross the line while the sky is still red and the name goes on the board in red with
+an inverted pentagram beside it. The mark is drawn as SVG rather than set as U+26E7,
+which is missing from most system fonts and comes out as a tofu box on exactly the
+machines that would enjoy it least.
 
 ## The road is the real road
 

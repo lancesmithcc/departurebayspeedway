@@ -799,7 +799,7 @@ export class Peds {
     this.dropDecal(ped.x, ped.y, ped.z, rand(0.7, 0.95), ped);
     if (this.audio && this.voiceCool <= 0) {
       this.voiceCool = 1.6;
-      this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.9);
+      this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.9, 0.55, 1);
     }
     if (ped.onDeath) ped.onDeath(ped);
     this.onSplat(ped);
@@ -834,7 +834,7 @@ export class Peds {
       this.audio.splat && this.audio.splat();
       if (this.voiceCool <= 0) {
         this.voiceCool = 1.4;
-        this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.95);
+        this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.95, 0.55, 1);
       }
     }
     if (ped.onDeath) ped.onDeath(ped);

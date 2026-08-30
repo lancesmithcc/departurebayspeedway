@@ -312,7 +312,7 @@ async function boot() {
   // ---- roadside powerups ----
   const powerups = new Powerups(scene, corridor, terrain, { effects, audio });
   const game = new Game(map, terrain, player, traffic, effects, skyWater, audio, camera, {
-    scene, buildCollide: buildingCollide, corridor, peds, powerups, baptist,
+    scene, buildCollide: buildingCollide, corridor, peds, powerups, baptist, apocalypse,
     // zones that announce themselves as the rider arrives
     zones: [
       { x: rockCity.crossing[0], z: rockCity.crossing[1], r: 70, voice: 'school1', caption: 'SCHOOL ZONE — ROCK CITY ELEMENTARY' },
