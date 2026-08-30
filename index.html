@@ -150,6 +150,14 @@
   body.touch #title .controls { display: none; }
   body.touch #title .press { margin-top: 12px; }
   body.touch #title .credit { display: none; }
+  /* Belt and braces on the keyboard legend: the rule above needs main.js to have run
+     and decided this is a touch device, and until then a phone is looking at a table
+     of keys it does not have. This one needs nothing but the media query. */
+  @media (hover: none) and (pointer: coarse) {
+    #title .controls, #title .credit { display: none; }
+    #title .press:not(.press-touch) { display: none; }
+    .press-touch { display: block; }
+  }
   /* Short and wide: the finish card has to fit between the notch and the home bar. */
   /* The HUD was laid out for a desktop window, where the bottom corners are empty.
      With a thumb pad down there the minimap sits under the steering and the speedo

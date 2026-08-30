@@ -231,6 +231,15 @@ anyone logging in. The tunnel is its own — it shares nothing with the other tu
 that host, and its unit passes `--config` explicitly, because without it `cloudflared`
 falls back to `~/.cloudflared/config.yml` and would quietly run the SSH tunnel instead.
 
+The module graph is served under `/v/<token>/…`, where the token is a hash of the
+source tree stamped into `index.html` on the way out. The first deploy taught us why:
+`index.html` came back fresh (it is `no-cache`) while Cloudflare kept handing out a
+four-hour-old `/src/main.js` that had never heard of the file it was meant to import,
+so the deploy landed on the box and nowhere else. Now a code change moves every URL in
+the graph at once — relative imports resolve against the module's own versioned URL —
+so nothing ever needs purging, and because a versioned URL can only mean one thing it
+is served `immutable` rather than revalidated.
+
 Redeploy is a fetch and a bounce:
 
 ```bash
