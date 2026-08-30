@@ -159,10 +159,28 @@ export class AudioSys {
     const hell = on && this.hellOn;
     const day = on && !this.hellOn;
     const t = this.now();
-    if (this.music) this.musicGain.gain.setTargetAtTime(day ? this.musicVol : 0, t, ramp);
-    else if (this.musicEl) this.musicEl.volume = day ? this.musicVol : 0;
-    if (this.hell) this.hellGain.gain.setTargetAtTime(hell ? this.musicVol : 0, t, ramp);
-    else if (this.hellEl) this.hellEl.volume = hell ? this.musicVol : 0;
+    this.rampGain(this.music && this.musicGain, day ? this.musicVol : 0, ramp, t);
+    if (!this.music && this.musicEl) this.musicEl.volume = day ? this.musicVol : 0;
+    this.rampGain(this.hell && this.hellGain, hell ? this.musicVol : 0, ramp, t);
+    if (!this.hell && this.hellEl) this.hellEl.volume = hell ? this.musicVol : 0;
+  }
+
+  // ---- one authority over a music gain ----
+  // Automation events live on the timeline until something clears them. A voice line
+  // ducks the track by scheduling a dip *and* a recovery a few seconds out; if the
+  // handover to the other track happened in between, that pending recovery still fired
+  // and pulled the old track back up underneath the new one — which is what put two
+  // soundtracks on at once when the church lawn turned. Every move on these gains goes
+  // through here, and every one of them wipes what was queued behind it first.
+  //
+  // Linear rather than setTargetAtTime: an exponential approach never actually reaches
+  // zero, so the track being faded out stayed faintly audible under the other one.
+  rampGain(gain, to, seconds, at = this.now()) {
+    if (!gain) return;
+    const g = gain.gain;
+    g.cancelScheduledValues(at);
+    g.setValueAtTime(g.value, at);
+    g.linearRampToValueAtTime(to, at + Math.max(0.01, seconds));
   }
 
   // The sky went red. Start the other track if this is the first time it has been
@@ -170,6 +188,7 @@ export class AudioSys {
   setHellMusic(on) {
     if (!this.ready || this.hellOn === on) return;
     this.hellOn = on;
+    clearTimeout(this.duckTimer);          // whatever was ducked belongs to the old mix
     if (on && !this.hellEl) {
       const el = new Audio('./satan.mp3');
       el.loop = true;
@@ -203,9 +222,16 @@ export class AudioSys {
     const node = this.hellOn ? (this.hell && this.hellGain) : (this.music && this.musicGain);
     if (!node) return;
     const t = this.now();
-    node.gain.cancelScheduledValues(t);
-    node.gain.setTargetAtTime(this.musicVol * amount, t, 0.12);
-    node.gain.setTargetAtTime(this.musicVol, t + seconds, 0.5);
+    const hellWas = this.hellOn;
+    this.rampGain(node, this.musicVol * amount, 0.12, t);
+    // The recovery is scheduled, so it has to be checked when it lands rather than
+    // when it was booked: if the other track took over in the meantime, the mix has
+    // already been set correctly and this one must not touch it.
+    clearTimeout(this.duckTimer);
+    this.duckTimer = setTimeout(() => {
+      if (this.muted || this.hellOn !== hellWas) return;
+      this.rampGain(node, this.musicVol, 0.5);
+    }, Math.max(0, seconds * 1000));
   }
 
   now() { return this.ctx.currentTime; }
