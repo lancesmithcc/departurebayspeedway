@@ -195,6 +195,29 @@ Voice lines are generated locally with Kokoro (`npm run voices`, see
 into a convolution plate — a decaying-noise impulse, pre-delayed so the consonants
 land first — which is what gives the announcer the room he was written for.
 
+## Deployed
+
+It runs on `lanc3lot-ressurection` (Ubuntu 22.04) behind a Cloudflare tunnel, served
+straight off the checked-out tree — there is no build step to run.
+
+| | |
+|---|---|
+| Checkout | `~/apps/departurebayspeedway` |
+| Origin | `node tools/serve-prod.mjs` on `127.0.0.1:8047`, systemd user unit `departurebayspeedway.service` |
+| Tunnel | `departurebayspeedway` (`3ec7df2f-ff5c-4345-a58d-6dc9cc761709`), config `~/.cloudflared/departurebayspeedway.yml`, metrics on `127.0.0.1:20247`, systemd user unit `cloudflared-departurebayspeedway.service` |
+| Hostname | `departurebayspeedway.scroggygames.com` |
+
+Both units are user units with lingering on, so they come back after a reboot without
+anyone logging in. The tunnel is its own — it shares nothing with the other tunnels on
+that host, and its unit passes `--config` explicitly, because without it `cloudflared`
+falls back to `~/.cloudflared/config.yml` and would quietly run the SSH tunnel instead.
+
+Redeploy is a fetch and a bounce:
+
+```bash
+ssh lanc3lot-ressurection 'bash -lc "~/apps/departurebayspeedway/tools/redeploy.sh"'
+```
+
 ## Credits
 
 Map data © OpenStreetMap contributors (ODbL). Soundtrack: `departurbayspeedway.mp3`.
