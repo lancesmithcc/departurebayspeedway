@@ -76,10 +76,24 @@ and the halo comes off him and stays where it fell while the light over the lawn
 from gold to furnace. Worth a thousand STYLE.
 
 Three seconds later he gets back up — bigger, burning, and not who went down — for
-another two thousand. The congregation goes with him: the Sunday whites turn red, on
-the ones still running and on the ones already lying in the grass. Nothing puts him
-down a second time. The guardrail is deliberately open across the church driveway —
-the castles are trampolines, so a run at one launches the bike instead of stopping it.
+another two thousand, and the whole town goes with him.
+
+Every person in the game turns red: the congregation out of its Sunday whites, the
+crowd on the sidewalks, the kids on both school crossings, and everybody already
+lying in the road from earlier in the run. The sky turns with them — dome, clouds,
+sun, fog, the water in the bay and the light falling on all of it — and then fire
+starts coming down out of it, real falling bodies that streak, land, and burst where
+they land. The soundtrack hands over to `satan.mp3` on a crossfade.
+
+None of it is a switch. The world bleeds over about a second and a half, and back
+over about two and a half, so the sky turns rather than snapping.
+
+Put him down a second time and it all runs in reverse — the sky, the crowd, the fire
+and the music — for five thousand STYLE. He does not get up twice, so that is the end
+of it either way: the body stays in the grass for the rest of the run.
+
+The guardrail is deliberately open across the church driveway — the castles are
+trampolines, so a run at one launches the bike instead of stopping it.
 
 ## The board
 
@@ -150,6 +164,10 @@ The rider and the western redcedar are authored GLB models in `Main-Character/` 
 axes (it is authored mid-stunt), sized by wheelbase and stood on the ground; the cedar
 is decimated from 21k triangles so a few hundred can line the route, with the cheap
 procedural firs still filling the distant forest.
+
+There are two soundtracks: `departurbayspeedway.mp3` for the run, and `satan.mp3` for
+whatever the church lawn turns into. Both stream through their own gain, so the swap
+is a crossfade rather than a stop and a start.
 
 Voice lines are generated locally with Kokoro (`npm run voices`, see
 `tools/make_voices.py`) into `audio/voices/`. They play dry to the master with a tap

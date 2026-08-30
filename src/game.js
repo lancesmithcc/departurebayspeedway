@@ -509,6 +509,9 @@ export class Game {
 
   onPedSplat(ped) {
     this.pedsHit++;                 // a bar counts the same as a front wheel
+    // The second hit on him is scored by onSatanSlain, not here: this is the fall, and
+    // it has already been paid for once.
+    if (ped && ped.risen) return;
     const holy = ped && ped.name === 'jesus';
     const pts = holy ? 1000 : 120;
     this.player.trickScore += pts;
@@ -526,6 +529,7 @@ export class Game {
 
   onPedBump(ped, speed) {
     this.pedsHit++;
+    if (ped && ped.risen) return;   // see onPedSplat: the slaying carries its own score
     const holy = ped && ped.name === 'jesus';
     const pts = holy ? 1000 : 60 + Math.round(Math.min(240, speed * 9));
     this.player.trickScore += pts;
@@ -541,6 +545,22 @@ export class Game {
     }
   }
 
+  // And put back down. The sky, the crowd and the fire all go back where they were;
+  // the body stays where it landed.
+  onSatanSlain() {
+    const pts = 5000;
+    this.player.trickScore += pts;
+    if (this.el.score) this.el.score.textContent = this.player.trickScore.toLocaleString();
+    this.trickText = `YOU KILLED THE DEVIL  +${pts}`;
+    this.trickT = 3.6;
+    if (this.el.trick) {
+      this.el.trick.textContent = this.trickText;
+      this.el.trick.classList.remove('hidden');
+    }
+    this.setCaption('THE SKY COMES BACK — DEPARTURE BAY IS QUIET AGAIN', 4);
+    this.audio.trickSting && this.audio.trickSting(1);
+  }
+
   // He got back up, and the lawn went with him.
   onSatanRisen() {
     const pts = 2000;
@@ -552,7 +572,7 @@ export class Game {
       this.el.trick.textContent = this.trickText;
       this.el.trick.classList.remove('hidden');
     }
-    this.setCaption('THE CONGREGATION IS IN RED NOW', 3.6);
+    this.setCaption('THE SKY IS RED AND IT IS RAINING FIRE — PUT HIM DOWN AGAIN', 4.2);
     this.audio.trickSting && this.audio.trickSting(1);
   }
 

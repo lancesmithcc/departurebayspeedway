@@ -86,6 +86,11 @@ export class Effects {
     this.terrain = terrain;
     this.smoke = new ParticlePool(scene, 700, TEX.dot, false);
     this.fire = new ParticlePool(scene, 700, TEX.fireDot, true);
+    // Fire falling out of the sky is a downpour, not an event: sharing the 700-slot
+    // fire pool with the rings meant each new drop recycled the slot of a trail that
+    // was still meant to be burning, and the whole sky came out as a few sparse
+    // specks. It gets its own, deep enough to hold a full screen of streaks.
+    this.rain = new ParticlePool(scene, 2400, TEX.fireDot, true);
     this.time = 0;
     this.buildRampAndRings(map);
     this.ringsHit = 0;
@@ -346,6 +351,7 @@ export class Effects {
     this.time += dt;
     this.smoke.update(dt);
     this.fire.update(dt);
+    this.rain.update(dt);
     // fire ring ambience
     for (let ri = 0; ri < this.rings.length; ri++) {
       const ring = this.rings[ri];

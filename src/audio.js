@@ -81,6 +81,13 @@ export class AudioSys {
     this.musicGain.gain.value = 0;
     this.musicGain.connect(this.master);
     this.musicVol = 0.42;
+    // ---- the other soundtrack (satan.mp3) ----
+    // Its own bus running in parallel, so the swap is a crossfade of two gains rather
+    // than a stop and a start: the road noise never drops into silence mid-corner.
+    this.hellGain = ctx.createGain();
+    this.hellGain.gain.value = 0;
+    this.hellGain.connect(this.master);
+    this.hellOn = false;
 
     this.ready = true;
     this.startMusic();
@@ -132,17 +139,67 @@ export class AudioSys {
   setMusic(on, vol = this.musicVol) {
     if (!this.ready) return;
     this.musicVol = vol;
-    if (this.music) this.musicGain.gain.setTargetAtTime(this.muted || !on ? 0 : vol, this.now(), 0.5);
-    else if (this.musicEl) this.musicEl.volume = this.muted || !on ? 0 : vol;
+    this.musicOn = on;
+    this.applyMusicMix(0.5);
   }
 
-  // duck the track under crashes / mission-passed stings
-  duckMusic(amount = 0.35, seconds = 1.6) {
-    if (!this.ready || !this.music || this.muted) return;
+  // ---- which track is playing ----
+  // Both elements run the whole time once the second one has been asked for; only the
+  // two gains move. Anything that cannot be routed through the graph (a browser that
+  // refused createMediaElementSource) falls back to the element's own volume.
+  applyMusicMix(ramp = 0.5) {
+    if (!this.ready) return;
+    const on = this.musicOn !== false && !this.muted;
+    const hell = on && this.hellOn;
+    const day = on && !this.hellOn;
     const t = this.now();
-    this.musicGain.gain.cancelScheduledValues(t);
-    this.musicGain.gain.setTargetAtTime(this.musicVol * amount, t, 0.12);
-    this.musicGain.gain.setTargetAtTime(this.musicVol, t + seconds, 0.5);
+    if (this.music) this.musicGain.gain.setTargetAtTime(day ? this.musicVol : 0, t, ramp);
+    else if (this.musicEl) this.musicEl.volume = day ? this.musicVol : 0;
+    if (this.hell) this.hellGain.gain.setTargetAtTime(hell ? this.musicVol : 0, t, ramp);
+    else if (this.hellEl) this.hellEl.volume = hell ? this.musicVol : 0;
+  }
+
+  // The sky went red. Start the other track if this is the first time it has been
+  // asked for, then hand over.
+  setHellMusic(on) {
+    if (!this.ready || this.hellOn === on) return;
+    this.hellOn = on;
+    if (on && !this.hellEl) {
+      const el = new Audio('./satan.mp3');
+      el.loop = true;
+      el.crossOrigin = 'anonymous';
+      el.preload = 'auto';
+      this.hellEl = el;
+      try {
+        this.hell = this.ctx.createMediaElementSource(el);
+        this.hell.connect(this.hellGain);
+      } catch {
+        this.hell = null;
+      }
+      el.volume = this.hell ? 1 : 0;
+      el.play().catch(() => {});
+    }
+    if (on && this.hellEl) {
+      // always from the top: it is a cue, not a station left running
+      try { this.hellEl.currentTime = 0; } catch { /* not seekable yet */ }
+      this.hellEl.play().catch(() => {});
+    }
+    this.applyMusicMix(0.35);
+    if (!on && this.hellEl) {
+      // let the crossfade finish before the element stops
+      setTimeout(() => { if (!this.hellOn) this.hellEl.pause(); }, 1400);
+    }
+  }
+
+  // duck whichever track is up, under crashes / mission-passed stings
+  duckMusic(amount = 0.35, seconds = 1.6) {
+    if (!this.ready || this.muted) return;
+    const node = this.hellOn ? (this.hell && this.hellGain) : (this.music && this.musicGain);
+    if (!node) return;
+    const t = this.now();
+    node.gain.cancelScheduledValues(t);
+    node.gain.setTargetAtTime(this.musicVol * amount, t, 0.12);
+    node.gain.setTargetAtTime(this.musicVol, t + seconds, 0.5);
   }
 
   now() { return this.ctx.currentTime; }
@@ -330,6 +387,8 @@ export class AudioSys {
   setMuted(m) {
     this.muted = m;
     if (this.ready) this.master.gain.value = m ? 0 : 0.8;
-    if (this.musicEl && !this.music) this.musicEl.volume = m ? 0 : this.musicVol;
+    // elements that never made it into the graph carry their own volume
+    if (this.musicEl && !this.music) this.musicEl.volume = m || this.hellOn ? 0 : this.musicVol;
+    if (this.hellEl && !this.hell) this.hellEl.volume = m || !this.hellOn ? 0 : this.musicVol;
   }
 }

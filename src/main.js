@@ -19,6 +19,7 @@ import { Effects } from './effects.js';
 import { Powerups } from './powerups.js';
 import { AudioSys } from './audio.js';
 import { Game } from './game.js';
+import { Apocalypse } from './apocalypse.js';
 
 async function boot() {
   // ---- renderer ----
@@ -268,8 +269,11 @@ async function boot() {
 
   // Jesus joins the pedestrian system as a named character: a bar or the front wheel
   // puts him down like anybody else, and going down is what turns him.
-  // He does not stay down. Three seconds face down in the grass and he is back up —
-  // as the other one — and the congregation goes out of its Sunday whites with him.
+  // He does not stay down. Three seconds face down in the grass and he is back up — as
+  // the other one — and the world goes with him: every person in it turns red, the sky
+  // turns with them, and fire starts falling out of it. Put the risen one back down
+  // and all of it runs in reverse.
+  const apocalypse = new Apocalypse(scene, terrain, skyWater, effects);
   if (baptist.jesusSpot) {
     peds.addSpecial(baptist.jesus, baptist.jesusSpot.x, baptist.jesusSpot.z, {
       name: 'jesus',
@@ -277,13 +281,31 @@ async function boot() {
       hitRadius: 1.4,
       fallLength: 0.95,
       riseDelay: 3.0,
-      onDeath: () => baptist.becomeSatan(),
+      // One record, two deaths. The first is the one that starts it; the second is
+      // the one that ends it, and the pedestrian system will not stand him up twice.
+      onDeath: (sp) => {
+        if (sp.risen) {
+          baptist.satanSlain();
+          apocalypse.end();
+          peds.redeemEveryone();
+          audio.setHellMusic(false);
+          game.onSatanSlain();
+        } else {
+          baptist.becomeSatan();
+        }
+      },
       onRise: () => {
         baptist.riseAsSatan();
-        peds.damnCongregation();
+        apocalypse.begin();
+        peds.damnEveryone();
+        audio.setHellMusic(true);
         game.onSatanRisen();
       },
-      onRevive: () => baptist.reviveJesus(),
+      onRevive: () => {
+        baptist.reviveJesus();
+        apocalypse.end();
+        audio.setHellMusic(false);
+      },
     });
   }
 
@@ -339,7 +361,7 @@ async function boot() {
   }
 
   // expose for debugging
-  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist };
+  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio };
 
   // ---- loop (setTimeout: rAF is suspended in some embedded browser guests) ----
   const clock = new THREE.Clock();
@@ -355,6 +377,8 @@ async function boot() {
       const t = clock.elapsedTime;
       game.update(dt, t);
       skyWater.update(dt, camera.position);
+      // the sky's own colour, and whatever is falling out of it
+      apocalypse.update(dt, camera.position);
       // departing ferry drifts
       if (baptist.animate) baptist.animate(t, dt);
       ferry2.position.x += 3.4 * dt;

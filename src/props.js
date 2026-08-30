@@ -1356,6 +1356,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
 
   let fallen = false;                       // put down; the ragdoll owns the pose
   let risen = false;                        // back on his feet, and not as himself
+  let slain = false;                        // and down again, this time for good
   let riseT = 0;                            // seconds since he stood up, for the ramp
   // Smitten. The body takes its damned skin, the horns come through, the halo drops
   // into the grass and the light over the lawn goes from gold to furnace.
@@ -1400,11 +1401,23 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     glow.distance = 40;
   };
 
+  // ---- and put back down again ----
+  // The second hit is the last one: the fire goes out of him, the rig stops, and the
+  // ragdoll has him for the rest of the run. He keeps the red skin and the horns —
+  // what is lying there is what got up, not who went down first.
+  const satanSlain = () => {
+    if (!risen) return;
+    risen = false;
+    slain = true;
+    rig.scale.setScalar(1);
+  };
+
   // Back on his feet for a fresh run — the holy one this time.
   const reviveJesus = () => {
     if (!fallen) return;
     fallen = false;
     risen = false;
+    slain = false;
     if (holyGeos) bodyFrames.forEach((m, k) => { m.geometry = holyGeos[k] || holyGeos[0]; });
     hairM.color.set(0x4a3323);
     skinM.color.set(0xc79a72);
@@ -1433,7 +1446,10 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   let jesusPhase = 0;
   const animateJesus = (t, dt) => {
     if (fallen && !risen) {
-      glow.intensity = 22 + Math.sin(t * 7.3) * 6;      // the fire gutters
+      // the fire gutters while he is face down, and goes out altogether once he is
+      // finished — no ember light over a corpse and a sky that has gone back to blue
+      const want = slain ? 0 : 22 + Math.sin(t * 7.3) * 6;
+      glow.intensity += (want - glow.intensity) * Math.min(1, 1.6 * dt);
       return;
     }
     const hell = risen ? 1 : 0;
@@ -1475,6 +1491,8 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     animate: animateJesus,
     becomeSatan,
     riseAsSatan,
+    satanSlain,
+    isRisen: () => risen,
     reviveJesus,
     jesusHeight: jH,
     lawn: lawnPlatform,

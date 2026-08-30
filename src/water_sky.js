@@ -118,5 +118,28 @@ export function buildSkyWater(scene, renderer) {
     }
   }
 
-  return { water, sky, sun, sunDir, update, updateShadow, fogColor: 0xcfd8dd };
+  // Everything the apocalypse needs a handle on. The dome, the clouds, the sun disc,
+  // both lights and the ocean all get recoloured when the sky turns; nothing else in
+  // the game touches them, so they are handed out rather than wrapped.
+  return {
+    water, sky, sun, sunDir, update, updateShadow, fogColor: 0xcfd8dd,
+    sunSprite, clouds, cloudMat, hemi, skyMat: sky.material,
+    // the daylight values, so there is something to ramp back to
+    normal: {
+      skyTint: 0xffffff,
+      cloudTint: 0xffffff,
+      sunSprite: 0xfff6df,
+      sunColor: 0xffe6c4,
+      sunIntensity: 3.6,
+      hemiSky: 0xa8c4dc,
+      hemiGround: 0x3b4034,
+      hemiIntensity: 0.7,
+      fog: 0xc4d3dc,
+      fogNear: 1200,
+      fogFar: 7200,
+      envIntensity: 0.45,
+      waterColor: 0x0b3642,
+      waterSun: 0xffe9c4,
+    },
+  };
 }

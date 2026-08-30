@@ -77,6 +77,10 @@ export class Peds {
     this.variants = (opts.models && opts.models.length) ? opts.models : null;
     this.meshes = [];
     this.kidMeshes = [];
+    // Kept so the whole crowd can be re-dressed mid-run when the lawn turns: the kit
+    // geometry to recolour from, and the everyday one to put back.
+    this.crowdSrc = [];
+    this.crowdNormalGeos = [];
     if (this.variants) {
       // Each character is baked at several points of its walk cycle. A walker keeps its
       // character and its slot, and steps between the frame meshes as its phase
@@ -84,7 +88,8 @@ export class Peds {
       const per = Math.ceil((this.MAX + this.KIDS) / this.variants.length) + 2;
       this.frameCount = Math.max(1, (this.variants[0].frames || [null]).length);
       this.variants.forEach((v) => {
-        const frames = (v.frames && v.frames.length ? v.frames : [v.geometry]).map((geo) => {
+        const src = (v.frames && v.frames.length ? v.frames : [v.geometry]);
+        const frames = src.map((geo) => {
           const m = new THREE.InstancedMesh(geo, v.material, per);
           m.castShadow = true; m.receiveShadow = true;
           m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -93,10 +98,14 @@ export class Peds {
           return m;
         });
         this.meshes.push(frames);
+        // what to recolour from, and what to put back
+        this.crowdSrc.push({ parts: v.parts, geos: src });
+        this.crowdNormalGeos.push(src.slice());
       });
       this.kidMeshes = this.meshes;      // kids ride the same meshes, scaled per instance
     } else {
-      const m = new THREE.InstancedMesh(personGeometry(1), mat, this.MAX + this.KIDS);
+      this.standInGeo = personGeometry(1);
+      const m = new THREE.InstancedMesh(this.standInGeo, mat, this.MAX + this.KIDS);
       m.castShadow = true; m.receiveShadow = true;
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
@@ -301,8 +310,10 @@ export class Peds {
       kid: false,
       hitRadius: opts.hitRadius ?? 1.2,
       fallLength: opts.fallLength ?? 0.85,
-      // seconds face down before they get back up; 0/absent means they stay down
+      // seconds face down before they get back up; 0/absent means they stay down.
+      // The spec is kept separately because standing up clears the live one.
       riseDelay: opts.riseDelay || 0,
+      riseDelaySpec: opts.riseDelay || 0,
       riseT: 0,
       onDeath: opts.onDeath || null,
       onRise: opts.onRise || null,
@@ -590,7 +601,10 @@ export class Peds {
     ped.grounded = false;
     ped.vx = 0; ped.vz = 0; ped.vy = undefined;
     ped.risen = true;
-    ped.immortal = true;             // nothing puts them down twice, so no farming it
+    // Once only. They can be put down again — that is the whole point of what gets up
+    // — but the second hit is the last one, so there is no loop to farm.
+    ped.riseDelay = 0;
+    ped.riseT = 0;
     ped.y = this.stand(ped.x, ped.z);
     if (this.effects) {
       this.effects.dust(ped.x, ped.y + 0.2, ped.z, 14);
@@ -829,47 +843,75 @@ export class Peds {
     return clamp(speed * 0.18, 0.8, 6);
   }
 
-  // ---- the congregation follows him down ----
-  // Their shepherd came back wrong, so the whites go with him: the same kit geometry
-  // recoloured off the same part names, red where the linen was. Built on the first
-  // call rather than at boot — most runs never need it — and swapped straight onto the
-  // instanced meshes, so the ones already lying in the grass turn too.
-  damnCongregation() {
-    if (this.damned || !this.partyMeshes.length) return;
-    this.damned = true;
-    if (this.partySrc.length) {
-      if (!this.partyRedGeos) {
-        const blood = new THREE.Color(0x9b1220);
-        const reds = (name, col) => (
-          /skin|eye|brow|hair/i.test(name) ? null : col.clone().lerp(blood, 0.9)
-        );
-        this.partyRedGeos = this.partySrc.map(v => v.geos.map(geo => recolorFlattened(geo, v.parts, reds)));
-      }
-      this.partyRedGeos.forEach((frames, vi) => {
-        frames.forEach((geo, k) => { if (this.partyMeshes[vi][k]) this.partyMeshes[vi][k].geometry = geo; });
-      });
-    } else if (this.partyMeshes[0] && this.partyMeshes[0][0]) {
-      // the procedural stand-ins, dressed the same way
-      if (!this.partyRedGeo) {
-        this.partyRedGeo = personGeometry(1, { legs: [0.55, 0.07, 0.1], skin: [0.86, 0.7, 0.58] });
-      }
-      this.partyMeshes[0][0].geometry = this.partyRedGeo;
-    }
-    // the stand-ins tint their torsos per instance, so those have to be told as well
-    for (const p of this.party) { p.shirt = '#9b1220'; p.colourSet = null; }
+  // ---- everybody follows him down ----
+  // Their shepherd came back wrong, and it does not stop at the churchyard: the whole
+  // town goes over with him. Same kit geometry, recoloured off the same part names,
+  // red where the cloth was — faces, hair and eyes left alone, because a crowd of
+  // solid red silhouettes reads as a rendering fault rather than a costume. Built on
+  // the first call rather than at boot (most runs never need it) and swapped straight
+  // onto the instanced meshes, so the ones already lying in the road turn too.
+  redFor(blood) {
+    const b = new THREE.Color(blood);
+    return (name, col) => (
+      /skin|eye|brow|hair/i.test(name) ? null : col.clone().lerp(b, 0.9)
+    );
   }
 
-  blessCongregation() {
+  swapCrowd(meshes, geoSets) {
+    geoSets.forEach((frames, vi) => {
+      frames.forEach((geo, k) => { if (meshes[vi] && meshes[vi][k]) meshes[vi][k].geometry = geo; });
+    });
+  }
+
+  damnEveryone() {
+    if (this.damned) return;
+    this.damned = true;
+    // the street: walkers and the schoolkids share these meshes
+    if (this.crowdSrc.length) {
+      if (!this.crowdRedGeos) {
+        const reds = this.redFor(0xb01018);
+        this.crowdRedGeos = this.crowdSrc.map(v => v.geos.map(geo => recolorFlattened(geo, v.parts, reds)));
+      }
+      this.swapCrowd(this.meshes, this.crowdRedGeos);
+    }
+    // the lawn: a deeper red, because they started in white and would otherwise come
+    // out pinker than the street
+    if (this.partySrc.length) {
+      if (!this.partyRedGeos) {
+        const reds = this.redFor(0x9b1220);
+        this.partyRedGeos = this.partySrc.map(v => v.geos.map(geo => recolorFlattened(geo, v.parts, reds)));
+      }
+      this.swapCrowd(this.partyMeshes, this.partyRedGeos);
+    }
+    // the procedural stand-ins carry no kit, so they are tinted per instance instead
+    if (!this.variants) {
+      if (!this.standInRedGeo) {
+        this.standInRedGeo = personGeometry(1, { legs: [0.55, 0.07, 0.1], skin: [0.86, 0.7, 0.58] });
+      }
+      for (const frames of [...this.meshes, ...this.partyMeshes]) {
+        for (const m of frames) m.geometry = this.standInRedGeo;
+      }
+      for (const list of [this.people, this.kids, this.party]) {
+        for (const p of list) { p.shirt = '#a41220'; p.colourSet = null; }
+      }
+    }
+  }
+
+  redeemEveryone() {
     if (!this.damned) return;
     this.damned = false;
-    if (this.partyWhiteGeos.length) {
-      this.partyWhiteGeos.forEach((frames, vi) => {
-        frames.forEach((geo, k) => { if (this.partyMeshes[vi][k]) this.partyMeshes[vi][k].geometry = geo; });
-      });
-    } else if (this.partyMeshes[0] && this.partyMeshes[0][0] && this.partyWhiteGeo) {
-      this.partyMeshes[0][0].geometry = this.partyWhiteGeo;
+    if (this.crowdNormalGeos.length) this.swapCrowd(this.meshes, this.crowdNormalGeos);
+    if (this.partyWhiteGeos.length) this.swapCrowd(this.partyMeshes, this.partyWhiteGeos);
+    if (!this.variants) {
+      if (this.standInGeo) {
+        for (const frames of this.meshes) for (const m of frames) m.geometry = this.standInGeo;
+      }
+      if (this.partyWhiteGeo) {
+        for (const frames of this.partyMeshes) for (const m of frames) m.geometry = this.partyWhiteGeo;
+      }
+      for (const ped of [...this.people, ...this.kids]) { ped.shirt = choice(this.shirts); ped.colourSet = null; }
+      for (const p of this.party) { p.shirt = '#ffffff'; p.colourSet = null; }
     }
-    for (const p of this.party) { p.shirt = '#ffffff'; p.colourSet = null; }
   }
 
   reset() {
@@ -889,11 +931,12 @@ export class Peds {
       sp.splat = 0; sp.choc = 0; sp.dead = false; sp.tumble = 0;
       sp.grounded = false; sp.vy = undefined; sp.twist = 0;
       sp.risen = false; sp.immortal = false; sp.riseT = 0;
+      sp.riseDelay = sp.riseDelaySpec || 0;
       if (sp.home) { sp.x = sp.home.x; sp.z = sp.home.z; sp.heading = sp.home.heading; }
       sp.y = undefined;
       if (sp.onRevive) sp.onRevive(sp);
     }
-    this.blessCongregation();
+    this.redeemEveryone();
     if (this.partySpot) this.seedParty();
     for (const d of this.decals) { d.mesh.visible = false; d.t = 0; d.follow = null; }
   }
