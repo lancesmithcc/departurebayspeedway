@@ -7,6 +7,7 @@
     "start": "node serve.mjs",
     "serve": "node serve.mjs",
     "bake": "node tools/bake.mjs",
-    "voices": "python3 tools/make_voices.py"
+    "voices": "python3 tools/make_voices.py",
+    "serve:prod": "node tools/serve-prod.mjs"
   }
 }
