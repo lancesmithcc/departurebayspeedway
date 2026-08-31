@@ -141,12 +141,10 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
     // OSM uses building=yes for many shops. Named footprints are landmarks or
     // commercial unless their type explicitly says residential.
     const isHouse = b.h < 7.5 && HOUSE_TYPES.has(b.t) && !b.n;
-    const isPitched = isHouse || PITCHED_TYPES.has(b.t);
+    const wantsPitched = isHouse || PITCHED_TYPES.has(b.t);
     const palette = LANDMARK_PALETTE[b.n];
     wallColor.set(palette ? palette[0] : (isHouse ? pick(HOUSE_COLORS) : pick(COMM_COLORS)));
     roofColor.set(palette ? palette[1] : pick(ROOF_COLORS));
-    const roofAllowance = isPitched ? (b.t === 'apartments' ? 1.35 : 1.9) : 0;
-    const wallTop = Math.max(2.8, b.h - roofAllowance);
 
     // winding sign for outward normals
     let area2 = 0;
@@ -155,6 +153,26 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
       area2 += a[0] * c[1] - c[0] * a[1];
     }
     const wsign = area2 > 0 ? 1 : -1;
+    // A rectangular gable over an L-shaped mapped footprint creates a visibly false
+    // building. Only fit that roof where the OSM outline substantially fills its
+    // oriented box; complex footprints retain their exact polygon at roof level.
+    let roofUx = 1, roofUz = 0, roofBestLen = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], c = pts[(i + 1) % pts.length];
+      const dx = c[0] - a[0], dz = c[1] - a[1], len = Math.hypot(dx, dz);
+      if (len > roofBestLen) { roofBestLen = len; roofUx = dx / len; roofUz = dz / len; }
+    }
+    const roofVx = -roofUz, roofVz = roofUx;
+    let ru0 = 1e9, ru1 = -1e9, rv0 = 1e9, rv1 = -1e9;
+    for (const p of pts) {
+      const pu = (p[0] - cx) * roofUx + (p[1] - cz) * roofUz;
+      const pv = (p[0] - cx) * roofVx + (p[1] - cz) * roofVz;
+      ru0 = Math.min(ru0, pu); ru1 = Math.max(ru1, pu); rv0 = Math.min(rv0, pv); rv1 = Math.max(rv1, pv);
+    }
+    const rectangularity = Math.abs(area2) * 0.5 / Math.max(1, (ru1 - ru0) * (rv1 - rv0));
+    const isPitched = wantsPitched && pts.length <= 8 && rectangularity >= 0.76;
+    const roofAllowance = isPitched ? (b.t === 'apartments' ? 1.35 : 1.9) : 0;
+    const wallTop = Math.max(2.8, b.h - roofAllowance);
 
     const si = clamp(Math.floor((cx - W.terrainMinX) / sw), 0, SEC - 1);
     const sj = clamp(Math.floor((cz - W.terrainMinZ) / sh), 0, SEC - 1);
@@ -208,12 +226,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
     if (isPitched) {
       // Longest footprint edge sets the ridge, preserving each building's mapped
       // orientation instead of snapping every roof to the world axes.
-      let bestLen = 0, ux = 1, uz = 0;
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i], c = pts[(i + 1) % pts.length];
-        const dx = c[0] - a[0], dz = c[1] - a[1], len = Math.hypot(dx, dz);
-        if (len > bestLen) { bestLen = len; ux = dx / len; uz = dz / len; }
-      }
+      const ux = roofUx, uz = roofUz;
       const vx = -uz, vz = ux;
       let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
       for (const p of pts) {
@@ -258,12 +271,18 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
       const cap = new THREE.ShapeGeometry(shape);
       cap.rotateX(-Math.PI / 2);
       cap.translate(0, gy + b.h + 0.02, 0);
-      // flat commercial roofs read as tar/gravel membrane, not house shingles
-      const g0 = 0.34 + random() * 0.1;
-      tintGeo(cap, g0, g0 * 1.02, g0 * 1.04);
-      sector.trim.push(cap);
+      if (wantsPitched) {
+        tintGeo(cap, roofColor.r, roofColor.g, roofColor.b);
+        sector.roofs.push(cap);
+      } else {
+        // flat commercial roofs read as tar/gravel membrane, not house shingles
+        const g0 = 0.34 + random() * 0.1;
+        tintGeo(cap, g0, g0 * 1.02, g0 * 1.04);
+        sector.trim.push(cap);
+      }
 
       // parapet: a low wall ringing the roof edge, so the top isn't a bare slab
+      if (!wantsPitched) {
       const pPos = [], pNorm = [], pUv = [], pCol = [], pIdx = [];
       let pv = 0;
       const pTop = gy + b.h + 0.85, pBot = gy + b.h - 0.15;
@@ -303,6 +322,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
           tintGeo(box, 0.7, 0.71, 0.72);
           sector.trim.push(box);
         }
+      }
       }
     }
 

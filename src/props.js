@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { recolorFlattened } from './models.js';
-import { Grid, rand, choice, clamp, smoothstep, fbm } from './util.js';
+import { Grid, rand, choice, clamp, smoothstep, fbm, distPointToSeg } from './util.js';
 import { TEX, streetBlade } from './textures.js';
 
 function box(w, h, d, mat) {
@@ -14,6 +14,27 @@ function cyl(rt, rb, h, mat, seg = 8) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
   m.castShadow = true;
   return m;
+}
+
+// OSM sign/signal nodes commonly lie on a carriageway centreline. Move furniture to
+// the nearest mapped verge, then recheck because an intersection has two roads.
+function pushOffRoad(x, z, terrain, clearance = 1.1) {
+  for (let pass = 0; pass < 4; pass++) {
+    const nr = terrain.nearestRoad(x, z);
+    if (!nr || nr.d >= nr.seg.hw + clearance) break;
+    const hit = distPointToSeg(x, z, nr.seg.ax, nr.seg.az, nr.seg.bx, nr.seg.bz);
+    const qx = nr.seg.ax + (nr.seg.bx - nr.seg.ax) * hit.t;
+    const qz = nr.seg.az + (nr.seg.bz - nr.seg.az) * hit.t;
+    let dx = x - qx, dz = z - qz, len = Math.hypot(dx, dz);
+    if (len < 0.01) {
+      const sx = nr.seg.bx - nr.seg.ax, sz = nr.seg.bz - nr.seg.az;
+      len = Math.hypot(sx, sz) || 1; dx = -sz / len; dz = sx / len; len = 1;
+    }
+    const want = nr.seg.hw + clearance;
+    x = qx + dx / len * want;
+    z = qz + dz / len * want;
+  }
+  return [x, z];
 }
 
 // ---------- trees ----------
@@ -590,11 +611,14 @@ export function buildGasStation(pos, heading, terrain) {
 export function buildSevenEleven(spot, terrain, heading = 0) {
   const g = new THREE.Group();
   const [px, pz] = spot.p;
-  const gy = terrain.groundHeight(px, pz);
+  // The Departure Bay store's forecourt is level with the adjacent carriageway.
+  // Using the lot-centre terrain sample put the whole store down the cross-slope.
+  const gy = terrain.routeLevelNear(px, pz) ?? terrain.surfaceHeight(px, pz);
   const white = new THREE.MeshStandardMaterial({ color: 0xf4f3ef, roughness: 0.7 });
   const gray = new THREE.MeshStandardMaterial({ color: 0x8d9297, roughness: 0.8 });
   const brick = new THREE.MeshStandardMaterial({ color: 0x9b6f57, roughness: 0.9 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1b1e21, roughness: 0.85 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xc5262c, roughness: 0.62 });
 
   // footprint size from the real OSM polygon, so the store sits on its actual pad
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
@@ -603,22 +627,23 @@ export function buildSevenEleven(spot, terrain, heading = 0) {
   // a real 7-Eleven is a small roadside box, not a warehouse
   const bw = clamp(x1 - x0, 14, 18), bd = clamp(z1 - z0, 10, 12.5), bh = 3.9;
 
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(bw + 20, 0.16, bd + 18),
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(bw + 22, 0.5, bd + 27),
     new THREE.MeshStandardMaterial({ map: TEX.concrete, roughness: 0.95 }));
-  pad.position.set(0, gy + 0.08, 0); pad.receiveShadow = true; g.add(pad);
+  pad.position.set(0, gy - 0.19, 0); pad.receiveShadow = true; g.add(pad);
 
-  const store = box(bw, bh, bd, white); store.position.set(0, gy + bh / 2, 0); g.add(store);
-  const base = box(bw + 0.1, 1.1, bd + 0.1, brick); base.position.set(0, gy + 0.55, 0); g.add(base);
-  const parapet = box(bw + 0.5, 0.7, bd + 0.5, white); parapet.position.set(0, gy + bh + 0.3, 0); g.add(parapet);
+  const storeZ = -6;
+  const store = box(bw, bh, bd, white); store.position.set(0, gy + bh / 2, storeZ); g.add(store);
+  const base = box(bw + 0.1, 1.1, bd + 0.1, brick); base.position.set(0, gy + 0.55, storeZ); g.add(base);
+  const parapet = box(bw + 0.5, 0.7, bd + 0.5, white); parapet.position.set(0, gy + bh + 0.3, storeZ); g.add(parapet);
 
   const bandMat = new THREE.MeshStandardMaterial({
     map: TEX.sevenBand, roughness: 0.45, emissive: 0xffffff, emissiveMap: TEX.sevenBand, emissiveIntensity: 0.35,
     side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   });
   const bandFront = new THREE.Mesh(new THREE.PlaneGeometry(bw * 0.82, 1.5), bandMat);
-  bandFront.position.set(0, gy + bh + 0.25, bd / 2 + 0.3); g.add(bandFront);
+  bandFront.position.set(0, gy + bh + 0.25, storeZ + bd / 2 + 0.3); g.add(bandFront);
   const bandSide = new THREE.Mesh(new THREE.PlaneGeometry(bd * 0.8, 1.4), bandMat);
-  bandSide.position.set(bw / 2 + 0.3, gy + bh + 0.25, 0); bandSide.rotation.y = Math.PI / 2; g.add(bandSide);
+  bandSide.position.set(bw / 2 + 0.3, gy + bh + 0.25, storeZ); bandSide.rotation.y = Math.PI / 2; g.add(bandSide);
 
   // glazed shopfront under a slim canopy
   const glassMat = new THREE.MeshStandardMaterial({
@@ -626,29 +651,47 @@ export function buildSevenEleven(spot, terrain, heading = 0) {
     emissive: 0xffffff, emissiveMap: TEX.storefront, emissiveIntensity: 0.5,
   });
   const glass = box(bw * 0.78, 2.5, 0.2, glassMat);
-  glass.position.set(0, gy + 1.9, bd / 2 + 0.06); g.add(glass);
-  const canopy = box(bw * 0.9, 0.3, 1.8, white);
-  canopy.position.set(0, gy + 3.4, bd / 2 + 0.9); g.add(canopy);
+  glass.position.set(0, gy + 1.9, storeZ + bd / 2 + 0.06); g.add(glass);
+  const entryCanopy = box(bw * 0.9, 0.3, 1.8, white);
+  entryCanopy.position.set(0, gy + 3.4, storeZ + bd / 2 + 0.9); g.add(entryCanopy);
   for (const s of [-1, 1]) {
     const post = cyl(0.08, 0.08, 3.3, gray, 8);
-    post.position.set(s * bw * 0.4, gy + 1.65, bd / 2 + 1.6); g.add(post);
+    post.position.set(s * bw * 0.4, gy + 1.65, storeZ + bd / 2 + 1.6); g.add(post);
+  }
+
+  // Street View: four-pump forecourt beneath a broad white canopy with a deep red
+  // fascia. It is the site's dominant silhouette and sits between store and road.
+  const fuelZ = 7.5;
+  const fuelRoof = box(18.5, 0.55, 9.5, white);
+  fuelRoof.position.set(0, gy + 5.1, fuelZ); g.add(fuelRoof);
+  const fuelFascia = box(19.1, 0.42, 10.1, red);
+  fuelFascia.position.set(0, gy + 5.32, fuelZ); g.add(fuelFascia);
+  const fuelInset = box(18.5, 0.18, 9.5, white);
+  fuelInset.position.set(0, gy + 5.45, fuelZ); g.add(fuelInset);
+  for (const x of [-6.4, 6.4]) for (const z of [fuelZ - 3.1, fuelZ + 3.1]) {
+    const col = box(0.42, 4.8, 0.42, white); col.position.set(x, gy + 2.4, z); g.add(col);
+  }
+  for (const x of [-4.2, 4.2]) {
+    const island = box(1.2, 0.18, 4.0, gray); island.position.set(x, gy + 0.09, fuelZ); g.add(island);
+    const pump = box(0.8, 1.75, 0.65, red); pump.position.set(x, gy + 0.96, fuelZ); g.add(pump);
+    const screen = box(0.58, 0.52, 0.03, dark); screen.position.set(x, gy + 1.25, fuelZ + 0.34); g.add(screen);
   }
 
   // pole sign facing the road + a bollard row along the front
   const pole = cyl(0.26, 0.3, 7.5, gray, 10);
-  pole.position.set(-bw / 2 - 5, gy + 3.75, bd / 2 + 3); g.add(pole);
+  pole.position.set(-bw / 2 - 5, gy + 3.75, fuelZ + 2); g.add(pole);
   const signMat = new THREE.MeshStandardMaterial({
     map: TEX.sevenEleven, roughness: 0.45, emissive: 0xffffff, emissiveMap: TEX.sevenEleven, emissiveIntensity: 0.45,
   });
   const sign = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 0.3),
     [gray, gray, gray, gray, signMat, signMat]);
-  sign.position.set(-bw / 2 - 5, gy + 8.4, bd / 2 + 3); g.add(sign);
+  sign.position.set(-bw / 2 - 5, gy + 8.4, fuelZ + 2); g.add(sign);
   for (let i = -3; i <= 3; i++) {
     const b = cyl(0.11, 0.13, 0.95, new THREE.MeshStandardMaterial({ color: 0xe0b32c, roughness: 0.8 }), 8);
-    b.position.set(i * 1.9, gy + 0.48, bd / 2 + 2.4); g.add(b);
+    b.position.set(i * 1.9, gy + 0.48, storeZ + bd / 2 + 2.4); g.add(b);
   }
   // dumpster corral + a couple of parking stalls' worth of curb
-  const bin = box(2.2, 1.4, 1.4, dark); bin.position.set(bw / 2 - 2, gy + 0.7, -bd / 2 - 2.4); g.add(bin);
+  const bin = box(2.2, 1.4, 1.4, dark); bin.position.set(bw / 2 - 2, gy + 0.7, storeZ - bd / 2 - 2.4); g.add(bin);
 
   g.position.set(px, 0, pz);
   g.rotation.y = heading;
@@ -704,8 +747,12 @@ export function buildJunctionSigns(map, corridor, terrain) {
     const tan = corridor.tan[pr.i];
     const sideDir = sideRoadAt(j);
     const side = sideDir ? (Math.sign(sideDir[0] * nx + sideDir[1] * nz) || 1) : 1;
-    const cx = corridor.pts[pr.i][0] + nx * side * (pr.hw + 1.6);
-    const cz = corridor.pts[pr.i][1] + nz * side * (pr.hw + 1.6);
+    const roadHW = Math.max(3.5, pr.hw - 3.6);
+    const [cx, cz] = pushOffRoad(
+      corridor.pts[pr.i][0] + nx * side * (roadHW + 1.25),
+      corridor.pts[pr.i][1] + nz * side * (roadHW + 1.25),
+      terrain,
+    );
     const gy = terrain.groundHeight(cx, cz);
 
     const pole = cyl(0.055, 0.06, 3.4, poleMat, 6);
@@ -757,11 +804,22 @@ export function buildTrafficFurniture(map, corridor, terrain) {
   // --- signal heads on curved roadside poles ---
   // Both signalised race intersections use Nanaimo's curved side poles; Street View
   // shows no full-width mast arms here.
+  const signalStations = [];
   for (const p of map.signals || []) {
-    const { tan, n, hw, d } = tangentAt(p);
-    if (d > 45) continue;
+    const station = tangentAt(p);
+    if (station.d > 45 || signalStations.some(s => Math.abs(s.i - station.i) < 9)) continue;
+    signalStations.push(station);
+  }
+  for (const station of signalStations) {
+    const { tan, n, hw, i } = station;
+    const roadHW = Math.max(3.5, hw - 3.6);
+    const base = corridor.pts[i];
     for (const side of [-1, 1]) {
-      const bx = p[0] + n[0] * side * (hw + 0.8), bz = p[1] + n[1] * side * (hw + 0.8);
+      const [bx, bz] = pushOffRoad(
+        base[0] + n[0] * side * (roadHW + 1.35),
+        base[1] + n[1] * side * (roadHW + 1.35),
+        terrain,
+      );
       const bgy = terrain.groundHeight(bx, bz);
       const rig = new THREE.Group();
       rig.position.set(bx, bgy, bz);
@@ -797,8 +855,12 @@ export function buildTrafficFurniture(map, corridor, terrain) {
     const { n, hw, d, i } = tangentAt(p);
     if (d > 45) continue;
     const side = Math.sign((p[0] - corridor.pts[i][0]) * n[0] + (p[1] - corridor.pts[i][1]) * n[1]) || 1;
-    const sx = corridor.pts[i][0] + n[0] * side * (hw + 1.3);
-    const sz = corridor.pts[i][1] + n[1] * side * (hw + 1.3);
+    const roadHW = Math.max(3.5, hw - 3.6);
+    const [sx, sz] = pushOffRoad(
+      corridor.pts[i][0] + n[0] * side * (roadHW + 1.25),
+      corridor.pts[i][1] + n[1] * side * (roadHW + 1.25),
+      terrain,
+    );
     const gy = terrain.groundHeight(sx, sz);
     const pole = cyl(0.05, 0.055, 2.3, poleMat, 6);
     pole.position.set(sx, gy + 1.15, sz);
@@ -1191,6 +1253,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const side = Math.sign(pr.lat) || 1;
   const base = corridor.pts[i];
   const hw = corridor.hw[i];
+  const siteY = terrain.routeLevelNear(base[0], base[1]) ?? terrain.surfaceHeight(base[0], base[1]);
   // out from the kerb onto the lawn
   const at = (along, out) => [
     base[0] + tan[0] * along + nx * side * (hw + out),
@@ -1202,31 +1265,29 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const trim = new THREE.MeshStandardMaterial({ color: 0x2f4a63, roughness: 0.7 });
   const roofM = new THREE.MeshStandardMaterial({ color: 0x4a5259, roughness: 0.9 });
   const glass = new THREE.MeshStandardMaterial({ color: 0x27414f, roughness: 0.2, metalness: 0.5 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xd8b24a, roughness: 0.35, metalness: 0.8, emissive: 0x2a1e05 });
 
   const put = (mesh, along, out, yOff) => {
     const [x, z] = at(along, out);
-    mesh.position.set(x, terrain.groundHeight(x, z) + yOff, z);
+    mesh.position.set(x, siteY + yOff, z);
     mesh.rotation.y = faceAng;
     g.add(mesh);
     return mesh;
   };
 
-  // Nave, gabled roof and a squat bell tower — the plain west-coast Baptist shape.
-  // The whole building sits down the frontage from the driveway, or the only way onto
-  // the lawn runs straight through the sanctuary.
-  const CH = -36;                                          // church centre, along the road
-  const nave = put(box(26, 6.4, 14, white), CH, 34, 3.2);
-  put(box(26.6, 0.8, 14.6, roofM), CH, 34, 6.8);
-  put(box(27, 1.0, 3.0, roofM), CH, 34, 7.5);
-  const tower = put(box(7.5, 11, 7.5, white), CH + 18, 30, 5.5);   // tower
-  put(box(8, 0.7, 8, roofM), CH + 18, 30, 11.2);
-  put(box(0.5, 3.0, 0.5, gold), CH + 18, 30, 13.1);        // cross
-  put(box(2.2, 0.5, 0.5, gold), CH + 18, 30, 13.6);
-  for (let k = -2; k <= 2; k++) put(box(2.0, 3.0, 0.3, glass), CH + k * 5, 27.2, 3.6);
-  put(box(3.4, 3.6, 0.4, trim), CH, 27.0, 1.8);            // doors
-  put(box(9, 0.35, 4, trim), CH, 25.4, 4.0);               // entry canopy
-  for (const sgn of [-1, 1]) put(cyl(0.14, 0.14, 4.0, white, 8), CH + sgn * 4, 24.0, 2.0);
+  // 2026 Street View shows a modest white rectangular hall with a shallow charcoal
+  // gable and small covered entry—no bell tower or monumental cross. Put its centre
+  // on the mapped OSM footprint instead of shifting it down the frontage.
+  const CH = 0;
+  const churchOut = Math.max(8, Math.abs(pr.lat) - hw);
+  const nave = put(box(13, 4.8, 23, white), CH, churchOut, 2.4);
+  const roofLeft = box(7.2, 0.45, 23.8, roofM); roofLeft.rotation.z = 0.22;
+  put(roofLeft, CH - 3.15, churchOut, 5.15);
+  const roofRight = box(7.2, 0.45, 23.8, roofM); roofRight.rotation.z = -0.22;
+  put(roofRight, CH + 3.15, churchOut, 5.15);
+  for (let k = -1; k <= 1; k++) put(box(1.5, 2.2, 0.2, glass), CH + k * 3.1, churchOut - 11.55, 2.45);
+  const entry = put(box(3.2, 3.2, 0.35, trim), CH, churchOut - 11.7, 1.6);
+  put(box(6.2, 0.32, 3.4, roofM), CH, churchOut - 12.8, 3.5);
+  for (const sgn of [-1, 1]) put(cyl(0.11, 0.11, 3.4, white, 8), CH + sgn * 2.7, churchOut - 14.0, 1.7);
 
   // ---- the party on the lawn ----
   const [lx, lz] = at(6, 62);                               // lawn centre, straight out
@@ -1242,7 +1303,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     const [ax, az] = at(6, out);
     for (const sgn of [-1, 1]) {
       const px = ax + tan[0] * sgn * APRON_HW, pz = az + tan[1] * sgn * APRON_HW;
-      apronPos.push(px, terrain.groundHeight(px, pz) + 0.06, pz);
+      apronPos.push(px, siteY + 0.06, pz);
       apronNorm.push(0, 1, 0);
       apronUV.push(sgn > 0 ? 1 : 0, out / 6);
     }
@@ -1262,7 +1323,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   }));
   apron.receiveShadow = true;
   g.add(apron);
-  const lawnY = terrain.groundHeight(lx, lz);
+  const lawnY = siteY;
   const lawn = new THREE.Mesh(new THREE.CircleGeometry(30, 28),
     new THREE.MeshStandardMaterial({ color: 0x6f9a4d, roughness: 0.95 }));
   lawn.rotation.x = -Math.PI / 2;
@@ -1280,7 +1341,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * Math.PI * 2;
     const px = lx + Math.cos(a) * 26, pz = lz + Math.sin(a) * 26;
-    const pgy = terrain.groundHeight(px, pz);
+    const pgy = lawnY;
     const pole = cyl(0.09, 0.11, 5.0, new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.8 }), 6);
     pole.position.set(px, pgy + 2.5, pz);
     g.add(pole);
@@ -1323,7 +1384,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const castleCols = [0xd6202c, 0x2f8fd6, 0xffd23f];
   castleSpots.forEach(([ox, oz], k) => {
     const cx = lx + ox, cz = lz + oz;
-    const cgy = terrain.groundHeight(cx, cz);
+    const cgy = lawnY;
     const col = castleCols[k % castleCols.length];
     const skin = new THREE.MeshStandardMaterial({ color: col, roughness: 0.55 });
     const skin2 = new THREE.MeshStandardMaterial({ color: 0xf5f1e6, roughness: 0.55 });
@@ -1365,7 +1426,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   // body swaps to its damned skin — red hide, black hair, yellow eyes — the horns
   // come out and the halo drops.
   const [jx, jz] = [lx + 4, lz - 2];
-  const jgy = terrain.groundHeight(jx, jz);
+  const jgy = lawnY;
   const sash = new THREE.MeshStandardMaterial({ color: 0xa2262c, roughness: 0.75 });
   const rope = new THREE.MeshStandardMaterial({ color: 0xc8a86a, roughness: 0.9 });
   const skinM = new THREE.MeshStandardMaterial({ color: 0xc79a72, roughness: 0.8 });
@@ -1498,7 +1559,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     halo.material.emissive.set(0x5a0000);
     halo.material.emissiveIntensity = 0.35;
     if (halo.parent !== g) g.add(halo);       // add() reparents
-    halo.position.set(drop.x + 0.5, terrain.groundHeight(drop.x, drop.z) + 0.06, drop.z + 0.3);
+    halo.position.set(drop.x + 0.5, lawnY + 0.06, drop.z + 0.3);
     halo.rotation.set(-Math.PI / 2 + 0.18, 0, rand(0, Math.PI));
     glow.color.set(0xff3a12);
     glow.intensity = 26;
@@ -1621,8 +1682,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     // solid things on the lawn. People walk round these instead of through them; the
     // bike still launches off the castle tops, which is a separate list.
     blockers: [
-      { x: nave.position.x, z: nave.position.z, hw: 13, hd: 7, rot: faceAng },
-      { x: tower.position.x, z: tower.position.z, hw: 3.75, hd: 3.75, rot: faceAng },
+      { x: nave.position.x, z: nave.position.z, hw: 6.5, hd: 11.5, rot: faceAng },
       ...castles.map(c => ({ x: c.x, z: c.z, hw: c.bw, hd: c.bd, rot: 0 })),
     ],
     // the hole in the guardrail: wide enough to reach from the carriageway to the far

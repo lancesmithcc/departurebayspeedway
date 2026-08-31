@@ -454,7 +454,7 @@ export class Peds {
       }
       this.pushOut(ped);
       const gy = this.standHeight(ped.x, ped.z, ped.i, ped.side);
-      ped.y = ped.y === undefined ? gy : ped.y + (gy - ped.y) * Math.min(1, 9 * dt);
+      ped.y = ped.y === undefined ? gy : Math.max(gy, ped.y + (gy - ped.y) * Math.min(1, 9 * dt));
       const t0 = this.corridor.tan[i0], t1 = this.corridor.tan[i1];
       const tx = t0[0] + (t1[0] - t0[0]) * f, tz = t0[1] + (t1[1] - t0[1]) * f;
       const want = Math.atan2(tx * ped.dir, tz * ped.dir);
@@ -478,7 +478,7 @@ export class Peds {
       kid.x = kid.a[0] + (kid.b[0] - kid.a[0]) * kid.t + kid.tan[0] * kid.lane;
       kid.z = kid.a[1] + (kid.b[1] - kid.a[1]) * kid.t + kid.tan[1] * kid.lane;
       const kgy = this.stand(kid.x, kid.z);
-      kid.y = kid.y === undefined ? kgy : kid.y + (kgy - kid.y) * Math.min(1, 9 * dt);
+      kid.y = kid.y === undefined ? kgy : Math.max(kgy, kid.y + (kgy - kid.y) * Math.min(1, 9 * dt));
       const kwant = Math.atan2((kid.b[0] - kid.a[0]) * kid.dir, (kid.b[1] - kid.a[1]) * kid.dir);
       let kdh = kwant - (kid.heading ?? kwant);
       while (kdh > Math.PI) kdh -= Math.PI * 2;
@@ -521,7 +521,7 @@ export class Peds {
         p.x = px; p.z = pz;
         this.pushOut(p);
         const gy = this.stand(p.x, p.z);
-        p.y = p.y === undefined ? gy : p.y + (gy - p.y) * Math.min(1, 9 * dt);
+        p.y = p.y === undefined ? gy : Math.max(gy, p.y + (gy - p.y) * Math.min(1, 9 * dt));
         let dh = want - (p.heading ?? want);
         while (dh > Math.PI) dh -= Math.PI * 2;
         while (dh < -Math.PI) dh += Math.PI * 2;
@@ -536,7 +536,7 @@ export class Peds {
       if (!sp.active) continue;
       if (sp.splat > 0) { this.downed(sp, dt); continue; }
       const gy = this.stand(sp.x, sp.z);
-      sp.y = sp.y === undefined ? gy : sp.y + (gy - sp.y) * Math.min(1, 9 * dt);
+      sp.y = sp.y === undefined ? gy : Math.max(gy, sp.y + (gy - sp.y) * Math.min(1, 9 * dt));
     }
 
     // chocolate rides the body while they are down, then stays on the pavement

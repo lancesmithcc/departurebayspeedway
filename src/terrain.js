@@ -10,6 +10,9 @@ export class Terrain {
     this.map = map;
     this.routeElevation = Array.isArray(map.routeElevation) && map.routeElevation.length === map.route.length
       ? map.routeElevation : null;
+    this.routeElevationOffsets = Array.isArray(map.routeElevationOffsets) ? map.routeElevationOffsets : null;
+    this.routeElevationCross = Array.isArray(map.routeElevationCross) && map.routeElevationCross.length === map.route.length
+      ? map.routeElevationCross : null;
     this.routeElevationGrid = new Grid(40);
     if (this.routeElevation) {
       map.route.forEach((p, i) => this.routeElevationGrid.insert(p[0], p[1], {
@@ -142,16 +145,42 @@ export class Terrain {
       }
       if (best && bestD < radius - 40) break;
     }
-    return best ? { e: best.e, d: bestD, i: best.i } : null;
+    if (!best) return null;
+    const route = this.map.route;
+    const a = route[Math.max(0, best.i - 1)], b = route[Math.min(route.length - 1, best.i + 1)];
+    const tx0 = b[0] - a[0], tz0 = b[1] - a[1], len = Math.hypot(tx0, tz0) || 1;
+    const nx = -tz0 / len, nz = tx0 / len;
+    const lat = (x - best.x) * nx + (z - best.z) * nz;
+    let elevation = best.e;
+    const offsets = this.routeElevationOffsets;
+    const row = this.routeElevationCross?.[best.i];
+    if (offsets && row && offsets.length === row.length && offsets.length > 1) {
+      if (lat <= offsets[0]) elevation = row[0];
+      else if (lat >= offsets[offsets.length - 1]) elevation = row[row.length - 1];
+      else {
+        let lo = 0;
+        while (lo < offsets.length - 2 && offsets[lo + 1] < lat) lo++;
+        const f = (lat - offsets[lo]) / Math.max(0.001, offsets[lo + 1] - offsets[lo]);
+        elevation = lerp(row[lo], row[lo + 1], f);
+      }
+    }
+    return { e: elevation, roadE: best.e, d: Math.abs(lat), lat, i: best.i };
   }
 
   applyRouteSurvey(x, z, h) {
     const survey = this.surveyedElevationNear(x, z);
-    if (!survey || survey.d >= 240) return h;
-    // Exact on the carriageway; progressively hand back to the wider procedural
-    // terrain over two blocks. This keeps homes and school lots on the same real hill
-    // as the road instead of leaving them down at the old synthetic 50 m plateau.
-    return lerp(survey.e, h, smoothstep(0, 240, survey.d));
+    if (!survey || survey.d >= 220) return h;
+    // The 1 m HRDEM cross-sections cover the entire visible street corridor. Keep the
+    // surveyed surface intact through the lots, then feather only its outermost 40 m
+    // into the procedural world beyond the captured strip.
+    return lerp(survey.e, h, smoothstep(180, 220, survey.d));
+  }
+
+  // Adjacent carriageway elevation, used by real sites that are level with the road.
+  // This deliberately returns the centreline value, not the terrain under the lot.
+  routeLevelNear(x, z) {
+    const survey = this.surveyedElevationNear(x, z);
+    return survey ? survey.roadE + 0.07 : null;
   }
 
   // ---- base height (without roads) ----
@@ -227,14 +256,14 @@ export class Terrain {
       : route.map(p => this.baseHeight(p[0], p[1]));
     // DEM samples are stepped at their native cell boundaries. Smooth those steps,
     // retaining the surveyed local rises while keeping motorcycle physics continuous.
-    for (let pass = 0; pass < 5; pass++) {
+    for (let pass = 0; pass < 2; pass++) {
       const cp = target.slice();
       for (let i = 1; i < target.length - 1; i++) target[i] = cp[i - 1] * 0.2 + cp[i] * 0.6 + cp[i + 1] * 0.2;
     }
     // Clamp only impossible spikes; do not force the sign of the grade.
     for (let i = 1; i < route.length; i++) {
       const seg = Math.hypot(route[i][0] - route[i - 1][0], route[i][1] - route[i - 1][1]);
-      const maxD = seg * 0.10 + 0.05;
+      const maxD = seg * 0.12 + 0.05;
       target[i] = clamp(target[i], target[i - 1] - maxD, target[i - 1] + maxD);
     }
     // The bay sits at y = 0.42. Forcing a pure descent walked the last kilometre of

@@ -54,6 +54,8 @@ async function boot() {
     fetch('./data/route-elevation.json').then(r => r.json()),
   ]);
   map.routeElevation = routeSurvey.elevations;
+  map.routeElevationOffsets = routeSurvey.lateral_offsets_m;
+  map.routeElevationCross = routeSurvey.cross_sections;
   // authored assets: rider-on-bike and a western redcedar
   const [riderGLB, cedarGLB, pedKit, carKit, treeKit] = await Promise.all([
     loadGLB('./Main-Character/gla6ndzKeKQ4tFJdAE4lu_model.glb'),
@@ -377,6 +379,39 @@ async function boot() {
 
   window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio, touch };
 
+  // Read-only visual QA views used during deployment checks. They stay dormant in a
+  // normal game and make landmark/ground-contact regressions reproducible.
+  const qa = new URLSearchParams(location.search);
+  const inspect = qa.get('inspect');
+  let qaCameraTarget = null;
+  if (inspect === 'seven' && map.sevenEleven) {
+    player.reset(map.sevenEleven.p, 0); player.cameraMode = 3; player._orbitR = 42; player._orbitH = 14;
+    game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');
+    qaCameraTarget = { x: map.sevenEleven.p[0], z: map.sevenEleven.p[1], y: terrain.routeLevelNear(...map.sevenEleven.p) + 2, dx: 34, dz: 32, h: 14 };
+  } else if (inspect === 'baptist') {
+    player.reset([baptist.party.x, baptist.party.z], 0); player.cameraMode = 3; player._orbitR = 58; player._orbitH = 18;
+    game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');
+    qaCameraTarget = { x: baptist.party.x, z: baptist.party.z, y: baptist.lawn.y + 2, dx: 46, dz: 44, h: 19 };
+  }
+  if (inspect) console.log(`QA_INSPECT ${inspect} x=${player.pos.x.toFixed(1)} z=${player.pos.z.toFixed(1)} y=${player.pos.y.toFixed(2)}`);
+  if (qa.has('audit')) setInterval(() => {
+    const upright = [...peds.people, ...peds.kids, ...peds.party, ...peds.specials]
+      .filter(p => p.active && !(p.splat > 0) && Number.isFinite(p.y));
+    const pedGaps = upright.map(p => p.y - terrain.surfaceHeight(p.x, p.z));
+    const cars = traffic.cars.filter(c => c.active && Number.isFinite(c.y));
+    const carGaps = cars.map(c => {
+      const deck = terrain.roadDeck(c.x, c.z);
+      const ground = deck && deck.d < deck.hw + 0.8 ? deck.y - 0.05 : terrain.surfaceHeight(c.x, c.z);
+      return c.y - ground;
+    });
+    console.log('QA_AUDIT ' + JSON.stringify({
+      peds: { n: pedGaps.length, below: pedGaps.filter(v => v < -0.02).length, min: Math.min(0, ...pedGaps) },
+      cars: { n: carGaps.length, flying: carGaps.filter(v => v > 0.3).length, below: carGaps.filter(v => v < -0.1).length, max: Math.max(0, ...carGaps) },
+      seven: { ground: terrain.groundHeight(...map.sevenEleven.p), road: terrain.routeLevelNear(...map.sevenEleven.p) },
+      baptist: { ground: terrain.groundHeight(...BAPTIST), road: terrain.routeLevelNear(...BAPTIST), lawn: baptist.lawn.y },
+    }));
+  }, 3000);
+
   // ---- loop (setTimeout: rAF is suspended in some embedded browser guests) ----
   const clock = new THREE.Clock();
   let loopErr = null;
@@ -390,6 +425,10 @@ async function boot() {
       const dt = Math.min(clock.getDelta(), 0.05);
       const t = clock.elapsedTime;
       game.update(dt, t);
+      if (qaCameraTarget) {
+        camera.position.set(qaCameraTarget.x + qaCameraTarget.dx, qaCameraTarget.y + qaCameraTarget.h, qaCameraTarget.z + qaCameraTarget.dz);
+        camera.lookAt(qaCameraTarget.x, qaCameraTarget.y, qaCameraTarget.z);
+      }
       skyWater.update(dt, camera.position);
       // the sky's own colour, and whatever is falling out of it
       apocalypse.update(dt, camera.position);

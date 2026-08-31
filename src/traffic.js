@@ -358,6 +358,7 @@ export class Traffic {
       const st = this.sample(p, 0);
       const d = Math.hypot(st.x - end.x, st.z - end.z);
       if (d > 38) continue;
+      if (Math.abs(st.y - end.y) > 0.9) continue;          // never jump between stacked grades
       const sl = Math.hypot(st.dx, st.dz) || 1;
       const align = (st.dx / sl) * ex + (st.dz / sl) * ez;
       if (align < 0.3) continue;                   // no U-turns at a lane join
@@ -370,6 +371,10 @@ export class Traffic {
     car.path = best;
     car.s = 0;
     car.v = Math.min(car.v, best.vmax);
+    const st = this.sample(best, 0);
+    car.x = st.x; car.y = st.y; car.z = st.z;
+    car.ySmooth = st.y;
+    car.justSpawned = true;
     return true;
   }
 
@@ -447,7 +452,13 @@ export class Traffic {
       const rx = -sm2.dz / dl, rz = sm2.dx / dl;
       car.x = sm2.x + rx * (car.latOffset || 0);
       car.z = sm2.z + rz * (car.latOffset || 0);
-      car.y = sm2.y;
+      const deck = this.terrain.roadDeck(car.x, car.z);
+      if (deck && deck.d < deck.hw + 0.8) car.y = deck.y - 0.05;
+      else {
+        const analytic = this.terrain.surfaceHeight(car.x, car.z);
+        const drawn = this.terrain.meshHeight(car.x, car.z);
+        car.y = Math.max(analytic, drawn ?? analytic);
+      }
       car.dx = sm2.dx; car.dz = sm2.dz;
       car.heading = Math.atan2(-sm2.dx, -sm2.dz) - (car.yaw || 0);
       // ease the drawn heading and height so lane samples don't step
@@ -460,7 +471,9 @@ export class Traffic {
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
         car.headingSmooth += diff * Math.min(1, 12 * dt);
-        car.ySmooth += (car.y - car.ySmooth) * Math.min(1, 10 * dt);
+        // Ground vehicles follow the deck exactly. Height easing made them visibly
+        // hover after lane handoffs and over sharp cross-slopes.
+        car.ySmooth = car.y;
       }
       // lean into the grade a touch, so cars sit on the hill rather than float level
       const aheadS = this.sample(car.path, (car.s + 6) % car.path.total);
