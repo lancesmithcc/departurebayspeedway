@@ -8,6 +8,14 @@ const W = CFG.world;
 export class Terrain {
   constructor(map) {
     this.map = map;
+    this.routeElevation = Array.isArray(map.routeElevation) && map.routeElevation.length === map.route.length
+      ? map.routeElevation : null;
+    this.routeElevationGrid = new Grid(40);
+    if (this.routeElevation) {
+      map.route.forEach((p, i) => this.routeElevationGrid.insert(p[0], p[1], {
+        x: p[0], z: p[1], e: this.routeElevation[i], i,
+      }));
+    }
     this.buildCoastGrid(map.coast);
     this.buildGreenGrid(map.green, map.water);
     this.computeRoadProfiles(map.roads);
@@ -124,6 +132,28 @@ export class Terrain {
     return null;
   }
 
+  surveyedElevationNear(x, z) {
+    if (!this.routeElevation) return null;
+    let best = null, bestD = Infinity;
+    for (let radius = 40; radius <= 280; radius += 40) {
+      for (const p of this.routeElevationGrid.query(x, z, radius)) {
+        const d = Math.hypot(x - p.x, z - p.z);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      if (best && bestD < radius - 40) break;
+    }
+    return best ? { e: best.e, d: bestD, i: best.i } : null;
+  }
+
+  applyRouteSurvey(x, z, h) {
+    const survey = this.surveyedElevationNear(x, z);
+    if (!survey || survey.d >= 240) return h;
+    // Exact on the carriageway; progressively hand back to the wider procedural
+    // terrain over two blocks. This keeps homes and school lots on the same real hill
+    // as the road instead of leaving them down at the old synthetic 50 m plateau.
+    return lerp(survey.e, h, smoothstep(0, 240, survey.d));
+  }
+
   // ---- base height (without roads) ----
   baseHeight(x, z) {
     const d = this.seaSignedDist(x, z);
@@ -135,7 +165,8 @@ export class Terrain {
       // a few metres — otherwise whole blocks of real houses render half-submerged.
       // let the waterline itself sit just under the ocean plane so the sea laps over
       // wet sand; the climb inland is what keeps buildings out of the water
-      return 0.05 + d * 0.115 + fbm(x * 0.02, z * 0.02, 3) * 0.7 * smoothstep(6, 26, d);
+      const h = 0.05 + d * 0.115 + fbm(x * 0.02, z * 0.02, 3) * 0.7 * smoothstep(6, 26, d);
+      return this.applyRouteSurvey(x, z, h);
     }
     const inland = d - 26;
     let h = 2.2 + inland * 0.0265;
@@ -144,7 +175,7 @@ export class Terrain {
     const bump = (fbm(x * 0.012, z * 0.012, 3) - 0.5) * 5.5 * smoothstep(20, 90, d);
     h += bump;
     h = Math.max(0.85, h);            // never let inland ground fall under the sea plane
-    return Math.min(h, 150);
+    return this.applyRouteSurvey(x, z, Math.min(h, 150));
   }
 
   // ---- road elevation profiles: sample base terrain, smooth longitudinally ----
@@ -185,36 +216,32 @@ export class Terrain {
     }
   }
 
-  // Departure Bay Road falls the whole way from the Country Club forecourt down to
-  // the bay — that is what the real road does, and rolling bumps read as wrong. Force
-  // the race line's profile to descend, then let the other roads tie into it.
+  // Use a sampled geographic elevation profile for the entire race line. The road
+  // falls strongly overall, but Street View and the DEM both show short level/rising
+  // blocks; forcing a mathematically monotonic descent erased those real grades.
   enforceRouteDescent(map) {
     const route = map.route;
     if (!route || route.length < 2) return;
-    const target = new Array(route.length);
-    for (let i = 0; i < route.length; i++) target[i] = this.baseHeight(route[i][0], route[i][1]);
-    // forward pass: never climb, and keep at least a gentle grade
+    const target = this.routeElevation
+      ? this.routeElevation.slice()
+      : route.map(p => this.baseHeight(p[0], p[1]));
+    // DEM samples are stepped at their native cell boundaries. Smooth those steps,
+    // retaining the surveyed local rises while keeping motorcycle physics continuous.
+    for (let pass = 0; pass < 5; pass++) {
+      const cp = target.slice();
+      for (let i = 1; i < target.length - 1; i++) target[i] = cp[i - 1] * 0.2 + cp[i] * 0.6 + cp[i + 1] * 0.2;
+    }
+    // Clamp only impossible spikes; do not force the sign of the grade.
     for (let i = 1; i < route.length; i++) {
       const seg = Math.hypot(route[i][0] - route[i - 1][0], route[i][1] - route[i - 1][1]);
-      const maxH = target[i - 1] - seg * 0.004;
-      if (target[i] > maxH) target[i] = maxH;
-    }
-    // backward pass: don't dive faster than a road can (9%)
-    for (let i = route.length - 2; i >= 0; i--) {
-      const seg = Math.hypot(route[i + 1][0] - route[i][0], route[i + 1][1] - route[i][1]);
-      const minH = target[i + 1] - seg * 0.09;
-      if (target[i] < minH) target[i] = minH;
+      const maxD = seg * 0.10 + 0.05;
+      target[i] = clamp(target[i], target[i - 1] - maxD, target[i - 1] + maxD);
     }
     // The bay sits at y = 0.42. Forcing a pure descent walked the last kilometre of
     // road under the water plane and the sea drew straight over the asphalt by the
     // 7-Eleven, so hold the carriageway above sea level and let it simply level out.
     const SEA_ROAD_MIN = 1.35;
     for (let i = 0; i < target.length; i++) target[i] = Math.max(target[i], SEA_ROAD_MIN);
-    // smooth so the grade changes are not stepped
-    for (let pass = 0; pass < 4; pass++) {
-      const cp = target.slice();
-      for (let i = 1; i < target.length - 1; i++) target[i] = cp[i - 1] * 0.25 + cp[i] * 0.5 + cp[i + 1] * 0.25;
-    }
     for (let i = 0; i < target.length; i++) target[i] = Math.max(target[i], SEA_ROAD_MIN);
     this.routeDescent = { pts: route, e: target };
 

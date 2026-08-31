@@ -49,9 +49,13 @@ async function boot() {
 
   // ---- data ----
   buildTextures();
-  const map = await (await fetch('./data/map.json')).json();
+  const [map, routeSurvey] = await Promise.all([
+    fetch('./data/map.json').then(r => r.json()),
+    fetch('./data/route-elevation.json').then(r => r.json()),
+  ]);
+  map.routeElevation = routeSurvey.elevations;
   // authored assets: rider-on-bike and a western redcedar
-  const [riderGLB, cedarGLB, pedKit, carKit, treeKit, houseKit] = await Promise.all([
+  const [riderGLB, cedarGLB, pedKit, carKit, treeKit] = await Promise.all([
     loadGLB('./Main-Character/gla6ndzKeKQ4tFJdAE4lu_model.glb'),
     loadGLB('./cedar-tree/IoBSQ_9MPEiqnMinwAEP8_model.glb'),
     // CC0 kits (Kenney) — see assets/CREDITS.md
@@ -71,11 +75,6 @@ async function boot() {
       './assets/trees/tree_pineDefaultA.glb', './assets/trees/tree_default.glb',
       './assets/trees/tree_pineTallA.glb', './assets/trees/tree_detailed.glb',
     ], 9.5),
-    loadKit([
-      './assets/houses/building-type-a.glb', './assets/houses/building-type-c.glb',
-      './assets/houses/building-type-g.glb', './assets/houses/building-type-h.glb',
-      './assets/houses/building-type-i.glb', './assets/houses/building-type-k.glb',
-    ], 7.0),
   ]);
   // thousands of trees get instanced, so trim them down before they hit the scene
   for (const t of treeKit) {
@@ -85,7 +84,7 @@ async function boot() {
     t.trisBefore = before;
   }
   console.log(`kits: ${pedKit.length} people, ${carKit.length} cars, ${treeKit.length} trees `
-    + `(${treeKit.map(t => `${t.trisBefore | 0}->${t.tris | 0}`).join(', ')}), ${houseKit.length} houses`);
+    + `(${treeKit.map(t => `${t.trisBefore | 0}->${t.tris | 0}`).join(', ')})`);
   const terrain = new Terrain(map);
 
   // ---- sky / water / lights ----
@@ -136,8 +135,8 @@ async function boot() {
 
   const buildings = buildBuildings(map, terrain,
     [map.circleK, map.fuelStation && map.fuelStation.p, map.sevenEleven && map.sevenEleven.p,
-      [-2360, -1410], DB_SCHOOL, [bapLawn.x, bapLawn.z]].filter(Boolean), corridor, houseKit);
-  console.log(`houses from kit: ${buildings.houses}`);
+      [-2360, -1410], DB_SCHOOL, [bapLawn.x, bapLawn.z]].filter(Boolean), corridor);
+  console.log(`mapped building footprints: ${buildings.count}`);
   scene.add(buildings.group);
   // The cedar is 21k triangles as authored — far too heavy to instance by the
   // thousand, so it is decimated for the roadside planting and the cheap procedural

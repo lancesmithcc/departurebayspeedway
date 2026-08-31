@@ -1,13 +1,43 @@
 // buildings.js — extrude real OSM footprints, merged sector meshes
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Grid, choice, pointInPoly, clamp, rand, CFG } from './util.js';
+import { Grid, pointInPoly, clamp, CFG } from './util.js';
 import { TEX } from './textures.js';
 
 const HOUSE_COLORS = ['#d8cfc0', '#cfd6d2', '#c9b8a3', '#b9c4c9', '#d6c6b0', '#c4b39c', '#aebfb4', '#d9d2c5', '#b8a88f', '#9fb3a6'];
 const COMM_COLORS = ['#c6c2b8', '#b9bcbf', '#cfc8ba', '#a9b0b5', '#bdb3a4'];
 const ROOF_COLORS = ['#4a4642', '#5a5048', '#3f4245', '#6b5b4d', '#54604f', '#5f5148'];
 const HOUSE_TYPES = new Set(['house', 'detached', 'semidetached_house', 'yes', 'garage', 'hut', 'barn', 'boathouse', 'outbuilding', 'shed']);
+const PITCHED_TYPES = new Set(['apartments', 'residential', 'church']);
+
+// Street View reference pass: visible corridor landmarks get fixed colours instead
+// of changing every load. Remaining homes use muted local siding/roof palettes.
+const LANDMARK_PALETTE = {
+  "St. Andrew's Presbyterian Church": ['#c9c0ad', '#4c4943'],
+  'Great Canadian Oil Change': ['#d4cebf', '#3e4447'],
+  'Dairy Queen': ['#ede9df', '#8b312d'],
+  'Kal Tire': ['#d5d9da', '#30363a'],
+  'Central Nanaimo Urgent & Primary Care Centre': ['#c5cdcf', '#454b4e'],
+  'ServiceXCEL': ['#c3c5c2', '#424649'],
+  'The Logcom Group': ['#bdb8ab', '#46443f'],
+  'Departure Bay Baptist Church': ['#c8bca6', '#55483e'],
+  'M2 Green Mechanical': ['#b9c2b7', '#3e4940'],
+  '7-Eleven': ['#e8e5dc', '#414447'],
+  'Seaside Place': ['#e3e2dc', '#565350'],
+  'Legasea': ['#dad9d3', '#504c49'],
+  'Kin Hut': ['#b9aa91', '#50473e'],
+};
+
+function buildingRandom(x, z) {
+  let state = (Math.imul(Math.round(x * 10), 73856093) ^ Math.imul(Math.round(z * 10), 19349663)) >>> 0;
+  return () => {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 // paint a flat vertex colour onto a geometry so it can merge with the tinted meshes
 function tintGeo(g, r, gr, b) {
@@ -29,7 +59,7 @@ function uniform(g) {
   return g;
 }
 
-export function buildBuildings(map, terrain, skipNear = [], corridor = null, houseModels = null) {
+export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
   const SEC = 4;
   const W = CFG.world;
   const sectors = [];
@@ -40,10 +70,6 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
   const wallColor = new THREE.Color();
   const roofColor = new THREE.Color();
   let placed = 0;
-  // When the CC0 suburban kit is loaded, small residential footprints get a real
-  // house model dropped on them instead of an extruded box; the collision grid still
-  // uses the true OSM outline either way.
-  const housePlacements = houseModels && houseModels.length ? [] : null;
 
   // Some OSM footprints (the mall canopy at the start, a few carports) reach out over
   // the carriageway. Push any vertex that lands inside the driving corridor back to
@@ -110,42 +136,17 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
     for (const p of pts) { cx += p[0]; cz += p[1]; }
     cx /= pts.length; cz /= pts.length;
     const gy = terrain.groundHeight(cx, cz);
-    const isHouse = b.h < 7.5 && HOUSE_TYPES.has(b.t);
-
-    // Only the houses the rider can actually see get a model; the rest of the 8,000
-    // OSM footprints stay as cheap extrusions, or the triangle count explodes.
-    const nearRoute = corridor ? Math.abs(corridor.project(cx, cz).lat) < 150 : false;
-    if (housePlacements && isHouse && nearRoute) {
-      // oriented footprint: longest edge sets the ridge direction
-      let bestLen = 0, ang = 0;
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i], c = pts[(i + 1) % pts.length];
-        const dx = c[0] - a[0], dz = c[1] - a[1];
-        const len = Math.hypot(dx, dz);
-        if (len > bestLen) { bestLen = len; ang = Math.atan2(dx, dz); }
-      }
-      // extent across that direction
-      const ux = Math.sin(ang), uz = Math.cos(ang);
-      let uMin = 1e9, uMax = -1e9, vMin = 1e9, vMax = -1e9;
-      for (const p of pts) {
-        const du = (p[0] - cx) * ux + (p[1] - cz) * uz;
-        const dv = (p[0] - cx) * -uz + (p[1] - cz) * ux;
-        uMin = Math.min(uMin, du); uMax = Math.max(uMax, du);
-        vMin = Math.min(vMin, dv); vMax = Math.max(vMax, dv);
-      }
-      const spanU = Math.max(5, uMax - uMin), spanV = Math.max(4.5, vMax - vMin);
-      if (spanU < 34 && spanV < 26) {
-        housePlacements.push({ x: cx, z: cz, gy, ang, spanU, spanV, h: b.h });
-        let hx0 = 1e9, hx1 = -1e9, hz0 = 1e9, hz1 = -1e9;
-        for (const p of pts) { hx0 = Math.min(hx0, p[0]); hx1 = Math.max(hx1, p[0]); hz0 = Math.min(hz0, p[1]); hz1 = Math.max(hz1, p[1]); }
-        buildingGrid.insertAABB(hx0, hz0, hx1, hz1, { pts, x0: hx0, x1: hx1, z0: hz0, z1: hz1, h: b.h, gy });
-        placed++;
-        continue;
-      }
-    }
-    const wallTop = isHouse ? b.h - 1.9 : b.h;
-    wallColor.set(isHouse ? choice(HOUSE_COLORS) : choice(COMM_COLORS));
-    roofColor.set(choice(ROOF_COLORS));
+    const random = buildingRandom(cx, cz);
+    const pick = values => values[Math.floor(random() * values.length) % values.length];
+    // OSM uses building=yes for many shops. Named footprints are landmarks or
+    // commercial unless their type explicitly says residential.
+    const isHouse = b.h < 7.5 && HOUSE_TYPES.has(b.t) && !b.n;
+    const isPitched = isHouse || PITCHED_TYPES.has(b.t);
+    const palette = LANDMARK_PALETTE[b.n];
+    wallColor.set(palette ? palette[0] : (isHouse ? pick(HOUSE_COLORS) : pick(COMM_COLORS)));
+    roofColor.set(palette ? palette[1] : pick(ROOF_COLORS));
+    const roofAllowance = isPitched ? (b.t === 'apartments' ? 1.35 : 1.9) : 0;
+    const wallTop = Math.max(2.8, b.h - roofAllowance);
 
     // winding sign for outward normals
     let area2 = 0;
@@ -190,9 +191,13 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
     const rp = [], rn = [], rc = [], ri = [];
     let rv = 0;
     const ruv = [];
-    const addQuad = (p4, n4) => {
+    const addQuad = (p4) => {
       for (const p of p4) rp.push(p[0], p[1], p[2]);
-      for (let k = 0; k < 4; k++) { rn.push(n4[0], n4[1], n4[2]); rc.push(roofColor.r, roofColor.g, roofColor.b); }
+      const ab = new THREE.Vector3(...p4[1]).sub(new THREE.Vector3(...p4[0]));
+      const ac = new THREE.Vector3(...p4[2]).sub(new THREE.Vector3(...p4[0]));
+      const normal = ab.cross(ac).normalize();
+      if (normal.y < 0) normal.multiplyScalar(-1);
+      for (let k = 0; k < 4; k++) { rn.push(normal.x, normal.y, normal.z); rc.push(roofColor.r, roofColor.g, roofColor.b); }
       // planar UVs from world x/z so shingle rows stay a constant real-world size
       const wq = Math.hypot(p4[1][0] - p4[0][0], p4[1][2] - p4[0][2]) / 1.6;
       const hq = Math.hypot(p4[3][0] - p4[0][0], p4[3][1] - p4[0][1], p4[3][2] - p4[0][2]) / 1.6;
@@ -200,24 +205,33 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
       ri.push(rv, rv + 1, rv + 2, rv, rv + 2, rv + 3);
       rv += 4;
     };
-    if (isHouse) {
-      let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
-      for (const p of pts) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minZ = Math.min(minZ, p[1]); maxZ = Math.max(maxZ, p[1]); }
-      const alongX = (maxX - minX) >= (maxZ - minZ);
-      const span = alongX ? (maxZ - minZ) : (maxX - minX);
-      const rh = Math.min(2.3, Math.max(1.1, span * 0.32));
-      const eaveY = topY, ridgeY = topY + rh, ov = 0.35;
-      if (alongX) {
-        const zA = minZ - ov, zB = maxZ + ov, zM = (minZ + maxZ) / 2;
-        const xA = minX - ov, xB = maxX + ov;
-        addQuad([[xA, eaveY, zA], [xB, eaveY, zA], [xB, ridgeY, zM], [xA, ridgeY, zM]], [0, 0.7, -0.7]);
-        addQuad([[xB, eaveY, zB], [xA, eaveY, zB], [xA, ridgeY, zM], [xB, ridgeY, zM]], [0, 0.7, 0.7]);
-      } else {
-        const xA = minX - ov, xB = maxX + ov, xM = (minX + maxX) / 2;
-        const zA = minZ - ov, zB = maxZ + ov;
-        addQuad([[xA, eaveY, zB], [xA, eaveY, zA], [xM, ridgeY, zA], [xM, ridgeY, zB]], [-0.7, 0.7, 0]);
-        addQuad([[xB, eaveY, zA], [xB, eaveY, zB], [xM, ridgeY, zB], [xM, ridgeY, zA]], [0.7, 0.7, 0]);
+    if (isPitched) {
+      // Longest footprint edge sets the ridge, preserving each building's mapped
+      // orientation instead of snapping every roof to the world axes.
+      let bestLen = 0, ux = 1, uz = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], c = pts[(i + 1) % pts.length];
+        const dx = c[0] - a[0], dz = c[1] - a[1], len = Math.hypot(dx, dz);
+        if (len > bestLen) { bestLen = len; ux = dx / len; uz = dz / len; }
       }
+      const vx = -uz, vz = ux;
+      let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+      for (const p of pts) {
+        const pu = (p[0] - cx) * ux + (p[1] - cz) * uz;
+        const pv = (p[0] - cx) * vx + (p[1] - cz) * vz;
+        u0 = Math.min(u0, pu); u1 = Math.max(u1, pu); v0 = Math.min(v0, pv); v1 = Math.max(v1, pv);
+      }
+      const spanU = Math.max(3, u1 - u0), spanV = Math.max(3, v1 - v0);
+      const ox = cx + ux * (u0 + u1) / 2 + vx * (v0 + v1) / 2;
+      const oz = cz + uz * (u0 + u1) / 2 + vz * (v0 + v1) / 2;
+      const local = (u, v, y) => [ox + ux * u + vx * v, y, oz + uz * u + vz * v];
+      const rh = b.t === 'apartments'
+        ? Math.min(1.7, Math.max(0.8, spanV * 0.12))
+        : Math.min(2.5, Math.max(1.05, spanV * 0.31));
+      const eaveY = topY, ridgeY = topY + rh, ov = 0.35;
+      const hu = spanU / 2 + ov, hv = spanV / 2 + ov;
+      addQuad([local(-hu, -hv, eaveY), local(hu, -hv, eaveY), local(hu, 0, ridgeY), local(-hu, 0, ridgeY)]);
+      addQuad([local(hu, hv, eaveY), local(-hu, hv, eaveY), local(-hu, 0, ridgeY), local(hu, 0, ridgeY)]);
       const roofGeo = new THREE.BufferGeometry();
       roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3));
       roofGeo.setAttribute('normal', new THREE.Float32BufferAttribute(rn, 3));
@@ -227,19 +241,15 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
       sector.roofs.push(roofGeo);
 
       // fascia board under the eaves + an occasional chimney: breaks the plain box
-      const fw = (maxX - minX) + ov * 2, fd = (maxZ - minZ) + ov * 2;
-      const fascia = new THREE.BoxGeometry(fw, 0.22, fd);
-      fascia.translate((minX + maxX) / 2, topY - 0.02, (minZ + maxZ) / 2);
+      const fascia = new THREE.BoxGeometry(spanU + ov * 2, 0.22, spanV + ov * 2);
+      fascia.rotateY(Math.atan2(-uz, ux));
+      fascia.translate(ox, topY - 0.02, oz);
       tintGeo(fascia, 0.93, 0.92, 0.88);
       sector.trim.push(fascia);
-      if (Math.random() < 0.22) {
+      if (isHouse && random() < 0.22) {
         const chim = new THREE.BoxGeometry(0.7, rh + 1.1, 0.7);
-        const t = rand(0.3, 0.7);
-        chim.translate(
-          alongX ? minX + (maxX - minX) * t : (minX + maxX) / 2,
-          topY + (rh + 1.1) / 2 - 0.2,
-          alongX ? (minZ + maxZ) / 2 : minZ + (maxZ - minZ) * t,
-        );
+        const t = (random() - 0.5) * spanU * 0.45;
+        chim.translate(ox + ux * t, topY + (rh + 1.1) / 2 - 0.2, oz + uz * t);
         tintGeo(chim, 0.55, 0.5, 0.47);
         sector.trim.push(chim);
       }
@@ -249,7 +259,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
       cap.rotateX(-Math.PI / 2);
       cap.translate(0, gy + b.h + 0.02, 0);
       // flat commercial roofs read as tar/gravel membrane, not house shingles
-      const g0 = rand(0.34, 0.44);
+      const g0 = 0.34 + random() * 0.1;
       tintGeo(cap, g0, g0 * 1.02, g0 * 1.04);
       sector.trim.push(cap);
 
@@ -286,10 +296,10 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
       if ((fx1 - fx0) * (fz1 - fz0) > 260) {
         const units = clamp(Math.floor((fx1 - fx0) * (fz1 - fz0) / 500), 1, 4);
         for (let u = 0; u < units; u++) {
-          const ux = fx0 + (fx1 - fx0) * rand(0.25, 0.75), uz = fz0 + (fz1 - fz0) * rand(0.25, 0.75);
-          if (!pointInPoly(pts, ux, uz)) continue;
-          const box = new THREE.BoxGeometry(rand(1.6, 2.8), rand(0.7, 1.3), rand(1.4, 2.4));
-          box.translate(ux, gy + b.h + 0.55, uz);
+          const hx = fx0 + (fx1 - fx0) * (0.25 + random() * 0.5), hz = fz0 + (fz1 - fz0) * (0.25 + random() * 0.5);
+          if (!pointInPoly(pts, hx, hz)) continue;
+          const box = new THREE.BoxGeometry(1.6 + random() * 1.2, 0.7 + random() * 0.6, 1.4 + random());
+          box.translate(hx, gy + b.h + 0.55, hz);
           tintGeo(box, 0.7, 0.71, 0.72);
           sector.trim.push(box);
         }
@@ -319,37 +329,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null, hou
     addMesh(s.roofs, roofMat);
     addMesh(s.trim, trimMat);
   }
-  // drop the authored houses on their real footprints
-  if (housePlacements && housePlacements.length) {
-    const per = Math.ceil(housePlacements.length / houseModels.length) + 4;
-    const meshes = houseModels.map((hm) => {
-      const inst = new THREE.InstancedMesh(hm.geometry, hm.material, per);
-      inst.castShadow = true; inst.receiveShadow = true;
-      inst.frustumCulled = false;
-      inst.count = 0;
-      group.add(inst);
-      return { inst, size: hm.size, used: 0 };
-    });
-    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3();
-    const up = new THREE.Vector3(0, 1, 0);
-    housePlacements.forEach((hp, i) => {
-      const slot = meshes[i % meshes.length];
-      if (slot.used >= per) return;
-      const sx = clamp(hp.spanV / Math.max(0.1, slot.size.x), 0.55, 2.4);
-      const sz = clamp(hp.spanU / Math.max(0.1, slot.size.z), 0.55, 2.4);
-      const sy = clamp((hp.h + 1.6) / Math.max(0.1, slot.size.y), 0.6, 1.9);
-      P.set(hp.x, hp.gy - 0.15, hp.z);
-      Q.setFromAxisAngle(up, hp.ang);
-      S.set(sx, sy, sz);
-      M.compose(P, Q, S);
-      slot.inst.setMatrixAt(slot.used, M);
-      slot.used++;
-      slot.inst.count = slot.used;
-    });
-    for (const m of meshes) m.inst.instanceMatrix.needsUpdate = true;
-  }
-
-  return { group, buildingGrid, count: placed, houses: housePlacements ? housePlacements.length : 0 };
+  return { group, buildingGrid, count: placed };
 }
 
 // resolve building collision for a point: returns push-out vector or null

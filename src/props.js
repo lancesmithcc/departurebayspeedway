@@ -69,15 +69,23 @@ function broadleafGeometry() {
 export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAsset = null, avoid = [], treeKit = null) {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
   const MAX = 5200, MAX_LEAF = 1400;
-  // authored CC0 trees when the kit is present, procedural cones otherwise
-  const kitConifer = treeKit && treeKit.length ? treeKit[0] : null;
-  const kitBroadleaf = treeKit && treeKit.length > 1 ? treeKit[1] : null;
-  const inst = new THREE.InstancedMesh(kitConifer ? kitConifer.geometry : firGeometry(),
+  // Tall pine and detailed deciduous variants match the mature coastal canopy much
+  // better than the two squat low-poly defaults formerly used on every verge.
+  const kitConifer = treeKit && treeKit.length > 2 ? treeKit[2] : (treeKit && treeKit[0]);
+  const kitBroadleaf = treeKit && treeKit.length > 3 ? treeKit[3] : (treeKit && treeKit[1]);
+  const naturalTree = (kit, foliage) => kit ? recolorFlattened(kit.geometry, kit.parts, (name) => {
+    if (/leaf/i.test(name)) return new THREE.Color(foliage);
+    if (/wood|bark/i.test(name)) return new THREE.Color('#594332');
+    return null;
+  }) : null;
+  const coniferGeo = naturalTree(kitConifer, '#274b2d');
+  const broadleafGeo = naturalTree(kitBroadleaf, '#3f6535');
+  const inst = new THREE.InstancedMesh(coniferGeo || firGeometry(),
     kitConifer ? kitConifer.material : mat, MAX);
   inst.castShadow = true;
   inst.receiveShadow = false;
   inst.frustumCulled = false;
-  const leaf = new THREE.InstancedMesh(kitBroadleaf ? kitBroadleaf.geometry : broadleafGeometry(),
+  const leaf = new THREE.InstancedMesh(broadleafGeo || broadleafGeometry(),
     kitBroadleaf ? kitBroadleaf.material : mat, MAX_LEAF);
   leaf.castShadow = true;
   leaf.receiveShadow = false;
@@ -85,7 +93,7 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
   const kitTinting = !kitConifer;
   let leafCount = 0;
   // authored western redcedar: the hero tree, kept to the stretch the rider can see
-  const MAX_CEDAR = 260;
+  const MAX_CEDAR = 520;
   let cedar = null, cedarCount = 0;
   if (cedarAsset) {
     const cmat = cedarAsset.material.clone();
@@ -98,6 +106,16 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
   const treeGrid = new Grid(16);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
   const C = new THREE.Color();
+  const up = new THREE.Vector3(0, 1, 0);
+  let treeSeed = 0x7A6E5C41;
+  const random = () => {
+    treeSeed = (treeSeed + 0x6D2B79F5) >>> 0;
+    let t = treeSeed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const trand = (a, b) => a + (b - a) * random();
   let count = 0;
 
   const placeable = (x, z, minD = 0) => {
@@ -115,7 +133,7 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     return true;
   };
 
-  const tryPlace = (x, z, minD = 0) => {
+  const tryPlace = (x, z, minD = 0, kind = 'auto', scaleLo = 0.75, scaleHi = 1.5) => {
     if (count >= MAX) return;
     const d = terrain.seaSignedDist(x, z);
     if (d < 34 + minD) return;
@@ -125,14 +143,13 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
       if (x > b.x0 - 2 && x < b.x1 + 2 && z > b.z0 - 2 && z < b.z1 + 2) return;
     }
     const y = terrain.groundHeight(x, z);
-    const s = rand(0.75, 1.5);
+    const s = trand(scaleLo, scaleHi);
     P.set(x, y - 0.2, z);
-    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand(0, 6.28));
-    S.set(s, s * rand(0.9, 1.25), s);
+    Q.setFromAxisAngle(up, trand(0, 6.28));
+    S.set(s, s * trand(0.9, 1.25), s);
     M.compose(P, Q, S);
-    // roughly a third broadleaf, and they favour the tended verges over the forest
-    const wantLeaf = leafCount < MAX_LEAF && Math.random() < 0.32;
-    C.setRGB(rand(0.82, 1.12), rand(0.86, 1.08), rand(0.78, 1.02));
+    const wantLeaf = leafCount < MAX_LEAF && (kind === 'leaf' || (kind === 'auto' && random() < 0.32));
+    C.setRGB(trand(0.82, 1.12), trand(0.86, 1.08), trand(0.78, 1.02));
     if (wantLeaf) {
       leaf.setMatrixAt(leafCount, M);
       if (kitTinting) leaf.setColorAt(leafCount, C);
@@ -144,6 +161,21 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     }
     treeGrid.insert(x, z, { x, z, r: 0.55 * s, y });
   };
+
+  const placeCedar = (x, z, scaleLo = 0.75, scaleHi = 1.35) => {
+    if (!cedar || cedarCount >= MAX_CEDAR || !placeable(x, z)) return false;
+    const y = terrain.groundHeight(x, z), sc = trand(scaleLo, scaleHi);
+    P.set(x, y - 0.15, z);
+    Q.setFromAxisAngle(up, trand(0, 6.28));
+    S.set(sc, sc * trand(0.92, 1.2), sc);
+    M.compose(P, Q, S);
+    cedar.setMatrixAt(cedarCount++, M);
+    treeGrid.insert(x, z, { x, z, r: 0.9 * sc, y });
+    return true;
+  };
+
+  // Explicitly mapped trees take priority over procedural vegetation.
+  for (const p of map.osmTrees || []) tryPlace(p[0], p[1], 0, 'leaf', 0.9, 1.2);
 
   // scatter in forest polygons (area-weighted)
   const forestPolys = map.green.filter(g => g.k === 'forest');
@@ -162,51 +194,42 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
     for (const p of g.p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     for (let i = 0; i < n * 2 && i < 6000; i++) {
-      const x = rand(x0, x1), z = rand(z0, z1);
+      const x = trand(x0, x1), z = trand(z0, z1);
       if (pointInPolyCached(g.p, x, z)) tryPlace(x, z);
     }
   });
   // Newcastle Island + general scatter
   let placed2 = 0;
   while (placed2 < 1600 && count < MAX - 5) {
-    const x = rand(850, 3300), z = rand(-2600, 2800);
+    const x = trand(850, 3300), z = trand(-2600, 2800);
     if (terrain.seaSignedDist(x, z) > 60 && fbm(x * 0.004, z * 0.004, 3) > 0.38) { tryPlace(x, z); placed2++; }
   }
   // sparse scatter inland near route
   let placed3 = 0;
   while (placed3 < 420 && count < MAX - 5) {
-    const x = rand(-3400, 0), z = rand(-1500, 700);
-    if (terrain.seaSignedDist(x, z) > 55 && Math.random() < 0.5) { tryPlace(x, z); placed3++; }
+    const x = trand(-3400, 0), z = trand(-1500, 700);
+    if (terrain.seaSignedDist(x, z) > 55 && random() < 0.5) { tryPlace(x, z); placed3++; }
   }
 
   // Stands of second-growth forest that come right down to the shoulder on one side,
-  // the way the road runs between subdivisions on Vancouver Island.
+  // matched to the wooded downhill stretch visible from Departure Bay Road. The
+  // former upper-route belt was removed: Street View shows homes and tended yards.
   if (corridor) {
-    const belts = [[0.16, 0.27], [0.44, 0.53], [0.66, 0.74]];   // fractions along the route
+    const belts = [[0.48, 0.67, 5], [0.68, 0.75, 3]];   // fractions along the route
     const cp0 = corridor.pts;
-    for (const [f0, f1] of belts) {
+    for (const [f0, f1, density] of belts) {
       const i0 = Math.floor(cp0.length * f0), i1 = Math.floor(cp0.length * f1);
       const side = 1;                       // the right-hand side as you ride down
       for (let i = i0; i < i1 && count < MAX - 5; i++) {
         const [nx, nz] = corridor.normalAt(i);
         const hw = corridor.hw[i];
-        for (let k = 0; k < 5; k++) {
-          const off = hw + rand(3.5, 46);
-          const jitter = rand(-4, 4);
+        for (let k = 0; k < density; k++) {
+          const off = hw + trand(3.5, 46);
+          const jitter = trand(-4, 4);
           const tx = cp0[i][0] + nx * side * off + corridor.tan[i][0] * jitter;
           const tz = cp0[i][1] + nz * side * off + corridor.tan[i][1] * jitter;
           if (!placeable(tx, tz)) continue;
-          if (cedar && cedarCount < MAX_CEDAR && Math.random() < 0.18) {
-            const y = terrain.groundHeight(tx, tz);
-            const sc = rand(0.8, 1.35);
-            P.set(tx, y - 0.15, tz);
-            Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand(0, 6.28));
-            S.set(sc, sc * rand(0.92, 1.2), sc);
-            M.compose(P, Q, S);
-            cedar.setMatrixAt(cedarCount, M);
-            cedarCount++;
-            treeGrid.insert(tx, tz, { x: tx, z: tz, r: 0.9 * sc, y });
-          } else {
+          if (!(random() < 0.62 && placeCedar(tx, tz, 0.84, 1.45))) {
             tryPlace(tx, tz, 0);
           }
         }
@@ -218,27 +241,20 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
   // a treed Vancouver Island suburb, and without this the verges read as bare lawn.
   if (corridor) {
     const cp = corridor.pts;
-    for (let i = 2; i < cp.length - 2 && count < MAX - 5; i++) {
+    for (let i = 2; i < cp.length - 2 && count < MAX - 5; i += 2) {
       const [nx, nz] = corridor.normalAt(i);
       const hw = corridor.hw[i];
+      const f = corridor.cum[i] / corridor.total;
       for (const side of [-1, 1]) {
-        if (Math.random() > 0.55) continue;
-        const off = hw + rand(4.5, 16);
+        if (random() > (f > 0.9 ? 0.64 : 0.5)) continue;
+        const off = hw + trand(4.5, f > 0.9 ? 12 : 16);
         const tx = cp[i][0] + nx * side * off, tz = cp[i][1] + nz * side * off;
-        // every third verge tree is an authored cedar while the budget lasts
-        if (cedar && cedarCount < MAX_CEDAR && Math.random() < 0.34 && placeable(tx, tz)) {
-          const y = terrain.groundHeight(tx, tz);
-          const sc = rand(0.72, 1.25);
-          P.set(tx, y - 0.15, tz);
-          Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand(0, 6.28));
-          S.set(sc, sc * rand(0.92, 1.2), sc);
-          M.compose(P, Q, S);
-          cedar.setMatrixAt(cedarCount, M);
-          cedarCount++;
-          treeGrid.insert(tx, tz, { x: tx, z: tz, r: 0.9 * sc, y });
-          continue;
+        if (f > 0.9) {
+          // Waterfront approach is open, with smaller ornamental deciduous trees.
+          tryPlace(tx, tz, 0, 'leaf', 0.62, 0.95);
+        } else if (!(random() < 0.58 && placeCedar(tx, tz, 0.78, 1.35))) {
+          tryPlace(tx, tz, 0, f < 0.82 ? 'conifer' : 'auto', 0.75, 1.3);
         }
-        tryPlace(tx, tz, 0);
       }
     }
   }
@@ -267,48 +283,119 @@ function pointInPolyCached(pts, x, z) {
 
 // ---------- streetlights along route ----------
 export function buildStreetlights(corridor, terrain) {
-  const parts = [];
-  const pole = new THREE.CylinderGeometry(0.09, 0.13, 7.2, 6);
-  pole.translate(0, 3.6, 0);
-  parts.push(pole);
-  const arm = new THREE.CylinderGeometry(0.06, 0.06, 1.8, 5);
-  arm.rotateZ(Math.PI / 2);
-  arm.translate(0.9, 7.1, 0);
-  parts.push(arm);
-  const head = new THREE.BoxGeometry(0.65, 0.18, 0.3);
-  head.translate(1.7, 7.0, 0);
-  parts.push(head);
-  const geo = mergeGeometries(parts, false);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x50555a, roughness: 0.6, metalness: 0.7 });
+  // Street View shows wood utility poles with simple outreach fixtures through the
+  // residential run, then short black waterfront lamps on the beach approach.
+  const woodParts = [];
+  const pole = new THREE.CylinderGeometry(0.16, 0.22, 10.5, 7);
+  pole.translate(0, 5.2, 0); woodParts.push(pole);
+  const crossarm = new THREE.BoxGeometry(2.2, 0.14, 0.16);
+  crossarm.translate(0, 9.55, 0); woodParts.push(crossarm);
+  const woodGeo = mergeGeometries(woodParts, false);
+
+  const fixtureParts = [];
+  const arm = new THREE.CylinderGeometry(0.055, 0.07, 2.2, 6);
+  arm.rotateZ(Math.PI / 2); arm.translate(1.05, 8.35, 0); fixtureParts.push(arm);
+  const head = new THREE.BoxGeometry(0.72, 0.16, 0.3);
+  head.translate(2.08, 8.3, 0); fixtureParts.push(head);
+  const fixtureGeo = mergeGeometries(fixtureParts, false);
+
+  const beachParts = [];
+  const beachPole = new THREE.CylinderGeometry(0.08, 0.11, 4.7, 8);
+  beachPole.translate(0, 2.35, 0); beachParts.push(beachPole);
+  const beachArm = new THREE.TorusGeometry(0.72, 0.065, 6, 14, Math.PI * 0.72);
+  beachArm.rotateZ(-Math.PI * 0.86); beachArm.translate(0.12, 4.45, 0); beachParts.push(beachArm);
+  const beachHead = new THREE.CylinderGeometry(0.22, 0.34, 0.28, 10);
+  beachHead.translate(0.68, 4.32, 0); beachParts.push(beachHead);
+  const beachGeo = mergeGeometries(beachParts, false);
+
   const pts = corridor.pts;
-  const spots = [];
-  let dist = 0, side = 1;
+  const utilitySpots = [], beachSpots = [];
+  let dist = 0;
   for (let i = 1; i < pts.length; i++) {
     dist += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-    if (dist > 46) {
+    const s = corridor.cum[i];
+    const beachZone = s > corridor.total - 275;
+    const spacing = beachZone ? 31 : 78;
+    if (dist > spacing) {
       dist = 0;
       // no lamps on the beach run-out / ramp chute, and none past the road end
-      if (corridor.cum[i] < corridor.total - 110) spots.push({ i, side });
-      side = -side;
+      if (s < corridor.total - 110) {
+        if (beachZone) {
+          // Pick the water side from the terrain rather than assuming the route never
+          // turns; the promenade lamps follow the bay through the final bend.
+          const [nx, nz] = corridor.normalAt(i);
+          const dNeg = terrain.seaSignedDist(pts[i][0] - nx * 18, pts[i][1] - nz * 18);
+          const dPos = terrain.seaSignedDist(pts[i][0] + nx * 18, pts[i][1] + nz * 18);
+          beachSpots.push({ i, side: dPos < dNeg ? 1 : -1 });
+        } else {
+          // Upper houses carry the line inland; from the church eastward it moves to
+          // the water side, matching the poles visible along the downhill run.
+          utilitySpots.push({ i, side: s < 900 ? -1 : 1 });
+        }
+      }
     }
   }
-  const inst = new THREE.InstancedMesh(geo, mat, spots.length);
+
+  const group = new THREE.Group();
+  const woodInst = new THREE.InstancedMesh(woodGeo,
+    new THREE.MeshStandardMaterial({ color: 0x6b5138, roughness: 0.96 }), utilitySpots.length);
+  const fixtureInst = new THREE.InstancedMesh(fixtureGeo,
+    new THREE.MeshStandardMaterial({ color: 0x7b7f82, roughness: 0.55, metalness: 0.55 }), utilitySpots.length);
+  const beachInst = new THREE.InstancedMesh(beachGeo,
+    new THREE.MeshStandardMaterial({ color: 0x24292c, roughness: 0.58, metalness: 0.5 }), beachSpots.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
-  spots.forEach(({ i, side }, k) => {
-    // stand just outside the road edge, arm reaching back over the lane
+  const utilityWorld = [];
+  utilitySpots.forEach(({ i, side }, k) => {
     const [nx, nz] = corridor.normalAt(i);
-    const off = corridor.hw[i] + 1.0;
+    const off = corridor.hw[i] + 2.7;
     const px = pts[i][0] + nx * side * off, pz = pts[i][1] + nz * side * off;
     const gy = terrain.groundHeight(px, pz);
     P.set(px, gy, pz);
     // local +x (the arm) must point back toward the road centre
     Q.setFromAxisAngle(up, Math.atan2(nz * side, -nx * side));
     M.compose(P, Q, S);
-    inst.setMatrixAt(k, M);
+    woodInst.setMatrixAt(k, M);
+    fixtureInst.setMatrixAt(k, M);
+    utilityWorld.push({ i, side, x: px, y: gy, z: pz, nx, nz });
   });
-  inst.castShadow = true;
-  return inst;
+  beachSpots.forEach(({ i, side }, k) => {
+    const [nx, nz] = corridor.normalAt(i);
+    const off = corridor.hw[i] + 2.2;
+    const px = pts[i][0] + nx * side * off, pz = pts[i][1] + nz * side * off;
+    P.set(px, terrain.groundHeight(px, pz), pz);
+    Q.setFromAxisAngle(up, Math.atan2(nz * side, -nx * side));
+    M.compose(P, Q, S); beachInst.setMatrixAt(k, M);
+  });
+  for (const inst of [woodInst, fixtureInst, beachInst]) {
+    inst.instanceMatrix.needsUpdate = true;
+    inst.castShadow = true; inst.receiveShadow = true;
+    group.add(inst);
+  }
+  // Three dark overhead conductors are one of the strongest visual cues in every
+  // Street View sample. Join poles only within the same roadside run so the wires do
+  // not jump across Departure Bay Road where the utility line changes sides.
+  const wirePos = [];
+  for (let i = 1; i < utilityWorld.length; i++) {
+    const a = utilityWorld[i - 1], b = utilityWorld[i];
+    if (a.side !== b.side || Math.hypot(b.x - a.x, b.z - a.z) > 125) continue;
+    for (const across of [-0.78, 0, 0.78]) {
+      const aix = -a.nx * a.side, aiz = -a.nz * a.side;
+      const bix = -b.nx * b.side, biz = -b.nz * b.side;
+      wirePos.push(
+        a.x + aix * across, a.y + 9.62, a.z + aiz * across,
+        b.x + bix * across, b.y + 9.62, b.z + biz * across,
+      );
+    }
+  }
+  if (wirePos.length) {
+    const wireGeo = new THREE.BufferGeometry();
+    wireGeo.setAttribute('position', new THREE.Float32BufferAttribute(wirePos, 3));
+    const wires = new THREE.LineSegments(wireGeo,
+      new THREE.LineBasicMaterial({ color: 0x242627, transparent: true, opacity: 0.82 }));
+    group.add(wires);
+  }
+  return group;
 }
 
 // ---------- docks/piers ----------
@@ -576,6 +663,34 @@ export function buildJunctionSigns(map, corridor, terrain) {
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x6b7075, roughness: 0.65, metalness: 0.5 });
   const seen = new Set();
 
+  // Find the actual side-road bearing from its mapped polyline. Junction points lie
+  // on the Departure Bay centreline, so their lateral sign is always zero and cannot
+  // tell us which corner the side road occupies.
+  const sideRoadAt = (j) => {
+    let best = null;
+    for (const road of map.roads || []) {
+      if (road.n !== j.n || !road.p || road.p.length < 2) continue;
+      for (let i = 0; i < road.p.length - 1; i++) {
+        const a = road.p[i], b = road.p[i + 1];
+        const vx = b[0] - a[0], vz = b[1] - a[1], len2 = vx * vx + vz * vz || 1;
+        const t = clamp(((j.p[0] - a[0]) * vx + (j.p[1] - a[1]) * vz) / len2, 0, 1);
+        const qx = a[0] + vx * t, qz = a[1] + vz * t;
+        const d = Math.hypot(qx - j.p[0], qz - j.p[1]);
+        if (!best || d < best.d) best = { d, road, seg: i };
+      }
+    }
+    if (!best || best.d > 24) return null;
+    const candidates = best.road.p.filter(p => Math.hypot(p[0] - j.p[0], p[1] - j.p[1]) < 75);
+    if (!candidates.length) return null;
+    let far = candidates[0], farD = -1;
+    for (const p of candidates) {
+      const d = Math.hypot(p[0] - j.p[0], p[1] - j.p[1]);
+      if (d > farD) { farD = d; far = p; }
+    }
+    const dx = far[0] - j.p[0], dz = far[1] - j.p[1], len = Math.hypot(dx, dz) || 1;
+    return [dx / len, dz / len];
+  };
+
   for (const j of map.junctions) {
     const name = j.n;
     if (!name || /^\(/.test(name)) continue;              // unnamed service roads: no blade
@@ -587,7 +702,8 @@ export function buildJunctionSigns(map, corridor, terrain) {
 
     const [nx, nz] = corridor.normalAt(pr.i);
     const tan = corridor.tan[pr.i];
-    const side = pr.lat >= 0 ? 1 : -1;
+    const sideDir = sideRoadAt(j);
+    const side = sideDir ? (Math.sign(sideDir[0] * nx + sideDir[1] * nz) || 1) : 1;
     const cx = corridor.pts[pr.i][0] + nx * side * (pr.hw + 1.6);
     const cz = corridor.pts[pr.i][1] + nz * side * (pr.hw + 1.6);
     const gy = terrain.groundHeight(cx, cz);
@@ -596,16 +712,21 @@ export function buildJunctionSigns(map, corridor, terrain) {
     pole.position.set(cx, gy + 1.7, cz);
     group.add(pole);
 
-    // green blade, aligned with the side road it names. Two single-sided faces
-    // back to back: a DoubleSide plane shows the text mirrored from behind.
-    const bladeMat = new THREE.MeshStandardMaterial({ map: streetBlade(name), roughness: 0.6 });
-    const bladeAng = Math.atan2(tan[0], tan[1]) + Math.PI / 2;
-    for (const flip of [0, Math.PI]) {
-      const blade = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), bladeMat);
-      blade.position.set(cx, gy + 3.3, cz);
-      blade.rotation.y = bladeAng + flip;
-      group.add(blade);
-    }
+    // Nanaimo uses crossed green street-name blades. Their long axes follow the two
+    // real road bearings; they are not guessed from one main-road tangent.
+    const addBlade = (label, dir, y) => {
+      const mat = new THREE.MeshStandardMaterial({ map: streetBlade(label), roughness: 0.6 });
+      const width = clamp(1.8 + label.length * 0.055, 2.3, 3.2);
+      const bladeAng = Math.atan2(dir[0], dir[1]) + Math.PI / 2;
+      for (const flip of [0, Math.PI]) {
+        const blade = new THREE.Mesh(new THREE.PlaneGeometry(width, 0.52), mat);
+        blade.position.set(cx, gy + y, cz);
+        blade.rotation.y = bladeAng + flip;
+        group.add(blade);
+      }
+    };
+    addBlade('Departure Bay Road', tan, 3.12);
+    addBlade(name, sideDir || [-tan[1], tan[0]], 3.62);
 
   }
   group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -633,37 +754,40 @@ export function buildTrafficFurniture(map, corridor, terrain) {
     return { tan: corridor.tan[pr.i], n: corridor.normalAt(pr.i), hw: pr.hw, d: pr.dist, i: pr.i };
   };
 
-  // --- signal heads on mast arms over the road ---
+  // --- signal heads on curved roadside poles ---
+  // Both signalised race intersections use Nanaimo's curved side poles; Street View
+  // shows no full-width mast arms here.
   for (const p of map.signals || []) {
     const { tan, n, hw, d } = tangentAt(p);
     if (d > 45) continue;
-    const gy = terrain.groundHeight(p[0], p[1]);
     for (const side of [-1, 1]) {
       const bx = p[0] + n[0] * side * (hw + 0.8), bz = p[1] + n[1] * side * (hw + 0.8);
       const bgy = terrain.groundHeight(bx, bz);
-      const mast = cyl(0.11, 0.14, 6.4, poleMat, 8);
-      mast.position.set(bx, bgy + 3.2, bz);
-      group.add(mast);
-      // arm reaching out over the lane
-      const armLen = Math.min(7.5, hw);
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, armLen, 8), poleMat);
-      arm.rotation.z = Math.PI / 2;
-      arm.rotation.y = Math.atan2(-n[0] * side, -n[1] * side) + Math.PI / 2;
-      arm.position.set(bx - n[0] * side * armLen / 2, bgy + 6.2, bz - n[1] * side * armLen / 2);
-      group.add(arm);
-      // head hanging at the end of the arm, facing oncoming traffic
-      const hx = bx - n[0] * side * armLen, hz = bz - n[1] * side * armLen;
+      const rig = new THREE.Group();
+      rig.position.set(bx, bgy, bz);
+      const inward = [-n[0] * side, -n[1] * side];
+      const yaw = Math.atan2(-inward[1], inward[0]);
+      rig.rotation.y = yaw;
+      const mast = cyl(0.11, 0.14, 5.2, poleMat, 8);
+      mast.position.y = 2.6; rig.add(mast);
+      const bend = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.095, 7, 18, Math.PI / 2), poleMat);
+      bend.rotation.z = -Math.PI / 2;
+      bend.position.set(0, 6.35, 0); rig.add(bend);
+      const drop = cyl(0.07, 0.07, 0.5, poleMat, 7);
+      drop.position.set(1.15, 6.1, 0); rig.add(drop);
+      const localZ = [Math.sin(yaw), Math.cos(yaw)];
+      const desired = [tan[0] * side, tan[1] * side];
+      const faceSign = localZ[0] * desired[0] + localZ[1] * desired[1] >= 0 ? 1 : -1;
       const head = box(0.4, 1.15, 0.34, boxMat);
-      head.position.set(hx, bgy + 5.5, hz);
-      head.rotation.y = Math.atan2(tan[0] * side, tan[1] * side);
-      group.add(head);
-      const facing = new THREE.Vector3(tan[0] * side * 0.19, 0, tan[1] * side * 0.19);
+      head.position.set(1.15, 5.55, 0);
+      if (faceSign < 0) head.rotation.y = Math.PI;
+      rig.add(head);
       for (let k = 0; k < 3; k++) {
-        // spherical lenses: no orientation to get wrong, and they read at distance
         const l = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), [red, amber, green][k]);
-        l.position.set(hx + facing.x, bgy + 5.9 - k * 0.36, hz + facing.z);
-        group.add(l);
+        l.position.set(1.15, 5.91 - k * 0.36, faceSign * 0.19);
+        rig.add(l);
       }
+      group.add(rig);
     }
   }
 
@@ -717,7 +841,7 @@ export function buildTrafficFurniture(map, corridor, terrain) {
 // W-beam only where the shoulder actually drops away or the water is close.
 export function buildRoadEdges(corridor, terrain) {
   const group = new THREE.Group();
-  const curbGeos = [], walkGeos = [], railGeos = [], postGeos = [], poleGeos = [];
+  const curbGeos = [], walkGeos = [], railGeos = [], postGeos = [];
   const pts = corridor.pts;
 
   const needsRail = (x, z) => {
@@ -729,6 +853,17 @@ export function buildRoadEdges(corridor, terrain) {
       }
     }
     return drop > 1.3 || terrain.seaSignedDist(x, z) < 45;
+  };
+
+  // Street View profile, measured from the Circle K start. The upper residential
+  // section has gravel/driveway shoulders, the middle run gains sidewalks, the long
+  // downhill keeps one on the inland side, and the beach approach is curbed again.
+  const hasSidewalk = (s, side) => {
+    if (s < 180) return true;
+    if (s < 900) return false;
+    if (s < 1450) return true;
+    if (s < 2580) return side < 0;
+    return true;
   };
 
   for (let side = -1; side <= 1; side += 2) {
@@ -747,16 +882,16 @@ export function buildRoadEdges(corridor, terrain) {
       const ang = Math.atan2(c[0] - a[0], c[1] - a[1]);
       const [nx, nz] = corridor.normalAt(i);
 
-      // curb face
-      const curb = new THREE.BoxGeometry(0.34, 0.3, len + 0.2);
-      curb.rotateY(ang);
-      curb.translate(mx, midY + 0.12, mz);
-      curbGeos.push(curb);
-      // sidewalk slab just outside the curb
-      const walk = new THREE.BoxGeometry(1.7, 0.16, len + 0.2);
-      walk.rotateY(ang);
-      walk.translate(mx + nx * side * 1.0, midY + 0.2, mz + nz * side * 1.0);
-      walkGeos.push(walk);
+      if (hasSidewalk((corridor.cum[i - 1] + corridor.cum[i]) / 2, side)) {
+        const curb = new THREE.BoxGeometry(0.34, 0.3, len + 0.2);
+        curb.rotateY(ang);
+        curb.translate(mx, midY + 0.12, mz);
+        curbGeos.push(curb);
+        const walk = new THREE.BoxGeometry(1.7, 0.16, len + 0.2);
+        walk.rotateY(ang);
+        walk.translate(mx + nx * side * 1.0, midY + 0.2, mz + nz * side * 1.0);
+        walkGeos.push(walk);
+      }
 
       if (needsRail(mx, mz)) {
         for (const [hy, th] of [[0.86, 0.26], [0.6, 0.2]]) {
@@ -770,20 +905,6 @@ export function buildRoadEdges(corridor, terrain) {
           post.translate(c[0] + nx * side * 1.9, gyC + 0.45, c[1] + nz * side * 1.9);
           postGeos.push(post);
         }
-      } else if (side > 0 && i % 14 === 0) {
-        // hydro pole line on one side, the way the real street is strung
-        const px = c[0] + nx * side * 2.6, pz = c[1] + nz * side * 2.6;
-        // a pole standing in a side road reads as a mistake — skip those spots
-        const onRoad = terrain.nearestRoad(px, pz);
-        if (onRoad && onRoad.d < onRoad.seg.hw + 1.2) continue;
-        const pgy = terrain.groundHeight(px, pz);
-        const pole = new THREE.CylinderGeometry(0.16, 0.21, 10.5, 7);
-        pole.translate(px, pgy + 5.2, pz);
-        poleGeos.push(pole);
-        const arm = new THREE.BoxGeometry(2.0, 0.14, 0.14);
-        arm.rotateY(ang);
-        arm.translate(px, pgy + 9.6, pz);
-        poleGeos.push(arm);
       }
     }
   }
@@ -800,7 +921,6 @@ export function buildRoadEdges(corridor, terrain) {
   add(walkGeos, walkMat);
   add(railGeos, new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.5, metalness: 0.75 }));
   add(postGeos, new THREE.MeshStandardMaterial({ color: 0x54595e, roughness: 0.7, metalness: 0.4 }));
-  add(poleGeos, new THREE.MeshStandardMaterial({ color: 0x6b5a45, roughness: 0.95 }));
   return group;
 }
 

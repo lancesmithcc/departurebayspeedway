@@ -106,15 +106,38 @@ export function buildRoads(map, terrain) {
         ];
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-        g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(8).fill(0).flatMap(() => [color.r, color.g, color.b]).slice(0, 12 * 4 / 4 * 3), 3));
+        // Four positions require four RGB triplets. The old eight-triplet buffer made
+        // merged markings read colours from the following geometry, turning white
+        // shoulder lines yellow on apparently random blocks of road.
+        g.setAttribute('color', new THREE.Float32BufferAttribute([
+          color.r, color.g, color.b,
+          color.r, color.g, color.b,
+          color.r, color.g, color.b,
+          color.r, color.g, color.b,
+        ], 3));
         g.setIndex([0, 2, 1, 1, 2, 3]);
         g.computeVertexNormals();
         markGeos.push(g);
       }
     };
-    const isDivided = r.c === 'trunk' || r.c === 'motorway' || r.c === 'primary';
+    // Street View: Departure Bay Road is a conventional two-way Nanaimo arterial.
+    // It carries a close double-yellow centreline and white shoulder / bike-lane
+    // boundaries. Treating every OSM "primary" as a divided road put dashed white
+    // lane lines down the middle and yellow lines at both kerbs.
+    const isDepartureBay = r.n === 'Departure Bay Road';
+    const isDivided = !isDepartureBay && (r.c === 'trunk' || r.c === 'motorway' || r.c === 'primary');
     if (r.w >= 5.8) {
-      if (isDivided) {
+      if (isDepartureBay) {
+        solidLine(-0.18, yellow);
+        solidLine(0.18, yellow);
+        // These read as the real shoulder / parking / cycle-lane boundaries. Some
+        // short driveway pieces omit them in life, but a continuous line is far less
+        // misleading than the old yellow road edges at riding speed.
+        if (r.w >= 7.5) {
+          solidLine(r.w / 2 - 0.38, white);
+          solidLine(-(r.w / 2 - 0.38), white);
+        }
+      } else if (isDivided) {
         // white edge lines + dashed lane dividers at quarters
         solidLine(r.w / 2 - 0.5); solidLine(-(r.w / 2 - 0.5));
         if (r.w > 9) { dashes('dash', white, r.w / 4); dashes('dash', white, -r.w / 4); }
