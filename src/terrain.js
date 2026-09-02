@@ -24,6 +24,33 @@ export class Terrain {
     this.computeRoadProfiles(map.roads);
     this.enforceRouteDescent(map);
     this.buildRoadGrid(map.roads);
+    // Graded building pads: a real church, school or forecourt is levelled before it
+    // is built on, and the ground is battered back out to the natural slope around it.
+    // Registered before buildMesh() so the drawn triangles carry the grading too —
+    // otherwise a flat lawn disc floats over a 6 m hillside and the congregation
+    // stands in mid-air on one side of it and up to its knees on the other.
+    this.pads = [];
+  }
+
+  // { x, z, r, feather, y } — level inside r, feathered out to the natural surface
+  // over the next `feather` metres. Must be added before buildMesh().
+  addPad(pad) {
+    this.pads.push(pad);
+    return pad;
+  }
+
+  // buildMesh() runs this ~200k times and several systems call it every frame, so the
+  // reject is a squared comparison and the square root only happens for a sample that
+  // is actually inside a pad.
+  applyPads(x, z, h) {
+    for (const p of this.pads) {
+      const dx = x - p.x, dz = z - p.z;
+      const reach = p.r + p.feather;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= reach * reach) continue;
+      h = lerp(h, p.y, 1 - smoothstep(p.r, reach, Math.sqrt(d2)));
+    }
+    return h;
   }
 
   // ---- coastline: precomputed signed distance field (chamfer transform) ----
@@ -333,6 +360,9 @@ export class Terrain {
   // ---- final ground height: base terrain conformed to roads ----
   groundHeight(x, z) {
     let h = this.baseHeight(x, z);
+    // grading first, roads second: where a pad reaches the carriageway the deck still
+    // wins, so levelling a lawn can never lift grass over the asphalt beside it
+    if (this.pads && this.pads.length) h = this.applyPads(x, z, h);
     const nr = this.nearestRoad(x, z);
     if (nr && nr.d < nr.seg.hw + 15) {
       // Carve the ground below the deck, not level with it. The terrain grid is ~15 m

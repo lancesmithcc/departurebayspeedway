@@ -897,6 +897,21 @@ export function buildTrafficFurniture(map, corridor, terrain) {
   return group;
 }
 
+// Street View profile, measured from the Circle K start. The upper residential section
+// has gravel/driveway shoulders, the middle run gains sidewalks, the long downhill
+// keeps one on the inland side, and the beach approach is curbed again. Exported
+// because the pedestrian system has to know it too: it stands people on the slab, and
+// over the stretches that have none it was standing them on a slab that is not there —
+// out on the banked verge above the Circle K that meant a metre and a half of daylight
+// under their shoes.
+export function hasSidewalk(s, side) {
+  if (s < 180) return true;
+  if (s < 900) return false;
+  if (s < 1450) return true;
+  if (s < 2580) return side < 0;
+  return true;
+}
+
 // ---------- road edges: curb + sidewalk through town, guardrail where it belongs ----------
 // Departure Bay Road is a curbed suburban arterial, not a barriered raceway, so the
 // containment edge is dressed as real roadside: concrete curb and walk, with steel
@@ -915,17 +930,6 @@ export function buildRoadEdges(corridor, terrain) {
       }
     }
     return drop > 1.3 || terrain.seaSignedDist(x, z) < 45;
-  };
-
-  // Street View profile, measured from the Circle K start. The upper residential
-  // section has gravel/driveway shoulders, the middle run gains sidewalks, the long
-  // downhill keeps one on the inland side, and the beach approach is curbed again.
-  const hasSidewalk = (s, side) => {
-    if (s < 180) return true;
-    if (s < 900) return false;
-    if (s < 1450) return true;
-    if (s < 2580) return side < 0;
-    return true;
   };
 
   for (let side = -1; side <= 1; side += 2) {
@@ -1253,19 +1257,33 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const side = Math.sign(pr.lat) || 1;
   const base = corridor.pts[i];
   const hw = corridor.hw[i];
-  const siteY = terrain.routeLevelNear(base[0], base[1]) ?? terrain.surfaceHeight(base[0], base[1]);
   // out from the kerb onto the lawn
   const at = (along, out) => [
     base[0] + tan[0] * along + nx * side * (hw + out),
     base[1] + tan[1] * along + nz * side * (hw + out),
   ];
   const faceAng = Math.atan2(nx * side, nz * side);
+  // The ground anything here stands on is the terrain as *drawn* — main.js grades a
+  // level pad under the lawn before buildMesh() bakes it, so this comes back flat
+  // across the site and follows the batter on the way out to the natural slope. One
+  // constant siteY for the whole church was what tipped the apron into a ski jump and
+  // left the bunting poles hanging off the seaward edge.
+  const groundAt = (x, z) => {
+    const drawn = terrain.meshHeight ? terrain.meshHeight(x, z) : null;
+    return (drawn === null || drawn === undefined) ? terrain.groundHeight(x, z) : drawn;
+  };
 
   const white = new THREE.MeshStandardMaterial({ color: 0xf1ede2, roughness: 0.82 });
   const trim = new THREE.MeshStandardMaterial({ color: 0x2f4a63, roughness: 0.7 });
   const roofM = new THREE.MeshStandardMaterial({ color: 0x4a5259, roughness: 0.9 });
   const glass = new THREE.MeshStandardMaterial({ color: 0x27414f, roughness: 0.2, metalness: 0.5 });
 
+  // The hall itself sits on one level slab, the way a building does — its level is the
+  // graded pad under its own footprint, not the road.
+  const CH = 0;
+  const churchOut = Math.max(8, Math.abs(pr.lat) - hw);
+  const [chX, chZ] = at(CH, churchOut);
+  const siteY = groundAt(chX, chZ);
   const put = (mesh, along, out, yOff) => {
     const [x, z] = at(along, out);
     mesh.position.set(x, siteY + yOff, z);
@@ -1277,8 +1295,6 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   // 2026 Street View shows a modest white rectangular hall with a shallow charcoal
   // gable and small covered entry—no bell tower or monumental cross. Put its centre
   // on the mapped OSM footprint instead of shifting it down the frontage.
-  const CH = 0;
-  const churchOut = Math.max(8, Math.abs(pr.lat) - hw);
   const nave = put(box(13, 4.8, 23, white), CH, churchOut, 2.4);
   const roofLeft = box(7.2, 0.45, 23.8, roofM); roofLeft.rotation.z = 0.22;
   put(roofLeft, CH - 3.15, churchOut, 5.15);
@@ -1303,13 +1319,19 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     const [ax, az] = at(6, out);
     for (const sgn of [-1, 1]) {
       const px = ax + tan[0] * sgn * APRON_HW, pz = az + tan[1] * sgn * APRON_HW;
-      apronPos.push(px, siteY + 0.06, pz);
+      // per-vertex, off the drawn terrain: the comment above always said this, but the
+      // code laid every vertex at one constant level and the driveway ran up into the
+      // air at the kerb and buried itself again on the lawn.
+      apronPos.push(px, groundAt(px, pz) + 0.06, pz);
       apronNorm.push(0, 1, 0);
       apronUV.push(sgn > 0 ? 1 : 0, out / 6);
     }
     if (k < APRON_STEPS) {
+      // Wound so the faces look up. They were the other way round, which put the
+      // driveway's normals into the ground and left it culled — the only way onto the
+      // lawn has been an invisible strip of grass this whole time.
       const a = k * 2;
-      apronIdx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      apronIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   }
   const apronGeo = new THREE.BufferGeometry();
@@ -1317,13 +1339,19 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   apronGeo.setAttribute('normal', new THREE.Float32BufferAttribute(apronNorm, 3));
   apronGeo.setAttribute('uv', new THREE.Float32BufferAttribute(apronUV, 2));
   apronGeo.setIndex(apronIdx);
+  apronGeo.computeVertexNormals();   // it follows the batter now, so it is not flat
   const apron = new THREE.Mesh(apronGeo, new THREE.MeshStandardMaterial({
     map: TEX.concrete, color: 0xbcb5a6, roughness: 0.98,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   }));
   apron.receiveShadow = true;
   g.add(apron);
-  const lawnY = siteY;
+  // Everything that stands on the lawn takes this one level, because the lawn is one
+  // flat disc: sampling the terrain grid per fixture instead would put the bunting
+  // poles a few centimetres through the grass they are supposed to be standing in,
+  // the level pad under them notwithstanding. The apron is the exception — it runs off
+  // the pad and down to the kerb, so it is sampled per vertex.
+  const lawnY = groundAt(lx, lz);
   const lawn = new THREE.Mesh(new THREE.CircleGeometry(30, 28),
     new THREE.MeshStandardMaterial({ color: 0x6f9a4d, roughness: 0.95 }));
   lawn.rotation.x = -Math.PI / 2;
@@ -1341,7 +1369,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * Math.PI * 2;
     const px = lx + Math.cos(a) * 26, pz = lz + Math.sin(a) * 26;
-    const pgy = lawnY;
+    const pgy = lawnY;                                      // on the disc, not the grid under it
     const pole = cyl(0.09, 0.11, 5.0, new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.8 }), 6);
     pole.position.set(px, pgy + 2.5, pz);
     g.add(pole);
@@ -1544,6 +1572,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const becomeSatan = () => {
     if (fallen) return;
     fallen = true;
+    setJesusDead(true);          // the board out front is the first thing to change
     if (satanGeos) bodyFrames.forEach((m, k) => { m.geometry = satanGeos[k] || satanGeos[0]; });
     hairM.color.set(0x120708);
     skinM.color.set(0x9e1f14);
@@ -1597,6 +1626,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const reviveJesus = () => {
     if (!fallen) return;
     fallen = false;
+    setJesusDead(false);
     risen = false;
     slain = false;
     if (holyGeos) bodyFrames.forEach((m, k) => { m.geometry = holyGeos[k] || holyGeos[0]; });
@@ -1655,6 +1685,41 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     }
   };
 
+  // ---- the sign beside the front steps ----
+  // Its own board, separate from the reader board down at the kerb: this one only ever
+  // carries one message, and it carries it in the present tense. It reads JESUS IS
+  // WITH US for exactly as long as that is true, and changing it is the first thing
+  // that happens when it stops being. Two single-sided faces so the letters never read
+  // mirrored from the far side.
+  const SIGN_ALONG = -12.5, SIGN_OUT = churchOut - 15.5;
+  const signMat = new THREE.MeshStandardMaterial({
+    map: TEX.jesusWith, roughness: 0.5,
+    emissive: 0xffffff, emissiveMap: TEX.jesusWith, emissiveIntensity: 0.45,
+  });
+  const signWood = new THREE.MeshStandardMaterial({ color: 0xe6e0d2, roughness: 0.85 });
+  for (const sgn of [-1, 1]) put(box(0.34, 4.6, 0.34, signWood), SIGN_ALONG + sgn * 3.5, SIGN_OUT, 2.3);
+  put(box(7.7, 0.34, 0.5, signWood), SIGN_ALONG, SIGN_OUT, 4.55);      // top rail
+  put(box(7.2, 3.3, 0.34, trim), SIGN_ALONG, SIGN_OUT, 2.75);          // frame behind the board
+  put(box(0.22, 1.05, 0.22, signWood), SIGN_ALONG, SIGN_OUT, 5.2);     // a little cross on top
+  put(box(0.72, 0.22, 0.22, signWood), SIGN_ALONG, SIGN_OUT, 5.38);
+  {
+    const [sx, sz] = at(SIGN_ALONG, SIGN_OUT);
+    for (const flip of [0, Math.PI]) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(6.9, 3.0), signMat);
+      const o = flip ? -0.22 : 0.22;
+      panel.position.set(sx + nx * side * o, siteY + 2.75, sz + nz * side * o);
+      panel.rotation.y = faceAng + flip;
+      g.add(panel);
+    }
+  }
+  // Both faces share one material, so the board changes on both sides at once.
+  const setJesusDead = (dead) => {
+    signMat.map = dead ? TEX.jesusDead : TEX.jesusWith;
+    signMat.emissiveMap = signMat.map;
+    signMat.emissiveIntensity = dead ? 0.9 : 0.45;
+    signMat.needsUpdate = true;
+  };
+
   // The reader board goes down the frontage, clear of the driveway — parked on the
   // apron it stands square in the only way onto the lawn.
   const boardAnchor = [anchorPos[0] + tan[0] * 34, anchorPos[1] + tan[1] * 34];
@@ -1672,6 +1737,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     animate: animateJesus,
     becomeSatan,
     riseAsSatan,
+    setJesusDead,
     satanSlain,
     isRisen: () => risen,
     reviveJesus,

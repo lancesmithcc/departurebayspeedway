@@ -39,6 +39,26 @@ LINES = [
     # crossing guard / school zone
     ("school1", "bf_emma", "School zone! Kids crossing, slow down!"),
     ("church1", "am_michael", "Pastor Jeremy says: ride safe, punks."),
+    # the congregation on the Baptist lawn, who get their own book. These play
+    # instead of the street lines whenever the victim is one of the party.
+    # ---- Jesus alive on the lawn: forgiving to the point of provocation ----
+    ("church_a1", "af_bella", "Bless you, dear, you missed my good side."),
+    ("church_a2", "bf_emma", "I forgive you, seventy times seven, dear."),
+    ("church_a3", "af_nicole", "Oh my stars, that tire tread tickles."),
+    ("church_a4", "bm_george", "The Lord is my shepherd, and my chiropractor."),
+    ("church_a5", "af_bella", "No harm done, take a Nanaimo bar."),
+    ("church_a6", "am_adam", "Turn the other cheek, then run me again."),
+    ("church_a7", "bf_emma", "Praise be, my casserole survived the impact."),
+    ("church_a8", "am_michael", "Amen, I needed to lie down anyway."),
+    # ---- Jesus dead and risen as the other one: same whites, different testament ----
+    ("church_d1", "am_michael", "Satan's tire tracks, glory be to doom."),
+    ("church_d2", "af_nicole", "We are damned, and also flattened."),
+    ("church_d3", "bf_emma", "Hallelujah, the lawn is lava now, ow."),
+    ("church_d4", "bm_george", "Ride on, herald of our fiery king."),
+    ("church_d5", "af_bella", "The bake sale is cancelled, we are cursed."),
+    ("church_d6", "am_adam", "Run me again, hell needs the mileage."),
+    ("church_d7", "af_nicole", "Our casseroles burn, our souls too, amen."),
+    ("church_d8", "bm_george", "Deacon's damned and dented, praise the flames."),
     # pickups — the announcer calls every one of them, two lines apiece so a run
     # with four cases of Lucky in it does not repeat the same take
     ("pow_beer1", "am_michael", "Frick yeah! Lucky beer, bud!"),

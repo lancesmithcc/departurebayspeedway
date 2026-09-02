@@ -92,10 +92,6 @@ async function boot() {
   // ---- sky / water / lights ----
   const skyWater = buildSkyWater(scene, renderer, { shadowMapSize: touch ? 1024 : 2048 });
 
-  // ---- world ----
-  scene.add(terrain.buildMesh());
-  scene.add(buildRoads(map, terrain));
-
   // ---- effects (ramp + rings) ----
   const effects = new Effects(scene, terrain, map);
 
@@ -132,6 +128,29 @@ async function boot() {
     z: bapAnchor[1] + bapNz * bapSide * bapOut,
     r: 54,
   };
+  // The lawn is a flat disc laid over what is, in the real world, a hillside falling
+  // 6 m across it. Drawn straight onto the natural slope it floats clear of the ground
+  // on the seaward side and buries itself on the inland side, and the congregation
+  // standing on it does the same. Grade the terrain first — a church levels its lawn
+  // before it puts bouncy castles on it — and everything that stands there agrees.
+  // buildBaptistChurch() puts the lawn at (along 6, out hw+62); the pad has to sit on
+  // that, not on the slightly different keep-clear circle above, or the graded edge
+  // cuts across the disc.
+  const bapTan = corridor.tan[bapI];
+  const bapPad = {
+    x: bapAnchor[0] + bapTan[0] * 6 + bapNx * bapSide * (corridor.hw[bapI] + 62),
+    z: bapAnchor[1] + bapTan[1] * 6 + bapNz * bapSide * (corridor.hw[bapI] + 62),
+    r: 34, feather: 22,
+  };
+  bapPad.y = terrain.groundHeight(bapPad.x, bapPad.z);
+  terrain.addPad(bapPad);
+
+  // ---- world ----
+  // Built here rather than up with the sky: buildMesh() bakes the grading above into
+  // the triangles, and meshHeight() reads that cache back for everything that walks.
+  scene.add(terrain.buildMesh());
+  scene.add(buildRoads(map, terrain));
+
   // Departure Bay Elementary, down where the road flattens toward the bay
   const DB_SCHOOL = [-966.58, -1270.75];
 
@@ -304,6 +323,7 @@ async function boot() {
           game.onSatanSlain();
         } else {
           baptist.becomeSatan();
+          peds.jesusDead = true;
         }
       },
       onRise: () => {
@@ -315,6 +335,7 @@ async function boot() {
       },
       onRevive: () => {
         baptist.reviveJesus();
+        peds.jesusDead = false;
         apocalypse.end();
         audio.setHellMusic(false);
       },

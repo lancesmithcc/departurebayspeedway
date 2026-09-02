@@ -88,6 +88,12 @@ Pedestrians walk the sidewalks, kids shuttle over both school crossings, and the
 congregation runs around the church lawn — the same authored characters as the street
 crowd, recoloured into Sunday whites.
 
+The congregation also has its own book of lines. Run one of them down on the lawn and
+you do not get the street reaction; you get a church lady or a deacon forgiving you for
+it, which is worse. Once Jesus is dead the same people in the same whites are saying
+something considerably less kind, and the swap happens the moment he goes into the
+grass rather than three seconds later when the sky turns.
+
 Nobody gets back up — with one exception, down at the church. A body lies where it
 landed for the rest of the run, chocolate and all, so ride back up the road and
 everyone you put down is still there. They only clear
@@ -127,8 +133,17 @@ Put him down a second time and it all runs in reverse — the sky, the crowd, th
 and the music — for five thousand STYLE. He does not get up twice, so that is the end
 of it either way: the body stays in the grass for the rest of the run.
 
+Beside the front steps there is a board that only ever carries one message, and it
+carries it in the present tense: JESUS IS WITH US. Changing it is the first thing that
+happens when that stops being true — the cream goes to scorched brown, the cross turns
+over and it reads JESUS IS DEAD, from the moment he hits the grass until the run is
+restarted.
+
 The guardrail is deliberately open across the church driveway — the castles are
-trampolines, so a run at one launches the bike instead of stopping it.
+trampolines, so a run at one launches the bike instead of stopping it. The gravel
+driveway in is a ribbon sampled off the terrain per vertex; the lawn it leads to is a
+graded pad, because the real ground there falls six metres across the disc the party
+is drawn on.
 
 ## The board
 
@@ -194,10 +209,18 @@ whites to reds mid-run without touching skin, hair or eyes.
 
 Everyone stands on the surface that is actually drawn rather than the one the maths
 says is there: the terrain is sampled onto a ~15 m grid and interpolates between the
-samples, so near the road — where the ground is deliberately carved below the deck —
-the drawn hillside sits up to a metre above the analytic height. People also stand on
-the flat decks laid over sloping ground, like the church lawn, and walk round the
-buildings and the bouncy castles instead of through them.
+samples, so the drawn hillside and the analytic height disagree by up to half a metre
+in both directions. Reading the drawn triangles is the whole rule — the only things
+that override them are the surfaces genuinely laid on top, the road deck and the
+sidewalk slab, and the slab only over the stretches that actually have one. People walk
+round the buildings and the bouncy castles instead of through them.
+
+Where a site is level in the real world and the procedural hillside under it is not,
+the terrain is graded before the mesh is built: a flat pad with the ground battered
+back out to the natural slope around it. The church lawn is one of these. Levelling the
+ground rather than floating a disc over it means the congregation, the castles, the
+bunting and the hall all agree about where the ground is, because there is only one
+answer.
 
 The rider and the western redcedar are authored GLB models in `Main-Character/` and
 `cedar-tree/`. Both are loaded at boot: the rider is levelled off its own principal

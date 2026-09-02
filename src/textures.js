@@ -635,6 +635,54 @@ export function buildTextures() {
     g.fillText('EVERYONE WELCOME  ·  HE IS HERE', 512, 452);
   }, { repeat: false });
 
+  // ---- the sign beside the Baptist church, in both of its states ----
+  // One drawing, two messages: the frame, the cross and the layout are identical so
+  // the swap reads as the letters being changed on the board rather than the whole
+  // sign being replaced. Alive it is the church's own navy-on-cream; dead it is the
+  // same board scorched, the cross upended and the letters run through with red.
+  const jesusSign = (dead) => canvasTex(1024, 512, (g, w, h) => {
+    const ground = dead ? '#241417' : '#f4f0e4';
+    const ink = dead ? '#f0d6cf' : '#22384c';
+    const frame = dead ? '#7d1418' : '#2f4a63';
+    const accent = dead ? '#e8442c' : '#a2262c';
+    g.fillStyle = ground; g.fillRect(0, 0, w, h);
+    g.strokeStyle = frame; g.lineWidth = 16; g.strokeRect(9, 9, w - 18, h - 18);
+    g.fillStyle = frame; g.fillRect(0, 0, w, 116);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = dead ? '#f7e6e0' : '#f4f0e4';
+    g.font = '700 44px Georgia, serif';
+    g.fillText('DEPARTURE BAY BAPTIST', 512, 58);
+
+    // the cross: upright while he is, upended once he is not
+    g.save();
+    g.translate(148, 300);
+    if (dead) g.rotate(Math.PI);
+    g.fillStyle = accent;
+    g.fillRect(-11, -96, 22, 192);
+    g.fillRect(-52, -50, 104, 22);
+    g.restore();
+
+    g.fillStyle = ink;
+    if (dead) {
+      g.font = '900 118px Georgia, serif';
+      g.fillText('JESUS', 590, 232);
+      g.fillText('IS DEAD', 590, 348);
+      // a line drawn straight through both words
+      g.strokeStyle = accent; g.lineWidth = 11;
+      g.beginPath(); g.moveTo(300, 236); g.lineTo(880, 344); g.stroke();
+      g.fillStyle = accent; g.font = '700 34px Arial';
+      g.fillText('SERVICES CANCELLED  \u00b7  RUN', 590, 442);
+    } else {
+      g.font = '900 112px Georgia, serif';
+      g.fillText('JESUS IS', 590, 232);
+      g.fillText('WITH US', 590, 348);
+      g.fillStyle = frame; g.font = '700 34px Arial';
+      g.fillText('HE IS ON THE LAWN  \u00b7  COME SAY HI', 590, 442);
+    }
+  }, { repeat: false });
+  TEX.jesusWith = jesusSign(false);
+  TEX.jesusDead = jesusSign(true);
+
   // ---- nanaimo bar splat decal (windshield view) ----
   TEX.splat = canvasTex(256, 256, (g, w, h) => {
     g.clearRect(0, 0, w, h);

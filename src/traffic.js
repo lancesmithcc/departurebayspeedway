@@ -455,9 +455,10 @@ export class Traffic {
       const deck = this.terrain.roadDeck(car.x, car.z);
       if (deck && deck.d < deck.hw + 0.8) car.y = deck.y - 0.05;
       else {
-        const analytic = this.terrain.surfaceHeight(car.x, car.z);
+        // the drawn triangles are the ground you can see; the analytic surface is only
+        // the fallback for before buildMesh() has left its cache behind
         const drawn = this.terrain.meshHeight(car.x, car.z);
-        car.y = Math.max(analytic, drawn ?? analytic);
+        car.y = drawn ?? this.terrain.surfaceHeight(car.x, car.z);
       }
       car.dx = sm2.dx; car.dz = sm2.dz;
       car.heading = Math.atan2(-sm2.dx, -sm2.dz) - (car.yaw || 0);

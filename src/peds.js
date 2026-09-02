@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { recolorFlattened } from './models.js';
 import { clamp, rand, choice } from './util.js';
+import { hasSidewalk } from './props.js';
 
 const WALK_SPEED = [1.0, 1.7];
 const KID_SPEED = [1.6, 2.4];
@@ -219,18 +220,33 @@ export class Peds {
     this._c = new THREE.Color();
     this._up = new THREE.Vector3(0, 1, 0);
     this.voiceCool = 0;
+    // Set from main.js the moment Jesus goes down and cleared when he is put back.
+    // The congregation's lines turn on this, not on `damned`: the town does not turn
+    // red until he stands back up three seconds later, and the church folk have
+    // something to say about it before then.
+    this.jesusDead = false;
     this.seedKids();
   }
 
   // ---- the surface a person actually stands on ----
-  // Three things can be the top at any given point and only the highest of them is
-  // what you see: the analytic surface, the terrain triangles as drawn (the grid is
-  // ~15 m, so between samples the drawn ground sits above the maths), and any flat
-  // deck laid over sloping ground. Take the lowest of the three and people sink.
+  // The ground you can see is the terrain triangles as drawn, not the analytic
+  // surface they were sampled from: the grid is ~15 m, so between samples the two
+  // disagree by up to half a metre in both directions. Taking the higher of the two —
+  // which is what this used to do — floats people over every concave cell. Read the
+  // drawn triangles and stand on those, and the only surfaces that override them are
+  // the ones actually laid on top: the road deck and any authored platform. The
+  // sidewalk slab is not one of them — it is nowhere near the road segment's own half
+  // width, it is out at the corridor edge — so it stays where it can be found from a
+  // corridor index, in standHeight().
   stand(x, z) {
-    let y = this.terrain.surfaceHeight(x, z);
-    const drawn = this.terrain.meshHeight ? this.terrain.meshHeight(x, z) : null;
-    if (drawn !== null && drawn !== undefined && drawn > y) y = drawn;
+    const rd = this.terrain.roadDeck(x, z);
+    let y;
+    if (rd && rd.d < rd.hw + 0.7) {
+      y = rd.y;                                   // out on the carriageway
+    } else {
+      const drawn = this.terrain.meshHeight ? this.terrain.meshHeight(x, z) : null;
+      y = (drawn === null || drawn === undefined) ? this.terrain.groundHeight(x, z) : drawn;
+    }
     for (const p of this.platforms) {
       if (Math.hypot(x - p.x, z - p.z) > p.r) continue;
       if (p.y > y) y = p.y;
@@ -291,7 +307,14 @@ export class Peds {
   standHeight(x, z, i, side) {
     const ground = this.stand(x, z);
     if (i === undefined || !side) return ground;
-    const e = this.corridor.edgePoint(Math.round(clamp(i, 0, this.corridor.pts.length - 1)), side);
+    const idx = Math.round(clamp(i, 0, this.corridor.pts.length - 1));
+    // Only where a slab was actually laid. Over the gravel-shouldered stretches this
+    // was inventing one, and on the banked verge above the Circle K that stood people
+    // a metre and a half clear of the ground they were walking on.
+    if (!hasSidewalk(this.corridor.cum[idx], side)) return ground;
+    const e = this.corridor.edgePoint(idx, side);
+    // and only when they are on it: it is 1.7 m wide, laid just outside the edge
+    if (Math.hypot(x - e[0], z - e[1]) > 2.4) return ground;
     const walkTop = this.terrain.groundHeight(e[0], e[1]) + 0.28;
     // whichever surface is actually on top: the slab where it stands proud of the
     // verge, the verge where the slab is cut into a bank
@@ -358,8 +381,14 @@ export class Peds {
         kid.dir = n % 2 ? 1 : -1;
         kid.t = rand(0, 1);
         kid.speed = rand(KID_SPEED[0], KID_SPEED[1]);
-        kid.a = [cross[0] - nx * (hw + 2.5), cross[1] - nz * (hw + 2.5)];
-        kid.b = [cross[0] + nx * (hw + 2.5), cross[1] + nz * (hw + 2.5)];
+        // hw + 1.6 puts both ends on the sidewalk slab itself (it runs from hw + 0.15
+        // to hw + 1.85), rather than a step past its outer edge onto the verge.
+        kid.a = [cross[0] - nx * (hw + 1.6), cross[1] - nz * (hw + 1.6)];
+        kid.b = [cross[0] + nx * (hw + 1.6), cross[1] + nz * (hw + 1.6)];
+        // Both ends of the crossing land on the sidewalk, which is built up 0.28 m over
+        // ground the road carve has already dropped 0.4 m: kept on the bare terrain the
+        // kids finished each trip half a metre below the kerb they walked off.
+        kid.ci = pr.i;
         kid.lane = rand(-1.2, 1.2);          // spread along the crossing
         kid.tan = this.corridor.tan[pr.i];
         kid.shirt = choice(this.shirts);
@@ -477,7 +506,8 @@ export class Peds {
       if (kid.t < 0) { kid.t = 0; kid.dir = 1; kid.wait = rand(1.5, 4); }
       kid.x = kid.a[0] + (kid.b[0] - kid.a[0]) * kid.t + kid.tan[0] * kid.lane;
       kid.z = kid.a[1] + (kid.b[1] - kid.a[1]) * kid.t + kid.tan[1] * kid.lane;
-      const kgy = this.stand(kid.x, kid.z);
+      // t < 0.5 is the a end, which is the -n side of the corridor
+      const kgy = this.standHeight(kid.x, kid.z, kid.ci, kid.t < 0.5 ? -1 : 1);
       kid.y = kid.y === undefined ? kgy : Math.max(kgy, kid.y + (kgy - kid.y) * Math.min(1, 9 * dt));
       const kwant = Math.atan2((kid.b[0] - kid.a[0]) * kid.dir, (kid.b[1] - kid.a[1]) * kid.dir);
       let kdh = kwant - (kid.heading ?? kwant);
@@ -768,6 +798,18 @@ export class Peds {
     d.t = Infinity;
   }
 
+  // ---- what the victim says on the way down ----
+  // The congregation gets its own book. On the lawn with Jesus alive they are church
+  // ladies and deacons and they forgive you for it, which is worse; with him dead they
+  // are the same people in the same whites saying something considerably less kind.
+  // Everybody else on the road keeps the street lines they always had.
+  victimLine(ped) {
+    if (ped && ped.party) {
+      return `church_${this.jesusDead ? 'd' : 'a'}${1 + Math.floor(Math.random() * 8)}`;
+    }
+    return `ped${1 + Math.floor(Math.random() * 6)}`;
+  }
+
   // ---- a Nanaimo bar to the back of the head ----
   // Not a sit-down any more: the bar puts them flat, face first, wearing the whole
   // bar. Chocolate goes everywhere — on them, on the pavement, and in the air.
@@ -799,7 +841,7 @@ export class Peds {
     this.dropDecal(ped.x, ped.y, ped.z, rand(0.7, 0.95), ped);
     if (this.audio && this.voiceCool <= 0) {
       this.voiceCool = 1.6;
-      this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.9, 0.55, 1);
+      this.audio.voice(this.victimLine(ped), 0.9, 0.55, 1);
     }
     if (ped.onDeath) ped.onDeath(ped);
     this.onSplat(ped);
@@ -834,7 +876,7 @@ export class Peds {
       this.audio.splat && this.audio.splat();
       if (this.voiceCool <= 0) {
         this.voiceCool = 1.4;
-        this.audio.voice(`ped${1 + Math.floor(Math.random() * 6)}`, 0.95, 0.55, 1);
+        this.audio.voice(this.victimLine(ped), 0.95, 0.55, 1);
       }
     }
     if (ped.onDeath) ped.onDeath(ped);
