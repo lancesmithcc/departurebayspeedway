@@ -12,6 +12,15 @@ MODEL = os.path.join(MODEL_DIR, "kokoro-v1.0.int8.onnx")
 VOICES = os.path.join(MODEL_DIR, "voices-v1.0.bin")
 BASE = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
 
+# Kokoro ships no child voice. Rendering the lightest adult voices at 1/RATIO speed and
+# resampling the result up by RATIO lands the pitch about a third higher with the
+# original pace intact — which is a nine-year-old, near enough, and costs one numpy
+# interpolation per line.
+CHILD = {"pitch": 1.34}
+# am_puck starts an octave below the others, so the one boy in the group needs more of
+# a shift to land in the same room as them rather than reading as a small adult.
+CHILD_BOY = {"pitch": 1.62}
+
 LINES = [
     # key, voice, text
     ("intro", "am_michael", "Welcome to Departure Bay Speedway, punks!"),
@@ -38,6 +47,20 @@ LINES = [
     ("ped6", "am_michael", "Free Nanaimo bar! I'm not even mad."),
     # crossing guard / school zone
     ("school1", "bf_emma", "School zone! Kids crossing, slow down!"),
+    # the kids on the crossings, who are entirely unbothered about being hit and
+    # mostly disappointed it was not more impressive. CHILD marks them for the pitch
+    # shift below — Kokoro has no child voice, so the lightest adult voices are
+    # rendered slow and resampled up.
+    ("kid1", "af_sky", "That hit was mid, ngl, try again.", CHILD),
+    ("kid2", "af_nova", "Bro got zero rizz for that crosswalk hit.", CHILD),
+    ("kid3", "bf_lily", "A Nanaimo bar to the face, lowkey bussin.", CHILD),
+    ("kid4", "af_kore", "Chat, did that even count as a crash out.", CHILD),
+    ("kid5", "am_puck", "Sigma driving skills, but the aura was cooked.", CHILD_BOY),
+    ("kid6", "af_river", "I want hazard pay, this school is ohio.", CHILD),
+    ("kid7", "af_sky", "Ratio. My backpack survived, your bike did not.", CHILD),
+    ("kid8", "af_nova", "No cap, that dessert splat was kind of slay.", CHILD),
+    ("kid9", "bf_lily", "Getting run over on a crosswalk, so delulu.", CHILD),
+    ("kid10", "af_kore", "Highkey rate that hit a solid two out of ten.", CHILD),
     ("church1", "am_michael", "Pastor Jeremy says: ride safe, punks."),
     # the congregation on the Baptist lawn, who get their own book. These play
     # instead of the street lines whenever the victim is one of the party.
@@ -89,14 +112,26 @@ def main():
     from kokoro_onnx import Kokoro
     kokoro = Kokoro(MODEL, VOICES)
 
-    for key, voice, text in LINES:
+    import numpy as np
+
+    for entry in LINES:
+        key, voice, text = entry[:3]
+        opts = entry[3] if len(entry) > 3 else {}
+        pitch = opts.get("pitch", 1.0)
         out = os.path.join(OUT_DIR, f"{key}.wav")
         if os.path.exists(out) and "--force" not in sys.argv:
             print(f"skip {key} (exists)")
             continue
-        audio, sr = kokoro.create(text, voice=voice, speed=1.02, lang="en-us")
+        audio, sr = kokoro.create(text, voice=voice, speed=1.02 / pitch, lang="en-us")
+        if pitch != 1.0:
+            # resample shorter at the same sample rate: pitch and pace both go up by
+            # `pitch`, and the slow render above is what puts the pace back
+            n = max(1, int(len(audio) / pitch))
+            audio = np.interp(
+                np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio,
+            ).astype("float32")
         sf.write(out, audio, sr)
-        print(f"{key}: {len(audio) / sr:.2f}s [{voice}]")
+        print(f"{key}: {len(audio) / sr:.2f}s [{voice}{'' if pitch == 1.0 else f' +{pitch:.2f}x'}]")
 
     print("done:", OUT_DIR)
 

@@ -799,14 +799,18 @@ export class Peds {
   }
 
   // ---- what the victim says on the way down ----
-  // The congregation gets its own book. On the lawn with Jesus alive they are church
-  // ladies and deacons and they forgive you for it, which is worse; with him dead they
-  // are the same people in the same whites saying something considerably less kind.
-  // Everybody else on the road keeps the street lines they always had.
+  // Three books. The congregation gets one: on the lawn with Jesus alive they are
+  // church ladies and deacons and they forgive you for it, which is worse; with him
+  // dead they are the same people in the same whites saying something considerably
+  // less kind. The kids on the crossings get another — pitched up a third and entirely
+  // unbothered, mostly disappointed the hit was not more impressive. The party checks
+  // first, so a child on the church lawn is congregation before it is a kid. Everybody
+  // else on the road keeps the street lines they always had.
   victimLine(ped) {
     if (ped && ped.party) {
       return `church_${this.jesusDead ? 'd' : 'a'}${1 + Math.floor(Math.random() * 8)}`;
     }
+    if (ped && ped.kid) return `kid${1 + Math.floor(Math.random() * 10)}`;
     return `ped${1 + Math.floor(Math.random() * 6)}`;
   }
 

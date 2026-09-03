@@ -88,6 +88,11 @@ Pedestrians walk the sidewalks, kids shuttle over both school crossings, and the
 congregation runs around the church lawn — the same authored characters as the street
 crowd, recoloured into Sunday whites.
 
+The kids on the crossings have their own book too, pitched up a third — Kokoro has no
+child voice, so the lightest adult voices are rendered slow and resampled up. They are
+entirely unbothered about being run over and mostly disappointed it was not more
+impressive, and they say so in Gen Alpha.
+
 The congregation also has its own book of lines. Run one of them down on the lawn and
 you do not get the street reaction; you get a church lady or a deacon forgiving you for
 it, which is worse. Once Jesus is dead the same people in the same whites are saying
