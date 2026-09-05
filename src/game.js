@@ -271,6 +271,8 @@ export class Game {
       this.onKey(e.code);
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    window.addEventListener('blur', () => this.clearInput());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clearInput(); });
     window.addEventListener('pointerdown', () => {
       probe();
       this.audio.init();
@@ -312,6 +314,13 @@ export class Game {
     if (code === 'KeyM') {
       this.audio.setMuted(!this.audio.muted);
     }
+  }
+
+  clearInput() {
+    this.keys = {};
+    this._jumpEdge = false;
+    this._lastW = -Infinity;
+    Object.assign(this.input ||= {}, {throttle:0, brake:0, steer:0, hop:false, jump:false});
   }
 
   readInput() {
@@ -413,6 +422,7 @@ export class Game {
     // Otherwise the finish update reopens the scoreboard while we rejoin.
     this.el.finish.classList.add('hidden');
     this.finishT = 0;
+    this.clearInput();
     this.closeNaming();
     if (this.multiplayer && this.multiplayer.status !== 'active') {
       this.state = 'title';
@@ -436,6 +446,7 @@ export class Game {
     this.nextGate = 0;
     this.effects.ringsHit = 0;
     this.player.trickScore = 0;
+    this.player.topSpeed = 0;
     this.pedsHit = 0;
     if (this.peds) this.peds.reset();
     this.police?.reset();

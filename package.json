@@ -17,7 +17,7 @@
     "check:voices": "node tools/check-dialogue.mjs && node tools/check-dialogue-events.mjs",
     "check:traffic": "node tools/check-reference-vehicles.mjs && node tools/check-sculpted-vehicles.mjs",
     "check:hazards": "node tools/check-roadside.mjs && node tools/check-police.mjs && node tools/check-deer.mjs && node tools/check-road-hazards.mjs",
-    "check:physics": "node tools/check-crash-contact.mjs && node tools/check-traffic-grounding.mjs && node tools/check-body-support.mjs",
+    "check:physics": "node tools/check-crash-contact.mjs && node tools/check-traffic-grounding.mjs && node tools/check-body-support.mjs && node tools/check-road-junctions.mjs",
     "check:cast": "node tools/check-character-cast.mjs",
     "check:multiplayer": "node tools/check-multiplayer.mjs && node tools/check-multiplayer-client.mjs && node tools/check-player-colors.mjs && node tools/check-restart.mjs"
   }

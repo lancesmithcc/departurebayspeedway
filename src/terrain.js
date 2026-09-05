@@ -24,6 +24,7 @@ export class Terrain {
     this.buildGreenGrid(map.green, map.water);
     this.computeRoadProfiles(map.roads);
     this.enforceRouteDescent(map);
+    this.joinRouteJunctions(map.roads);
     this.buildRoadGrid(map.roads);
     // Graded building pads: a real church, school or forecourt is levelled before it
     // is built on, and the ground is battered back out to the natural slope around it.
@@ -338,6 +339,63 @@ export class Terrain {
     }
   }
 
+  // Independent smoothing must finish before joining shared OSM nodes. Otherwise
+  // an interior arterial node drifts while the side-road endpoint stays fixed,
+  // leaving a suspended ribbon across the junction (3.4 m at Mexicana Road).
+  joinRouteJunctions(roads) {
+    const nodes = new Map();
+    for (const road of roads) {
+      if (road.br || (road.l || 0) !== 0) continue;
+      road.p.forEach((p, i) => {
+        const key = p.join(',');
+        if (!nodes.has(key)) nodes.set(key, []);
+        nodes.get(key).push({ road, i });
+      });
+    }
+    const corrections = new Map();
+    for (const entries of nodes.values()) {
+      const primary = entries.find(({ road }) => road.n === 'Departure Bay Road');
+      if (!primary || entries.length < 2) continue;
+      const height = primary.road.e[primary.i];
+      for (const { road, i } of entries) {
+        const delta = height - road.e[i];
+        if (Math.abs(delta) < 1e-9) continue;
+        if (!corrections.has(road)) corrections.set(road, []);
+        corrections.get(road).push({ s: road.cum[i], height, delta });
+      }
+    }
+    for (const [road, joins] of corrections) {
+      const oldP = road.p, oldE = road.e, oldCum = road.cum;
+      const end = oldCum.at(-1), blend = 18;
+      // Add local samples even when the source has a 200 m side-road segment.
+      // The original profile resumes exactly 18 m from the junction.
+      const samples = new Set(oldCum);
+      for (const join of joins) for (let d = -blend; d <= blend; d += 3) {
+        const s = join.s + d;
+        if (s >= 0 && s <= end) samples.add(s);
+      }
+      road.cum = [...samples].sort((a, b) => a - b);
+      road.p = []; road.e = [];
+      const oldStations = road.stations;
+      if (oldStations) road.stations = [];
+      let i = 0;
+      for (const s of road.cum) {
+        while (i < oldCum.length - 2 && oldCum[i + 1] < s) i++;
+        const t = (s - oldCum[i]) / (oldCum[i + 1] - oldCum[i] || 1);
+        const exact = t === 0 ? i : t === 1 ? i + 1 : -1;
+        road.p.push(exact >= 0 ? oldP[exact] : [lerp(oldP[i][0], oldP[i + 1][0], t), lerp(oldP[i][1], oldP[i + 1][1], t)]);
+        let height = lerp(oldE[i], oldE[i + 1], t);
+        // Closest junction owns its transition; exact shared nodes always win.
+        const join = joins.reduce((best, item) => Math.abs(item.s - s) < Math.abs(best.s - s) ? item : best);
+        const d = Math.abs(join.s - s);
+        if (d === 0) height = join.height;
+        else if (d < blend) height += join.delta * (1 - smoothstep(0, blend, d));
+        road.e.push(height);
+        if (oldStations) road.stations.push(lerp(oldStations[i], oldStations[i + 1], t));
+      }
+    }
+  }
+
   buildRoadGrid(roads) {
     this.roadGrid = new Grid(24);
     for (const r of roads) {
@@ -404,6 +462,12 @@ export class Terrain {
   roadDeck(x, z) {
     const nr = this.nearestRoad(x, z);
     if (!nr) return null;
+    // The side-road plane is clipped away at joined intersections. Physics must
+    // use the retained primary triangles there, not the nearest side centreline.
+    if (this.junctionDeckGrid && this.junctionPoints.some(p=>Math.hypot(p[0]-x,p[1]-z)<=18)) {
+      const y=this.triangleSurfaceHeight(this.junctionDeckGrid,x,z);
+      if (Number.isFinite(y)) return { y, d:nr.d, hw:nr.seg.hw };
+    }
     const { t } = distPointToSeg(x, z, nr.seg.ax, nr.seg.az, nr.seg.bx, nr.seg.bz);
     return { y: lerp(nr.seg.ea, nr.seg.eb, t) + 0.07, d: nr.d, hw: nr.seg.hw };  // +0.07 = roads.js deck offset
   }
@@ -411,6 +475,17 @@ export class Terrain {
   // Physical support uses the same triangles as the road/curb/sidewalk meshes.
   registerGroundGeometry(geometry) {
     this.contactGrid ||= new Grid(12);
+    this.registerSurfaceTriangles(geometry,this.contactGrid);
+  }
+
+  registerJunctionDeckGeometry(geometry, points) {
+    if (!points.length) return;
+    this.junctionDeckGrid ||= new Grid(12);
+    this.junctionPoints = points;
+    this.registerSurfaceTriangles(geometry,this.junctionDeckGrid);
+  }
+
+  registerSurfaceTriangles(geometry,grid) {
     const a=geometry.attributes.position,index=geometry.index;
     const count=index?index.count:a.count;
     for(let i=0;i<count;i+=3){
@@ -418,8 +493,18 @@ export class Terrain {
       const v=ids.map(j=>[a.getX(j),a.getY(j),a.getZ(j)]);
       const den=(v[1][2]-v[2][2])*(v[0][0]-v[2][0])+(v[2][0]-v[1][0])*(v[0][2]-v[2][2]);
       if(Math.abs(den)<1e-9)continue;
-      this.contactGrid.insertAABB(Math.min(...v.map(p=>p[0])),Math.min(...v.map(p=>p[2])),Math.max(...v.map(p=>p[0])),Math.max(...v.map(p=>p[2])),{v,den});
+      grid.insertAABB(Math.min(...v.map(p=>p[0])),Math.min(...v.map(p=>p[2])),Math.max(...v.map(p=>p[0])),Math.max(...v.map(p=>p[2])),{v,den});
     }
+  }
+
+  triangleSurfaceHeight(grid,x,z) {
+    let y=-Infinity;
+    for(const {v,den} of grid.query(x,z,.01)) {
+      const u=((v[1][2]-v[2][2])*(x-v[2][0])+(v[2][0]-v[1][0])*(z-v[2][2]))/den;
+      const w=((v[2][2]-v[0][2])*(x-v[2][0])+(v[0][0]-v[2][0])*(z-v[2][2]))/den;
+      if(u>=-1e-7&&w>=-1e-7&&u+w<=1+1e-7)y=Math.max(y,u*v[0][1]+w*v[1][1]+(1-u-w)*v[2][1]);
+    }
+    return y;
   }
 
   renderedGroundHeight(x,z) {

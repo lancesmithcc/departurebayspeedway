@@ -36,14 +36,113 @@ function ribbon(pts, elev, halfW, yOff) {
   return g;
 }
 
+// Keep side-road triangles out of the primary carriageway. Snapping only their
+// centre nodes leaves a wedge: the arterial slopes across a flat side-road end.
+// Clip against its actual triangle footprint and stitch the remaining boundary
+// to the primary shoulder, leaving the primary deck and lane markings intact.
+function primaryFootprints(roads) {
+  const triangles = [];
+  for (const r of roads) {
+    if (r.n !== 'Departure Bay Road' || r.br || (r.l || 0) !== 0) continue;
+    const shoulder = r.w >= 6;
+    const g = ribbon(r.p, r.e, r.w / 2 + (shoulder ? .55 : 0), shoulder ? .015 : .07);
+    const p = g.attributes.position, ids = g.index.array;
+    for (let i = 0; i < ids.length; i += 3) {
+      const v = [ids[i], ids[i + 1], ids[i + 2]].map(j => [p.getX(j), p.getY(j), p.getZ(j)]);
+      const cross = (v[1][0]-v[0][0])*(v[2][2]-v[0][2])-(v[1][2]-v[0][2])*(v[2][0]-v[0][0]);
+      if (Math.abs(cross) < 1e-8) continue;
+      if (cross < 0) [v[1], v[2]] = [v[2], v[1]];
+      triangles.push({road:r, v, x0:Math.min(...v.map(p=>p[0])), x1:Math.max(...v.map(p=>p[0])), z0:Math.min(...v.map(p=>p[2])), z1:Math.max(...v.map(p=>p[2]))});
+    }
+    g.dispose();
+  }
+  return triangles;
+}
+
+function trimPrimaryOverlap(geometry, footprints) {
+  const attrs = Object.entries(geometry.attributes);
+  const output = Object.fromEntries(attrs.map(([name]) => [name, []]));
+  const ids = geometry.index.array;
+  const distance = (p,a,b) => (b[0]-a[0])*(p[2]-a[2])-(b[2]-a[2])*(p[0]-a[0]);
+  const split = (poly,a,b,inside) => {
+    const result=[];
+    for(let i=0;i<poly.length;i++) {
+      const v=poly[i], next=poly[(i+1)%poly.length];
+      const d=distance(v.position,a,b), nd=distance(next.position,a,b);
+      const keep=inside?d>=0:d<=0, nextKeep=inside?nd>=0:nd<=0;
+      if(keep)result.push(v);
+      if(keep!==nextKeep) {
+        const t=d/(d-nd);
+        result.push(Object.fromEntries(attrs.map(([name])=>[name,v[name].map((value,j)=>value+(next[name][j]-value)*t)])));
+      }
+    }
+    return result;
+  };
+  for(let i=0;i<ids.length;i+=3) {
+    let pieces=[[ids[i],ids[i+1],ids[i+2]].map(j=>Object.fromEntries(attrs.map(([name,a])=>[name,Array.from(a.array.slice(j*a.itemSize,(j+1)*a.itemSize))])) )];
+    const original=pieces[0], xs=original.map(v=>v.position[0]), zs=original.map(v=>v.position[2]);
+    const x0=Math.min(...xs),x1=Math.max(...xs),z0=Math.min(...zs),z1=Math.max(...zs);
+    for(const tri of footprints) {
+      if(tri.x1<x0||tri.x0>x1||tri.z1<z0||tri.z0>z1)continue;
+      const nextPieces=[];
+      for(const poly of pieces) {
+        let overlap=poly;
+        for(let edge=0;edge<3&&overlap.length;edge++)overlap=split(overlap,tri.v[edge],tri.v[(edge+1)%3],true);
+        const area=overlap.reduce((sum,v,j)=>{const n=overlap[(j+1)%overlap.length];return sum+v.position[0]*n.position[2]-n.position[0]*v.position[2];},0);
+        if(Math.abs(area)<1e-7){nextPieces.push(poly);continue;}
+        let remaining=poly;
+        for(let edge=0;edge<3&&remaining.length;edge++) {
+          const outside=split(remaining,tri.v[edge],tri.v[(edge+1)%3],false);
+          if(outside.length>=3) {
+            for(const vertex of outside) {
+              const p=vertex.position;
+              if(tri.v.every((a,j)=>distance(p,a,tri.v[(j+1)%3])>=-1e-5)) {
+                const [a,b,c]=tri.v, den=distance(c,a,b);
+                const wb=((p[0]-a[0])*(c[2]-a[2])-(p[2]-a[2])*(c[0]-a[0]))/den;
+                const wc=distance(p,a,b)/den;
+                // Clone: another retained polygon can share this vertex object.
+                vertex.position=[p[0],a[1]+wb*(b[1]-a[1])+wc*(c[1]-a[1]),p[2]];
+              }
+            }
+            nextPieces.push(outside);
+          }
+          remaining=split(remaining,tri.v[edge],tri.v[(edge+1)%3],true);
+        }
+      }
+      pieces=nextPieces;
+      if(!pieces.length)break;
+    }
+    for(const poly of pieces)for(let j=1;j<poly.length-1;j++)for(const vertex of [poly[0],poly[j],poly[j+1]])for(const [name] of attrs)output[name].push(...vertex[name]);
+  }
+  const result=new THREE.BufferGeometry();
+  for(const [name,a]of attrs)result.setAttribute(name,new THREE.Float32BufferAttribute(output[name],a.itemSize));
+  result.setIndex(Array.from({length:result.attributes.position.count},(_,i)=>i));
+  geometry.dispose();
+  return result;
+}
+
 export function buildRoads(map, terrain) {
   const roadGeos = [], markGeos = [];
+  const footprints = primaryFootprints(map.roads);
+  const primaryNodes = new Map();
+  for (const road of map.roads) if (road.n === 'Departure Bay Road' && !road.br && !(road.l || 0)) {
+    for (const p of road.p) {
+      const key=p.join(',');if(!primaryNodes.has(key))primaryNodes.set(key,new Set());
+      primaryNodes.get(key).add(road);
+    }
+  }
+  const junctionPoints = map.roads.filter(r=>r.n!=='Departure Bay Road'&&!r.br&&!(r.l||0)).flatMap(r=>r.p.filter(p=>primaryNodes.has(p.join(','))));
   const white = new THREE.Color('#f2ede4'), yellow = new THREE.Color('#d8a018');
 
   const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 
   for (const r of map.roads) {
     const pts = r.p, e = r.e;
+    const trim = r.n !== 'Departure Bay Road' && !r.br && !(r.l || 0);
+    const joins = trim ? pts.filter(p=>primaryNodes.has(p.join(','))) : [];
+    const joinedRoads = new Set(joins.flatMap(p=>[...primaryNodes.get(p.join(','))]));
+    const localFootprints = footprints.filter(t=>joinedRoads.has(t.road)&&joins.some(p=>t.x1>=p[0]-18&&t.x0<=p[0]+18&&t.z1>=p[1]-18&&t.z0<=p[1]+18));
+    const conform = geometry => localFootprints.length ? trimPrimaryOverlap(geometry, localFootprints) : geometry;
     // Ferry-terminal aprons and dock lanes are mapped out over the water; without a
     // bridge tag they'd be laid as tarmac ribbons floating on the harbour.
     if (!r.br) {
@@ -52,11 +151,13 @@ export function buildRoads(map, terrain) {
       if (wet > pts.length * 0.5) continue;
     }
     // deck
-    const deck=ribbon(pts, e, r.w / 2, 0.07);
+    const deck=conform(ribbon(pts, e, r.w / 2, 0.07));
+    if (r.n === 'Departure Bay Road' && !r.br && !(r.l || 0)) terrain.registerJunctionDeckGeometry?.(deck, junctionPoints);
     terrain.registerGroundGeometry?.(deck);roadGeos.push(deck);
     // shoulders (slightly wider dirt/gravel blend) — skip for service lanes
     if (r.w >= 6) {
-      const shoulder=ribbon(pts, e, r.w / 2 + 0.55, 0.015);
+      const shoulder=conform(ribbon(pts, e, r.w / 2 + 0.55, 0.015));
+      if (r.n === 'Departure Bay Road' && !r.br && !(r.l || 0)) terrain.registerJunctionDeckGeometry?.(shoulder, junctionPoints);
       terrain.registerGroundGeometry?.(shoulder);roadGeos.push(shoulder);
     }
     // markings
@@ -90,7 +191,7 @@ export function buildRoads(map, terrain) {
           g.setAttribute('color', new THREE.Float32BufferAttribute([color.r, color.g, color.b, color.r, color.g, color.b, color.r, color.g, color.b, color.r, color.g, color.b], 3));
           g.setIndex([0, 2, 1, 1, 2, 3]);
           g.computeVertexNormals();
-          markGeos.push(g);
+          markGeos.push(conform(g));
         }
       }
     };
@@ -122,7 +223,7 @@ export function buildRoads(map, terrain) {
         ], 3));
         g.setIndex([0, 2, 1, 1, 2, 3]);
         g.computeVertexNormals();
-        markGeos.push(g);
+        markGeos.push(conform(g));
       }
     };
     // Street View: Departure Bay Road is a conventional two-way Nanaimo arterial.

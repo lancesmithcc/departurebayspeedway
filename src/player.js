@@ -345,6 +345,9 @@ export class Player {
     this.v = 0; this.vy = 0;
     this.grounded = true;
     this.state = 'riding';
+    this.airTime = 0;
+    this.lean = 0; this.wheelie = 0; this.steerVis = 0;
+    this.offroad = false; this.onRamp = false;
     this.crashT = 0;
     this.trickYaw = 0; this.trickPitch = 0; this.pose = 0; this.poseAmt = 0;
     this.airScore = 0; this.flips = 0; this.jumpCool = 0;
