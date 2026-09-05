@@ -1,3 +1,4 @@
+import {createMultiplayerHandler} from './tools/multiplayer-server.mjs';
 // serve.mjs — static file server with no caching (dev)
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -11,7 +12,9 @@ const types = {
   '.css': 'text/css', '.ico': 'image/x-icon',
   '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
 };
+const multiplayerHandler = createMultiplayerHandler({maxPlayers:7});
 const server = createServer(async (req, res) => {
+  if (await multiplayerHandler(req,res)) return;
   try {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p === '/') p = '/index.html';

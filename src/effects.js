@@ -1,3 +1,4 @@
+import {pushOffRoad} from './roadside-clearance.js';
 // effects.js — stunt ramp, rings of fire, checkpoint gates, particles
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -391,7 +392,7 @@ export class Effects {
 }
 
 // ---------- checkpoint gates ----------
-export function buildGates(scene, positions, terrain) {
+export function buildGates(scene, positions, terrain, corridor) {
   const gates = [];
   const poleMat = new THREE.MeshStandardMaterial({ color: 0xd96a1e, roughness: 0.6 });
   const flagMat = new THREE.MeshStandardMaterial({ color: 0xff8c1a, roughness: 0.7, side: THREE.DoubleSide });
@@ -399,13 +400,19 @@ export function buildGates(scene, positions, terrain) {
   for (const p of positions) {
     const g = new THREE.Group();
     const y = terrain.groundHeight(p[0], p[1]);
+    const pr = corridor?.projectExact(p[0], p[1]);
+    const [nx,nz] = pr ? corridor.normalAt(pr.i) : [1,0];
+    const off = pr ? Math.max(6.5,pr.hw+1.3) : 6.5;
     for (const s of [-1, 1]) {
+      const [px,pz] = pushOffRoad(p[0]+nx*s*off,p[1]+nz*s*off,terrain);
+      const gy=terrain.meshHeight?.(px,pz) ?? terrain.groundHeight(px,pz);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 6, 8), poleMat);
-      pole.position.set(p[0] + s * 6.5, y + 3, p[1]);
+      pole.name='Checkpoint roadside pole';
+      pole.position.set(px, gy + 3, pz);
       pole.castShadow = true;
       g.add(pole);
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), flagMat);
-      flag.position.set(p[0] + s * 6.5, y + 5.4, p[1]);
+      flag.position.set(px, gy + 5.4, pz);
       flag.rotation.y = Math.PI / 4;
       g.add(flag);
     }

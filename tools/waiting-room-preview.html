@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waiting room preview</title><body style="background:#101c25;color:white;font:18px system-ui"><h1>Waiting room preview</h1><p id="result">Queue preview — no live seat reserved.</p><script type="importmap">{"imports":{"three":"../lib/build/three.module.js"}}</script><script type="module">
+import {multiplayerUI} from '../src/multiplayer-ui.js';
+const el=()=>document.createElement('div');const game={state:'title',keys:{},player:{v:0},el:{title:el(),hud:el(),finish:el()},multiplayer:{leave(){},join(){}},startRide(){document.querySelector('#result').textContent='Spot opened — minigame closed and ride admitted.';}};
+const ui=multiplayerUI(game);ui.waiting({queuePosition:2});window.waitingPreview={ui,game};
+</script></body></html>

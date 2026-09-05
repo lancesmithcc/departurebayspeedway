@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { DIALOGUE_LINES, selectDialogue, PERSON_VOICES } from '../src/dialogue.js';
 import { AudioSys } from '../src/audio.js';
 assert.deepEqual(PERSON_VOICES,['male','female','male','female','male','female','female','male']);
@@ -32,7 +33,18 @@ globalThis.fetch=async()=>{fetches++;return {ok:false,status:404}};
 await missingAudio.voice('missing');await missingAudio.voice('missing');assert.equal(fetches,1);
 missingAudio.voiceFailures.missing=Date.now()-1;await missingAudio.voice('missing');assert.equal(fetches,2);
 globalThis.fetch=originalFetch;
+const generated = JSON.parse(fs.readFileSync('audio/voices/generated-lines.json', 'utf8'));
+for (const line of DIALOGUE_LINES) {
+  assert.equal(generated[line.key]?.text, line.text, `stale spoken text: ${line.key}`);
+  assert.equal(generated[line.key]?.voice, line.voice, `stale casting: ${line.key}`);
+  assert.equal(generated[line.key]?.pitch, line.pitch ?? 1, `stale pitch: ${line.key}`);
+}
+for (const [key, record] of Object.entries(generated)) {
+  const bytes = fs.readFileSync(`audio/voices/${key}.wav`);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), record.sha256, `stale recording: ${key}`);
+  assert(record.seconds > .5 && record.seconds < 10, `unexpected dialogue duration: ${key}`);
+}
 const missing=[];
 for(const line of DIALOGUE_LINES){const path=`audio/voices/${line.key}.wav`;if(!fs.existsSync(path)){missing.push(path);continue;}const b=fs.readFileSync(path);assert.equal(b.toString('ascii',0,4),'RIFF');assert(b.length>24000,`${path} unexpectedly short`);}
 assert.equal(missing.length,0,`Missing ${missing.length} voice renders`);
-console.log(JSON.stringify({result:'PASS',lines:DIALOGUE_LINES.length,checks:['event pools','cast genders','no immediate repeat','pitched duration and ducking','rendered WAV files']}));
+console.log(JSON.stringify({result:'PASS',lines:DIALOGUE_LINES.length,checks:['event pools','cast genders','no immediate repeat','pitched duration and ducking','rendered WAV files','source text and audio hashes']}));

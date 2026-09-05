@@ -43,7 +43,7 @@ export class AuthoredRiderAnimation {
     this.euler=new THREE.Euler();
     this.reset();
   }
-  reset(){this.time=0;this.pitch=0;this.roll=0;this.look=0;this.compression=0;this.springV=0;}
+  reset(){this.time=0;this.pitch=0;this.roll=0;this.look=0;this.headNod=0;this.compression=0;this.springV=0;}
   update(dt,p) {
     dt=clamp(Number.isFinite(dt)?dt:0,0,.05);this.time+=dt;
     const speed=clamp(Math.abs(p.v||0)/26,0,1);
@@ -52,15 +52,24 @@ export class AuthoredRiderAnimation {
     const targetPitch= -.09*throttle*speed+.11*brake*speed-.05*clamp(p.wheelie||0,0,1);
     this.pitch+=(targetPitch-this.pitch)*blend;
     this.roll+=(-clamp(p.lean||0,-.7,.7)*.32-this.roll)*blend;
-    this.look+=(clamp(p.steerVis||0,-1,1)*.18-this.look)*blend;
+    // Look through a turn, then occasionally check the roadside. Separate smooth
+    // glance envelopes avoid a metronomic head wag; fast riding reduces distraction.
+    const cycle=this.time%17;
+    const glance=(smooth(2.4,3.6,cycle)*(1-smooth(4.6,5.8,cycle))
+      - .82*smooth(10.1,11.6,cycle)*(1-smooth(12.5,14.1,cycle))) * (.30-.17*speed);
+    const turn=clamp((p.steerVis||0)*.34+(p.lean||0)*.12,-.43,.43);
+    this.look+=(clamp(turn+glance,-.48,.48)-this.look)*(1-Math.exp(-dt*4.2));
+    const nod=(Math.sin(this.time*1.15)*.014+Math.sin(this.time*.43)*.012)*(1-.55*speed);
+    this.headNod+=(nod-this.headNod)*(1-Math.exp(-dt*3));
     if(p._landingImpact>0){this.springV-=Math.min(.9,p._landingImpact*.045);p._landingImpact=0;}
     // Substeps prevent a long render frame from destabilising the spring.
     for(let left=dt;left>0;){const h=Math.min(left,1/120);this.springV+=(-95*this.compression-14*this.springV)*h;this.compression+=this.springV*h;left-=h;}
     this.compression=clamp(this.compression,-.07,.02);
-    const breath=Math.sin(this.time*2.5)*.003;
+    const breath=Math.sin(this.time*2.1)*(.0055+.0015*speed);
+    const shoulderRoll=Math.sin(this.time*.71)*.009*(1-.65*speed);
     const road=p.grounded ? Math.sin(this.time*(15+speed*12))*.0025*speed : .014;
-    this.bodyQ.setFromEuler(this.euler.set(this.pitch,0,this.roll));
-    this.headQ.setFromEuler(this.euler.set(-this.pitch*.45,this.look,-this.roll*.5));
+    this.bodyQ.setFromEuler(this.euler.set(this.pitch,0,this.roll+shoulderRoll));
+    this.headQ.setFromEuler(this.euler.set(-this.pitch*.45+this.headNod,this.look,-(this.roll+shoulderRoll)*.5));
     const v=this.v,n=this.n;
     for(const part of this.parts) {
       for(const a of part.entries) {

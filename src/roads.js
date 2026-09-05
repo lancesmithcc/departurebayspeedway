@@ -52,10 +52,12 @@ export function buildRoads(map, terrain) {
       if (wet > pts.length * 0.5) continue;
     }
     // deck
-    roadGeos.push(ribbon(pts, e, r.w / 2, 0.07));
+    const deck=ribbon(pts, e, r.w / 2, 0.07);
+    terrain.registerGroundGeometry?.(deck);roadGeos.push(deck);
     // shoulders (slightly wider dirt/gravel blend) — skip for service lanes
     if (r.w >= 6) {
-      roadGeos.push(ribbon(pts, e, r.w / 2 + 0.55, 0.015));
+      const shoulder=ribbon(pts, e, r.w / 2 + 0.55, 0.015);
+      terrain.registerGroundGeometry?.(shoulder);roadGeos.push(shoulder);
     }
     // markings
     const dashes = (type, color, offA, offB) => {

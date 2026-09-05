@@ -1,0 +1,1258 @@
+{
+  "intro": {
+    "text": "Well hey there, bud! Welcome to Departure Bay Speedway!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "b279c9c93d75300dccdaf53fe90062805e3482bd46fb777edde2df1bb9cddade",
+    "seconds": 3.6267,
+    "sampleRate": 24000
+  },
+  "intro2": {
+    "text": "Country Club to the beach, pal! Keep the rubber side down, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "40a14b53d01560470640a98d0125f38528ea1794b0224337af0084b5685672e3",
+    "seconds": 3.7547,
+    "sampleRate": 24000
+  },
+  "sendit": {
+    "text": "Hit that ramp, bud! Send it through the frickin fire!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "c892357ad02c0f3b0c7642c0a672c40b17109fd098fce878e10308a2bad12a21",
+    "seconds": 3.264,
+    "sampleRate": 24000
+  },
+  "ring": {
+    "text": "Holy shnikeys, bud! Right through the fire!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "215a6cffec349f407c22f780ff1ef3a50856631d8bc8112aa8e209f87f11252a",
+    "seconds": 3.2,
+    "sampleRate": 24000
+  },
+  "finish": {
+    "text": "Holy crap, bud! Made it to the beach! Beauty of a run, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "e40b9cb7010cc1c38115d084d62ce6925531d2f7c1755aa2fcc3b9af77e4a0d1",
+    "seconds": 3.6267,
+    "sampleRate": 24000
+  },
+  "crash1": {
+    "text": "Holy crap, bud! People drive wild around here!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "ad140ee41fbb8b261c3d9984c6f2ba07c4d61048095304454fad0d0075c272c3",
+    "seconds": 2.7733,
+    "sampleRate": 24000
+  },
+  "crash2": {
+    "text": "What the heck, pal! Watch where you are going!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "9fcb59ca4a240345fab39c2687f1d754f69268940f40e2ae695d0b6811b66e68",
+    "seconds": 1.9413,
+    "sampleRate": 24000
+  },
+  "crash3": {
+    "text": "Aw shoot, bud! My insurance is not covering that!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "c1e2dc7fa2c1c2a2b9c29b983748b3e79eb447fb92f6a3548ef30fb99031737f",
+    "seconds": 2.9867,
+    "sampleRate": 24000
+  },
+  "crash4": {
+    "text": "Yikes, pal! The Mounties are gonna hear about this!",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "5caef97d521eb2a9f39c89147366bef06d05fb65d556823e0ebdbae6a41f9304",
+    "seconds": 3.0933,
+    "sampleRate": 24000
+  },
+  "crash5": {
+    "text": "Holy shnikeys! Save the Nanaimo bars, bud!",
+    "voice": "af_nicole",
+    "pitch": 1,
+    "sha256": "91c2e79e8ef1a2c1734328a3dd67f17de039b36c690a20007205759aabadb411",
+    "seconds": 4.7573,
+    "sampleRate": 24000
+  },
+  "crash6": {
+    "text": "Frickin heck! Who taught you to ride, bud?",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "053a5ac5b8b22e413be07de4663b9073596aa66544bfb010ee0cc2e6586d8b9d",
+    "seconds": 2.1333,
+    "sampleRate": 24000
+  },
+  "crash7": {
+    "text": "Watch it, pal! You nearly took me clean out!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "5fd1f3c2740672dc0de89b1fe0e987053dfab3ce5c8e97b05e1438adc929241d",
+    "seconds": 2.3467,
+    "sampleRate": 24000
+  },
+  "crash8": {
+    "text": "Aw crap, bud! I just washed this thing!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "0cd5dd527c2596166d6a5040978ee084dc1783f428cd04c06843c92fa78a24a2",
+    "seconds": 2.688,
+    "sampleRate": 24000
+  },
+  "crash9": {
+    "text": "Ooh shoot, man, you little bugger!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "2e1a1788ae27c49b97f595c6252573aae005e917fb09e54d87983e921eacd86f",
+    "seconds": 1.8987,
+    "sampleRate": 24000
+  },
+  "crash10": {
+    "text": "Right off the road, bud! What in the heck!",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "934599e870f94d299354d177dc915f3ade51099161fe1a5c192811170a3c9b75",
+    "seconds": 2.5387,
+    "sampleRate": 24000
+  },
+  "ped1": {
+    "text": "A frikkin Nanaimo bar! You terd!",
+    "voice": "af_nicole",
+    "pitch": 1,
+    "sha256": "e4c35d14fd703b9d584a4d0e3f17eb15319b52bcb2b44e67704808b13874d315",
+    "seconds": 3.3067,
+    "sampleRate": 24000
+  },
+  "ped2": {
+    "text": "Holy crap, bud! Did you just throw dessert at me?",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "308e4543992bd827b3c00f74eb794a089bcff0243727413ec250cc8eacdb1003",
+    "seconds": 3.2,
+    "sampleRate": 24000
+  },
+  "ped3": {
+    "text": "Aw shoot, pal! Custard right in my hair!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "992f5ac6508832b9238da6184c31f622362fb583bb026520d1dc216a59642475",
+    "seconds": 2.4107,
+    "sampleRate": 24000
+  },
+  "ped4": {
+    "text": "Easy, bud! Nanaimo bars belong on a plate!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "bf1216ad3c5432aad5b1c823583aba3c22d9c56c3ba1b19703bd56149b988d64",
+    "seconds": 2.5387,
+    "sampleRate": 24000
+  },
+  "ped5": {
+    "text": "You little bugger! Chocolate all over my jacket!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "4346d7707b8ae416ea4e8c2975ffde5257224c4c217d53bd183ba5772cdec067",
+    "seconds": 2.432,
+    "sampleRate": 24000
+  },
+  "ped6": {
+    "text": "Free Nanaimo bar, bud! Frick yeah, I will take it!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "fb57161838e01b22bf31ec89af8dc37a1a9f5596a783ea1a73f06d83ddc8ead3",
+    "seconds": 3.4133,
+    "sampleRate": 24000
+  },
+  "school1": {
+    "text": "School zone, bud! Kids crossing! Slow it down, eh!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "1c9a2f834a68ba7534d56f10b3fb8d0ce358d0a3d2bc18e7a46082a90ca13dcb",
+    "seconds": 2.752,
+    "sampleRate": 24000
+  },
+  "kid1": {
+    "text": "Holy crap, bud! My backpack went flying!",
+    "voice": "af_sky",
+    "pitch": 1.34,
+    "sha256": "86bcda5f41724bea74c208b75c4692505e68c97e33a7f336ee019fad84a41bec",
+    "seconds": 2.6746,
+    "sampleRate": 24000
+  },
+  "kid2": {
+    "text": "Yikes, pal! You better watch it!",
+    "voice": "af_nova",
+    "pitch": 1.34,
+    "sha256": "8fa80227e504bfc09014e88e11c41b5c1fee44d218f8327ac8eea344324ae2db",
+    "seconds": 2.2766,
+    "sampleRate": 24000
+  },
+  "kid3": {
+    "text": "A frickin Nanaimo bar! Right in the face, eh!",
+    "voice": "bf_lily",
+    "pitch": 1.34,
+    "sha256": "c05a06ed38d1b91a76983b4e777816ac328386b149e07eb049344a5ee9bb07e2",
+    "seconds": 2.993,
+    "sampleRate": 24000
+  },
+  "kid4": {
+    "text": "Aw shoot, bud! That bike needs better brakes!",
+    "voice": "af_kore",
+    "pitch": 1.34,
+    "sha256": "4117fc0933b36d79a8e889f80a853965bedff004683ec7fd058a3da566bf75d2",
+    "seconds": 2.5154,
+    "sampleRate": 24000
+  },
+  "kid5": {
+    "text": "Holy shnikeys, bud! What in the heck!",
+    "voice": "am_puck",
+    "pitch": 1.62,
+    "sha256": "c75fd4a0860a6bb8f3d69a9cab1c8618cca2a45f26c422dbef99f92d52b13541",
+    "seconds": 2.2782,
+    "sampleRate": 24000
+  },
+  "kid6": {
+    "text": "Easy there, pal! This is a school, eh!",
+    "voice": "af_river",
+    "pitch": 1.34,
+    "sha256": "e2a5903d9c6f4b3effa2ff9ad86819f2af1a95a45edb2919898c2d91ee88d74f",
+    "seconds": 2.3403,
+    "sampleRate": 24000
+  },
+  "kid7": {
+    "text": "Aw crap! My backpack survived, bud!",
+    "voice": "af_sky",
+    "pitch": 1.34,
+    "sha256": "8ee92912abda9b1bf4cf411029dcb243079987c38f1a7cd59eb000aec4165e4f",
+    "seconds": 2.4358,
+    "sampleRate": 24000
+  },
+  "kid8": {
+    "text": "Ooh shoot! Chocolate in my hoodie, you bugger!",
+    "voice": "af_nova",
+    "pitch": 1.34,
+    "sha256": "cf02002b69a81824b8e906c2ce514b2b9accd05afd0525c5f59e463157622c91",
+    "seconds": 2.8657,
+    "sampleRate": 24000
+  },
+  "kid9": {
+    "text": "Watch the crosswalk, pal! I am walking here!",
+    "voice": "bf_lily",
+    "pitch": 1.34,
+    "sha256": "af312602373b872c66de61229f156649a320fec96fb2de7a6ebd2d9054c20435",
+    "seconds": 2.6905,
+    "sampleRate": 24000
+  },
+  "kid10": {
+    "text": "Frickin heck, bud! That was a rough one!",
+    "voice": "af_kore",
+    "pitch": 1.34,
+    "sha256": "88ad1a6297c971599a0dd5871e6491a27f145ade422abe1b800b2d3afc58f779",
+    "seconds": 2.0696,
+    "sampleRate": 24000
+  },
+  "church1": {
+    "text": "Pastor Jeremy says ride safe, bud! Keep it holy, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "5fd428f73d83ace4b419f6d4d0e6394420d4ac48b5f97b112f1b36624493ce9c",
+    "seconds": 3.4987,
+    "sampleRate": 24000
+  },
+  "church_a1": {
+    "text": "Bless you, bud! You missed my good side!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "e8999135ac91e62a6edc1b52e81579dbcea560908ea720315ca7d0985054eeff",
+    "seconds": 2.2187,
+    "sampleRate": 24000
+  },
+  "church_a2": {
+    "text": "I forgive you, pal! Watch the frickin brakes though!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "914300983c9969edc4efd1571b55a7a6f780c63c6cd6dcd6a789787ea117b598",
+    "seconds": 2.4107,
+    "sampleRate": 24000
+  },
+  "church_a3": {
+    "text": "Holy shnikeys, bud! Those tires leave a mark!",
+    "voice": "af_nicole",
+    "pitch": 1,
+    "sha256": "2c27c02e5061e82cfb91de6b00888a8110516ff3ffb2b0544a823b7935d47e8a",
+    "seconds": 4.416,
+    "sampleRate": 24000
+  },
+  "church_a4": {
+    "text": "The Lord is my shepherd and my chiropractor, eh!",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "e4e9e20ca6ab026ade9c390e0aee6c0852384e0e517f239e77acdbcf86a198a3",
+    "seconds": 3.4773,
+    "sampleRate": 24000
+  },
+  "church_a5": {
+    "text": "No worries, bud! Take a Nanaimo bar for the road!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "94003f89034f7b24bdccc7d86b0a4c69fcf447ffbbdf56d8b7b714632706bf20",
+    "seconds": 3.0507,
+    "sampleRate": 24000
+  },
+  "church_a6": {
+    "text": "Easy, pal! Turn the other cheek, not the bike!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "767344aa1c98f34a9a1a16271b793e7075514f0a1fc790725f3eeb7b620ce823",
+    "seconds": 2.1973,
+    "sampleRate": 24000
+  },
+  "church_a7": {
+    "text": "Holy crap, bud! My casserole survived!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "16c17f6b3a530f7f0898d10ea000752d4d8005b9c75f35a831878f831d4b3c99",
+    "seconds": 2.3467,
+    "sampleRate": 24000
+  },
+  "church_a8": {
+    "text": "Aw shoot! Needed a lie-down anyway, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "3852c1182072a57269a1ce69c0d009109930272bea6e1d2359715a463d9faff5",
+    "seconds": 2.7093,
+    "sampleRate": 24000
+  },
+  "church_d1": {
+    "text": "Frickin heck, bud! Satan left tire tracks!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "3b4c21cf1f9b22c8bcafd0d421f4da3520beb5be3e8a1aafde7e506bf9d017bc",
+    "seconds": 2.88,
+    "sampleRate": 24000
+  },
+  "church_d2": {
+    "text": "Aw crap, pal! Damned and flattened in one go!",
+    "voice": "af_nicole",
+    "pitch": 1,
+    "sha256": "eae7189090af53083ce8457e7040da23766f29695f4dca8c47362b01f527d31e",
+    "seconds": 3.968,
+    "sampleRate": 24000
+  },
+  "church_d3": {
+    "text": "Holy shnikeys! The lawn is lava now, bud!",
+    "voice": "bf_emma",
+    "pitch": 1,
+    "sha256": "7037c437dc7618abc0a518cb81f4527884f2f74d5aa1a459d3058a806381d5ea",
+    "seconds": 3.1147,
+    "sampleRate": 24000
+  },
+  "church_d4": {
+    "text": "Ride on, pal! Mind the frickin flames!",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "cc827429fde28b5dfbb83a6e2d25a2d3f698ef89cb7a74c158f73d6fd8ae05ba",
+    "seconds": 2.6453,
+    "sampleRate": 24000
+  },
+  "church_d5": {
+    "text": "Aw shoot, bud! The cursed bake sale is cancelled!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "d893532fbb7014e40effd2553f8f518484c7b6081ec00aa4beab275d6b0238bd",
+    "seconds": 2.8587,
+    "sampleRate": 24000
+  },
+  "church_d6": {
+    "text": "Easy, pal! Hell has enough dents already!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "10c8cbf0fb1378adcc83ec6bc665d846013840173253efdffa795ab34f457273",
+    "seconds": 2.24,
+    "sampleRate": 24000
+  },
+  "church_d7": {
+    "text": "Holy crap! Burnt casseroles, burnt souls, eh!",
+    "voice": "af_nicole",
+    "pitch": 1,
+    "sha256": "3a1fc6ec18c13f1e76c2f35cd934a89d817ddfc4b578c711bad03e33918873eb",
+    "seconds": 3.9893,
+    "sampleRate": 24000
+  },
+  "church_d8": {
+    "text": "Yikes, bud! Even the deacon needs bodywork!",
+    "voice": "bm_george",
+    "pitch": 1,
+    "sha256": "a9629c38488f6b7443cca5f7a134aac41d084ba9154e5bbe2c615c7ebb2647e2",
+    "seconds": 3.008,
+    "sampleRate": 24000
+  },
+  "pow_beer1": {
+    "text": "Frick yeah! Lucky beer, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4fccfa5b26084707f6bf21ec854ea103eafb307fe108b6e72d3e10214ec2d5ac",
+    "seconds": 1.792,
+    "sampleRate": 24000
+  },
+  "pow_beer2": {
+    "text": "A case of Lucky! Beauty, bud! Send it!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "8ade58d08cf52e18f9756973f5a564a3df11d2d838317e325e462d800fd77c98",
+    "seconds": 2.6027,
+    "sampleRate": 24000
+  },
+  "pow_coffee1": {
+    "text": "Double-double, bud! Frick yeah!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "85f21ff03555634bd76ada5ae4576056c669a758966988c0481a6145fdda4966",
+    "seconds": 1.984,
+    "sampleRate": 24000
+  },
+  "pow_coffee2": {
+    "text": "Oh beauty! Double-double! Now we are cooking, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "747c256f14aef46356f1553419292778bcf782cd5b0c291479feb02d08e302d3",
+    "seconds": 2.9227,
+    "sampleRate": 24000
+  },
+  "pow_bars1": {
+    "text": "Holy crap! A crate of Nanaimo bars, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "add710ece6d047bfa9f0ce5991a4358afc30c23f618c32dc82c710eecd1a5934",
+    "seconds": 3.1573,
+    "sampleRate": 24000
+  },
+  "pow_bars2": {
+    "text": "Bar crate, pal! Let them have it, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "47e80b5f2351d3a32d8524023bb8e14648421c598498aa14a8a6d78d4b38f2bf",
+    "seconds": 2.6027,
+    "sampleRate": 24000
+  },
+  "pow_blessed1": {
+    "text": "Blessed, bud! Frick yeah, you cannot bin it!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "e11326650b1e991208d75462dc56d2598b6656305b9029c4e347522c1f5c0538",
+    "seconds": 2.3467,
+    "sampleRate": 24000
+  },
+  "pow_blessed2": {
+    "text": "The congregation has your back, pal! Ride on, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "090a67d63afc49e00d20d75322f586e12dc9134f1016f928405bf81ca815eff7",
+    "seconds": 3.3067,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_male_1": {
+    "text": "Holy crap, bud! Watch the handlebars!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4b7fd759d21dfb91300a61aff542a0759964c2410fe03695c620a85d02b26897",
+    "seconds": 2.6453,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_male_2": {
+    "text": "Yikes, pal, you better watch it!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "790e1c6779ce2ec82d20a44ddeeabbc8bc7678217e4fc243aeafeab065662522",
+    "seconds": 2.0053,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_male_3": {
+    "text": "Holy shnikeys, bud! What in the heck!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "36b3dd0f5087d25a680f6407030ddb3b194c4726309bbb566fc54fd2040d03d3",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_male_4": {
+    "text": "Aw crap, you got me there, man!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "14720df82540feb68d76f8c4c9ee503f7c38044d90f3f159c95009b3bbe956c4",
+    "seconds": 1.9627,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_female_1": {
+    "text": "Ooh shoot, man, you little bugger!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "2e1a1788ae27c49b97f595c6252573aae005e917fb09e54d87983e921eacd86f",
+    "seconds": 1.8987,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_female_2": {
+    "text": "Easy there, bud! That is my kneecap!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "c7f110a2e869435edc480d7008aaebaa296b2ed21dfe12a26f7be3dae9213788",
+    "seconds": 2.0693,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_female_3": {
+    "text": "Frickin heck, pal! Use your bell!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "92159ca680953dec013cc67dad0f7a30c0db5d879685b073665f77b0d8d48b39",
+    "seconds": 1.856,
+    "sampleRate": 24000
+  },
+  "dlg_street_bike_female_4": {
+    "text": "Watch it, bud! I am walking here, eh!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "7d028065810d7462266f8fa43e8fd9cae3153ebcd7796ad94a414dce73725028",
+    "seconds": 2.2187,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_male_1": {
+    "text": "A frikkin Nanaimo bar! You terd!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "f678500f8eaa4760c990fb500fcd057a8882df1fac40ae9e9049f35e255358a7",
+    "seconds": 2.3893,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_male_2": {
+    "text": "Aw crap, bud! Custard right in the ear!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "6bef404084400d195b1f49a147bb837f79d9ec8a01e944ac5681de339bebdeba",
+    "seconds": 2.6027,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_male_3": {
+    "text": "Holy shnikeys! That bar nearly took my moustache off!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "0c50a44f545fc031f34024e4cb06195d7cb5434558045b51c32ab437f9a9de27",
+    "seconds": 4.0107,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_male_4": {
+    "text": "Easy, pal! Pass the dessert, do not launch it!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "1d33538c6104a69f794da5e5b8075f997da75fa395a006ea2d5242816f3e8f61",
+    "seconds": 2.9867,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_female_1": {
+    "text": "Ooh shoot! A Nanaimo bar in my hair, bud!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "3d75a04634de7d1add351544615414d9503d8e05aa8c83cad9f80fe3c8a5a7da",
+    "seconds": 2.624,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_female_2": {
+    "text": "Holy crap, pal! My good hoodie is full of custard!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "d3d2d0769deebe5463b5a1fe48fbb4cf42c473d39883af45865efa0cb01b0aeb",
+    "seconds": 2.816,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_female_3": {
+    "text": "Frickin heck, bud! Three layers right to the face!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "8cc96d827d3d9c82df4eb34f55a919ae872bc0b67cb752dde2cd3f9432f1093c",
+    "seconds": 2.8587,
+    "sampleRate": 24000
+  },
+  "dlg_street_bar_female_4": {
+    "text": "You little bugger! Next bar goes on a plate, eh!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "9a09855036e3a0b9bd87445a08ac7d84292d241a1d3a1c10fda3215596ea35e8",
+    "seconds": 2.6453,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_male_1": {
+    "text": "Holy crap, bud! This is a crosswalk!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "2fc1257db6d5fbd6b7947251830cc6135b1e7ae30e39e053264b51015778c774",
+    "seconds": 2.4177,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_male_2": {
+    "text": "Yikes, pal! My backpack has better brakes!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "651f029e6c52e6f371e70ec6c9a30a984e60d749f70b0b8ed3eeb90501f95db6",
+    "seconds": 2.5067,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_male_3": {
+    "text": "Aw shoot, bud! You nearly flattened my lunch!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "32379f8539cfd3c0e0123686992098fb17f603a23f98a59c7d104428f8e0fb14",
+    "seconds": 2.7378,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_male_4": {
+    "text": "Easy there, you little bugger! Ring your bell!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "0432279a2508997094bcde8ed9546a8685445ab632a1d1240f8ff9c5ee8ea1ae",
+    "seconds": 2.5067,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_female_1": {
+    "text": "Holy shnikeys! Watch the school zone, bud!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "dc04e769656c3e62f7cb2092fb487e3cf7e7ee147ae5f4e01a5cf8071e6d2f08",
+    "seconds": 2.8444,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_female_2": {
+    "text": "Ooh shoot, pal! My sneakers went flying!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "36a68a2ba4a826ea4ac6ccf5b26bb0a75372aaf3ffd28fef3f6679e28ed19924",
+    "seconds": 2.4355,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_female_3": {
+    "text": "Frickin heck! That bike needs training wheels, eh!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "5fa8b4f988fd8ddedd5311d532e60e6170f31218e12f67abac561eec0e92c72a",
+    "seconds": 2.7022,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bike_female_4": {
+    "text": "Watch it, bud! Recess is rough enough!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "683b3e325fcfbb61d4c70fafefe098a47bd211fe0570edc0c443841bc165a4ce",
+    "seconds": 2.1689,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_male_1": {
+    "text": "Holy crap! A Nanaimo bar, right in the face!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "3103b65a7a3c30b79a91ef84a2af3515d9e1769ecc5d46ab803a8cfeaf7fe68e",
+    "seconds": 2.9155,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_male_2": {
+    "text": "Aw shoot, bud! Custard on my homework!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "c6c596f6d1e351c0f19efc55782cccb87bfd0d8ae3e166f7a585b7ba5040e35d",
+    "seconds": 2.6133,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_male_3": {
+    "text": "Yikes, pal! You throw a mean snack!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "256c99f8bc47647fc380619863c95090ff297f0ad9240733caa5a0f02d84c5ec",
+    "seconds": 2.1511,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_male_4": {
+    "text": "Frickin heck! Save a bar for lunch, eh!",
+    "voice": "am_michael",
+    "pitch": 1.2,
+    "sha256": "b0c43a3333e042b1e94b30c8e8cfca0c369e5fdebca2074f46a15e0b600e731f",
+    "seconds": 2.5244,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_female_1": {
+    "text": "Ooh shoot! Chocolate right in my hoodie, bud!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "e383314b3e03022abbe97ec360a6104f0805b612b61bc38ed57b8a02c27efadf",
+    "seconds": 2.3644,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_female_2": {
+    "text": "You little bugger! That bar was supposed to be mine!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "e695a99c86c4d846ab0fe61a7e1b40e78c174e0cbf7cdb93f93f2ee7ca7c6dcd",
+    "seconds": 2.7733,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_female_3": {
+    "text": "Holy shnikeys! Flying dessert, eh!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "4e5c7709fc8eb922badffde2be2c04bb58a8f33cf46e77b11ff7c9d993ca325f",
+    "seconds": 2.5955,
+    "sampleRate": 24000
+  },
+  "dlg_kid_bar_female_4": {
+    "text": "Aw crap, pal! At least the custard tastes good!",
+    "voice": "af_bella",
+    "pitch": 1.2,
+    "sha256": "d04e6cce4abfdec712c5c4315045ab051d1c56ae0402db80f57e3f8988164cbc",
+    "seconds": 2.6311,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_male_1": {
+    "text": "Holy crap, bud! Turn the other cheek, not the handlebars!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "faeb7e273279b5b4380dea117d158630a90d4de448e04c7a2546bb2d321a8a31",
+    "seconds": 3.648,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_male_2": {
+    "text": "Yikes, pal! Bless your heart and fix your brakes!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "55a2ebb625c3599ba2fe7d68308a52eb766e6bfe0f6a00b37db175262ac6b5ab",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_male_3": {
+    "text": "Aw shoot! The Lord just moved me sideways, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4c45b9716d290f9ec2ed4c9a30910ba80c17d5205f47deedc4c6d73c195d84ff",
+    "seconds": 3.1573,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_male_4": {
+    "text": "Frickin heck! I prayed for a lift, not a launch!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "8fb2af7bdab4cc03e7f2fc8739c978cefa19153c877ea682b770f43287be83fa",
+    "seconds": 2.9013,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_female_1": {
+    "text": "Holy shnikeys! You flattened the church picnic, bud!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "c74f5bd90e7288631a413bf7a5b5cec167d20711d0dfb7af6089cb70cf3198c7",
+    "seconds": 3.4133,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_female_2": {
+    "text": "Easy, pal! Jeremy cannot pray those brakes better!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "b2a9a8fd8b23a9f2a9bd691bbc099578b0b1d1ebabe2476f2f1bfb484d7b39d7",
+    "seconds": 3.072,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_female_3": {
+    "text": "Aw crap, bud! My casserole survived, barely!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "ac3d224a2f84255c05b4746ada6c46a1a005153b16e52dd0bc2e0331930af3a6",
+    "seconds": 2.9013,
+    "sampleRate": 24000
+  },
+  "dlg_church_bike_female_4": {
+    "text": "You little bugger! Leave room for the collection plate!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "801b07d3c55f29d589a2d0197cef142a60a544fac7d1c3cf496c291324189bb8",
+    "seconds": 2.88,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_male_1": {
+    "text": "Holy crap! Our daily bread has custard now, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "784bf75eee372a4d18dacd613e4fe20a9bbaca2d8404b81c87fa40c6c2013278",
+    "seconds": 3.3067,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_male_2": {
+    "text": "Frickin heck! The bake sale is a contact sport, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "30ed051f887b4078cd53fb77f61509040f6e32ee834f5efbf1536134084a180a",
+    "seconds": 3.2853,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_male_3": {
+    "text": "Aw shoot, pal! Forgive us our desserts!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "3179724998c7b5989c3a04bdd889a95f3cd46c5c4532c46c36021aa49a09fa07",
+    "seconds": 2.6027,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_male_4": {
+    "text": "Easy, bud! That Nanaimo bar missed the collection plate!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "b7ba73f3b325e11022a42a9a018ca5a9c68ff3466d4f8787d9b7a1ae8c0fe9fb",
+    "seconds": 3.5413,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_female_1": {
+    "text": "Holy shnikeys! Three layers of blessings in my hair!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "69e27f19732e76476fed1f75702a9fd862f337c34e3ec759f82aa472536a103f",
+    "seconds": 3.5627,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_female_2": {
+    "text": "You little bugger! Jeremy wanted that bar for tea!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "acb2059fad919a5654775cba3c4a37c8a7d8ec92dbee9b29e2887e6a41dd8476",
+    "seconds": 2.9013,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_female_3": {
+    "text": "Yikes, bud! Pass the custard with a little grace!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "1caf939a06980e4cbd00cd8b337905c215f89725e5a04457462e9425d8209f63",
+    "seconds": 2.752,
+    "sampleRate": 24000
+  },
+  "dlg_church_bar_female_4": {
+    "text": "Aw crap! Dessert first, dental work later, eh!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "f162f6b387f5bcf30e04bc63cb5dba8a9b2bcbb1b67d573a9a06af748d6f7316",
+    "seconds": 2.88,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_male_1": {
+    "text": "Holy crap, bud! Even hell has traffic rules!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "60bdbece0dee32828ad6a5e211c22f6cae430a042ef7c62eb5acfa563af11d03",
+    "seconds": 3.008,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_male_2": {
+    "text": "Frickin heck! My deductible lasts forever now!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "584928fc7106461e021d7bcd21aae44d0e4102461bb95f73c66d1d17adf19a26",
+    "seconds": 3.0507,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_male_3": {
+    "text": "Easy, pal! The road to hell needs a bike lane!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "b2961b575bcc7e13387e0462d281d4ebdc4f61d35f7490cf28342c555f1be942",
+    "seconds": 3.008,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_male_4": {
+    "text": "Aw shoot! Satan does not cover collision, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "ad3a3cec92ce82481a3b3a29ea22ae5de910c95b7bcc98deb1efe0e48f493da2",
+    "seconds": 3.0293,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_female_1": {
+    "text": "Holy shnikeys! You flattened me twice, you bugger!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "c8c19f850fc8b011186702fbed6dd1a2e238176e726ce2e9e34e0580b1768750",
+    "seconds": 3.2213,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_female_2": {
+    "text": "Yikes, pal! I came for flames, not tire tracks!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "032dbb1a626a2f9c6336dabf7ebec648c045736fb74df79fe0f52bd617167667",
+    "seconds": 3.0293,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_female_3": {
+    "text": "Aw crap, bud! Hell needs better brakes!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "793a8b291a00b5c3bcf084437e7f6184aadc92cb89942d2c28f7f1ca6cd25b73",
+    "seconds": 2.2827,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bike_female_4": {
+    "text": "Watch it, eh! These horns cost a fortune!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "d183e1a6382af717d5cd1538825624912e79b8a4a22cecb20272f86947ee2d7c",
+    "seconds": 2.624,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_male_1": {
+    "text": "Frickin heck! Three layers of sin, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4bd139c77129c287a0cb01bafb538d4a98e539fb21f4991074192e948d905498",
+    "seconds": 2.496,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_male_2": {
+    "text": "Aw shoot, pal! Cold custard? This is supposed to be hell!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "eba409f26e1b7980597c8d0d084b53c0c872cbd3838ff79a16c06ffc6660fdc1",
+    "seconds": 3.8613,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_male_3": {
+    "text": "Holy crap! A Nanaimo bar straight from the dark side!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "c27f3ad61df7d9a2fd76360f4901eb58c9153bd3e0bb02d413bbb40fd0d257b8",
+    "seconds": 3.584,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_male_4": {
+    "text": "Easy, bud! I sold my soul, not my good shirt!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "b80291a5c7a8c48367abe8643a3c754fdfa1063ba2e93e5e66d42a24be217a19",
+    "seconds": 3.2,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_female_1": {
+    "text": "You little bugger! Satan wanted devils food!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "c357707d4327730ac11919f9b6901b1c4816a58d1b204c6a0a57968f55381b07",
+    "seconds": 2.624,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_female_2": {
+    "text": "Yikes, pal! The custard is putting the fire out!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "5bc78125a46842488a08bc8d8d1478b2e2c9d4c4c3b2b0f08793b629fc840be0",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_female_3": {
+    "text": "Aw crap! Chocolate on my horns again, eh!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "96adcfc38bbc7d18fd873fa2bbc7d8e9d198f10015c044b528c63107c17d73d8",
+    "seconds": 2.4107,
+    "sampleRate": 24000
+  },
+  "dlg_hell_bar_female_4": {
+    "text": "Holy shnikeys, bud! That bar tastes downright heavenly!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "cb91a212f745f74d5b1af2a2ce92c81b8b77e91183e94448bf5bfa25a55a689b",
+    "seconds": 3.9467,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_male_1": {
+    "text": "Holy crap! Nanaimo bar on the windshield, bud!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "cd6f2ed90d6f10a64973034e81635adb696548d2a90db4b064d537490d951eed",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_male_2": {
+    "text": "Easy, pal! Dessert goes through the drive-through!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "93640df621aa892e0a1fe8578ae61f2ead37aa16b8faaad32a6a14e9e83a5908",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_male_3": {
+    "text": "Aw shoot! My wipers are spreading the custard!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "2541ced69ddd71180d47accceff7350ca3590c9775e4020eccc23c8763367240",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_male_4": {
+    "text": "Frickin heck, bud! That bar dented my lunch plans!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "ddc13c22f0aa577addbae24e460f25ffdf69ba402676c061fe183843081dea0c",
+    "seconds": 3.3707,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_female_1": {
+    "text": "You little bugger! Chocolate all over my clean car!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "82509522df2580750bc036b75ece5bcf1be9e5a0d2e51d21a8882f56d433c37a",
+    "seconds": 2.752,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_female_2": {
+    "text": "Yikes, pal! I cannot see through custard!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "d2cf01f0c8cda68bc97765096f7ede300fd44b6caaf7b65fcdb727b79623f07c",
+    "seconds": 2.304,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_female_3": {
+    "text": "Holy shnikeys! Flying Nanaimo bars again, eh!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "b330aaed9772eba34af14bf0f2f2b91e17997189ff8cc38e52759ef1ef97e5d9",
+    "seconds": 3.5413,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bar_female_4": {
+    "text": "Aw crap, bud! The windshield is not a dessert plate!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "746c08abb936041e2b8b5b60f313f44e285e31bc72add8d7b816f74b62adeeaa",
+    "seconds": 3.1787,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bike_1": {
+    "text": "Holy shnikeys, bud! Walk on water, ride on the road!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "bd89bdd55223213f92f4bb42b12fc717c166c0e3b494f9fd1d19f0ac1394bf72",
+    "seconds": 3.968,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bike_2": {
+    "text": "Easy, pal! Follow me does not mean rear-end me!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "61114f5ba0fc6a582229e13ea3d22d6497fb758186e5f53a38c46f5f0495d6bf",
+    "seconds": 3.0507,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bike_3": {
+    "text": "Aw shoot, bud! Forgiveness is free. Bike lessons cost extra!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "62f30f8066de8e935a68408e152ba2da18bdcef1175fe1d1454fa158f7984428",
+    "seconds": 4.224,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bar_1": {
+    "text": "Frickin heck, bud! I said break bread, not throw dessert!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "cde4a865a572dfdfc27044d75ef04638dfe05ab46767db6ae1520d95c5133d5a",
+    "seconds": 3.7333,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bar_2": {
+    "text": "Holy crap! Loaves, fishes, and airborne custard, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "e51d36b556c9b17721dca5ea11d66853d1899d4051ef2ad8ff939f6e8766501e",
+    "seconds": 3.4133,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_bar_3": {
+    "text": "Easy, you little bugger! Blessed are the snack makers!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "8a0d74eb339166ca3591bb93038a1c4fce805fd97145384353b2d44a6f1bd876",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_greet_1": {
+    "text": "Peace be with you, bud! Keep both hands on the bars, eh!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "d8d2a1d54d273ca1b3eec8820b0de42fa18569354d54a16d75aa841f980866f3",
+    "seconds": 3.456,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_greet_2": {
+    "text": "Hey there, pal! Love thy neighbour, leave them some sidewalk!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "b37b9b1a4de11ce4adc9f6d113a889484fd30c1936e8c80d58ee0e543126eb9a",
+    "seconds": 3.392,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_rise_1": {
+    "text": "Back again, bud! That warranty is pretty frickin good!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "6ab268ee5d3a6e1b404c26e2c4ed2be304c4b88fa9a14a5dc374b3e5afd1a34e",
+    "seconds": 3.328,
+    "sampleRate": 24000
+  },
+  "dlg_jesus_rise_2": {
+    "text": "Aw shoot, pal! Three days off would have been nice!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "69c87e531ffd18a07abaa1809186c05b15c90cf9ecd55dd9ed120b3d905a3257",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bike_1": {
+    "text": "Holy crap, bud! I invented temptation, not those brakes!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "6c4646cd94d99f0035b5697319de945c2bb55b3b659984648b1d0de0849da1bf",
+    "seconds": 3.4133,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bike_2": {
+    "text": "Easy, pal! Welcome to hell. Parking is still extra, eh!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "da9bd44ccdc1a2f6f44d3e3c7ac0613b36ef32fe8b0d3d78431a8a4da01e960e",
+    "seconds": 3.008,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bike_3": {
+    "text": "Frickin heck! You ride like a shopping cart with horns!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "3a2f7d8f49904a451fedf99df30fa83895a2dc3cbbdfe7b1cfc96e76bc0910e7",
+    "seconds": 2.8373,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bar_1": {
+    "text": "Three layers of sin, bud! Now that is frickin ambition!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "c5f7064d5b16fe604401191cc2f034a8d56aea1c5617815337d43b39d6fa7c13",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bar_2": {
+    "text": "Aw shoot, pal! I asked for devils food, not custard!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "a5717bb24e9c70feca86e3570d31d006d5a740e13c451baaa2678384b34cf76b",
+    "seconds": 2.944,
+    "sampleRate": 24000
+  },
+  "dlg_satan_bar_3": {
+    "text": "You little bugger! That bar tastes suspiciously heavenly!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "f5ca68e88d49e681e6dede18bf1eb8daa302b62a430adb022a86af670afe499a",
+    "seconds": 3.0507,
+    "sampleRate": 24000
+  },
+  "dlg_satan_greet_1": {
+    "text": "Nice bike, bud! What is your soul worth on trade?",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "068d6575b7dd5154f9efdf1f9b266f9089152a8df96f43f4d35ac87ae96f6e47",
+    "seconds": 2.752,
+    "sampleRate": 24000
+  },
+  "dlg_satan_greet_2": {
+    "text": "Come on in, pal! Saved you a pothole by the flames!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "220a56830a7d5b77c2f1d4c8bff5d09f7ab8588769ca2462401653443d94b022",
+    "seconds": 2.9653,
+    "sampleRate": 24000
+  },
+  "dlg_satan_rise_1": {
+    "text": "New management, bud! Same frickin terrible drivers!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "20c3e08314e7b66bf50978f28d022c69ba740318029aecd8183c4f3cdfb50af2",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_satan_rise_2": {
+    "text": "Well shoot, pal! Resurrection comes with a cover charge!",
+    "voice": "am_adam",
+    "pitch": 1,
+    "sha256": "754c3fe275625c31dd6f3c04377248ec0dc1d3aa5bf51548f470e40e6139d660",
+    "seconds": 3.136,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_male_1": {
+    "text": "Holy crap, bud! That is my door!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "9c6cdf17469b1a750aa43b29198fffb6b562aead1e4a87d588cbd21d80ba512e",
+    "seconds": 2.3467,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_male_2": {
+    "text": "Yikes, pal! Watch the frickin paint!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4d7783667caa631a5a970c12b20ecf1b453edbf221f984136353356cc25d912c",
+    "seconds": 2.1973,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_male_3": {
+    "text": "Aw shoot, bud! You ride like a shopping cart!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "4263a91c54abe723f0f6ab908b7b3936ebc2851e5d3113ba657f0802c7d2780c",
+    "seconds": 3.0507,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_male_4": {
+    "text": "Easy, you little bugger! This is not bumper cars!",
+    "voice": "am_michael",
+    "pitch": 1,
+    "sha256": "a0bf291949813ef4c3246a813fef2fb2ce56aca3d4db25d035717322807a57ea",
+    "seconds": 3.2,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_female_1": {
+    "text": "Holy shnikeys! You nearly spilled my double-double!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "271d2bc3a795b21e07ad9f20a9cdb16b2b4365ea4ad305a0f5d6c37e89a268bb",
+    "seconds": 3.3493,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_female_2": {
+    "text": "Aw crap, pal! I just washed this thing!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "821aacbba45e46f876de7cd087ca8b13c7f3b10fdb7f62d7dd80cdb14e38820e",
+    "seconds": 2.3253,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_female_3": {
+    "text": "Frickin heck, bud! There goes my mirror!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "21c5403bafcab8c56271e8999a11fdc117141b7b52f58774527066dfbb68cdd9",
+    "seconds": 2.2613,
+    "sampleRate": 24000
+  },
+  "dlg_driver_bike_female_4": {
+    "text": "Watch it, eh! My car is not a bike rack!",
+    "voice": "af_bella",
+    "pitch": 1,
+    "sha256": "1342c0b7213664574ae3fd663d63da9c9723f99f89927a29690207096fbb2bb5",
+    "seconds": 2.4747,
+    "sampleRate": 24000
+  }
+}

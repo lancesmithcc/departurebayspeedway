@@ -1,3 +1,10 @@
+import {Multiplayer} from './multiplayer.js';
+import {multiplayerUI} from './multiplayer-ui.js';
+import {buildSculptedVehicleKit} from './sculpted-vehicles.js';
+import {buildBeachPortal} from './beach-portal.js';
+import { createCharacterCast } from './character-cast.js';
+import {Police} from './police.js';
+import {Deer} from './deer.js';
 import {buildReferenceUpperStreet} from './reference-upper-street.js';
 import {buildReferenceSchoolBoard} from './reference-schools.js';
 import {buildReferenceResidential} from './reference-residential.js';
@@ -85,11 +92,7 @@ async function boot() {
       './assets/peds/person-5.glb', './assets/peds/person-6.glb',
       './assets/peds/person-7.glb', './assets/peds/person-8.glb',
     ], 1.74, 'y', { poseClip: { match: /walk/i, frames: 6 } }),   // 6 frames of the walk cycle
-    loadKit([
-      './assets/cars/car-1.glb', './assets/cars/car-2.glb', './assets/cars/car-3.glb',
-      './assets/cars/car-4.glb', './assets/cars/car-5.glb', './assets/cars/car-6.glb',
-      './assets/cars/car-7.glb',
-    ], 4.4, 'z', { lengthAlongZ: true, flip: true }),   // these models nose toward +z
+    Promise.resolve(buildSculptedVehicleKit()),
     loadKit([
       './assets/trees/tree_pineDefaultA.glb', './assets/trees/tree_default.glb',
       './assets/trees/tree_pineTallA.glb', './assets/trees/tree_detailed.glb',
@@ -222,6 +225,8 @@ async function boot() {
   scene.add(buildReferenceUpperStreet(map,corridor,terrain));
   scene.add(buildReferenceResidential(map,corridor,terrain,keepClear));
   scene.add(buildReferenceLowerStreet(map,corridor,terrain));
+  const beachPortal=buildBeachPortal(terrain,buildings.buildingGrid);
+  scene.add(beachPortal);
 
   // Departure Bay Baptist — lawn party in full swing on the water side, roughly half
   // way down the hill where the road opens out toward the bay
@@ -302,7 +307,8 @@ async function boot() {
   // ---- people on the sidewalks and the school crossing ----
   const peds = new Peds(scene, corridor, terrain, {
     audio, effects,
-    models: pedKit,
+    models: [...createCharacterCast(), ...pedKit],
+    partyModels: pedKit,
     crossings: [rockCity.crossing, dbSchool.crossing],
     partySpot: baptist.party,
     splatTexture: TEX.splat,
@@ -363,8 +369,13 @@ async function boot() {
 
   // ---- roadside powerups ----
   const powerups = new Powerups(scene, corridor, terrain, { effects, audio });
+  const police = new Police(scene, terrain, { audio, effects,
+    isBlocked: (x,z) => !!buildingCollide(buildings.buildingGrid,x,z),
+    onShot: () => game.onPoliceShot(),
+  });
+  const deer = new Deer(scene, map, terrain, corridor, { onHit: hit => game.onDeerHit(hit) });
   const game = new Game(map, terrain, player, traffic, effects, skyWater, audio, camera, {
-    scene, buildCollide: buildingCollide, corridor, peds, powerups, baptist, apocalypse,
+    scene, buildCollide: buildingCollide, corridor, peds, powerups, baptist, apocalypse, police, deer,
     // zones that announce themselves as the rider arrives
     zones: [
       { x: rockCity.crossing[0], z: rockCity.crossing[1], r: 70, voice: 'school1', caption: 'SCHOOL ZONE — ROCK CITY ELEMENTARY' },
@@ -372,6 +383,12 @@ async function boot() {
       { x: baptist.party.x, z: baptist.party.z, r: 95, voice: 'church1', caption: 'DEPARTURE BAY BAPTIST — LAWN PARTY IN FULL SWING' },
     ],
   });
+  const roomUI=multiplayerUI(game);
+  const multiplayer=new Multiplayer(scene,player,{
+    onAdmission:()=>roomUI.admitted(),onWaiting:info=>roomUI.waiting(info),onDisconnect:()=>roomUI.disconnected(),
+    getState:()=>({score:player.trickScore,checkpoint:game.nextGate,state:game.state})
+  });
+  game.multiplayer=multiplayer;
   player.ctx.callbacks = {
     onCrash: (r) => game.onCrash(r),
     onWater: () => game.onWater(),
@@ -417,14 +434,18 @@ async function boot() {
   // the on-screen pad writes the same key codes the keyboard listener does
   if (touch) initTouchControls(game);
 
-  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio, touch };
+  window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio, touch, police, deer, multiplayer };
 
   // Read-only visual QA views used during deployment checks. They stay dormant in a
   // normal game and make landmark/ground-contact regressions reproducible.
   const qa = new URLSearchParams(location.search);
   const inspect = qa.get('inspect');
   let qaCameraTarget = null;
-  if (inspect === 'jesus' || inspect === 'satan') {
+  if (inspect === 'portal') {
+    const p=beachPortal.position;
+    player.root.visible=false;game.el.title.classList.add('hidden');game.el.hud.classList.add('hidden');
+    qaCameraTarget={x:p.x,z:p.z,y:p.y+2.3,dx:11,dz:7,h:2.7};
+  } else if (inspect === 'jesus' || inspect === 'satan') {
     const p = baptist.jesus.position;
     player.reset([p.x + 30, p.z + 30], 0);
     player.root.visible = false;
@@ -481,6 +502,9 @@ async function boot() {
       const dt = Math.min(clock.getDelta(), 0.05);
       const t = clock.elapsedTime;
       game.update(dt, t);
+      multiplayer.update(dt);
+      roomUI.update(multiplayer);
+      if(game.state==='finished' && multiplayer.status==='active')multiplayer.leave();
       if (qaCameraTarget) {
         camera.position.set(qaCameraTarget.x + qaCameraTarget.dx, qaCameraTarget.y + qaCameraTarget.h, qaCameraTarget.z + qaCameraTarget.dz);
         camera.lookAt(qaCameraTarget.x, qaCameraTarget.y, qaCameraTarget.z);

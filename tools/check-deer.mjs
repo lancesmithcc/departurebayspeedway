@@ -1,0 +1,15 @@
+import {register} from 'node:module';import assert from 'node:assert/strict';import fs from 'node:fs';
+const base=new URL('../',import.meta.url).href;register('data:text/javascript,'+encodeURIComponent(`export async function resolve(s,c,next){if(s==='three')return {url:${JSON.stringify(base)}+'lib/build/three.module.js',shortCircuit:true};if(s.startsWith('three/addons/'))return {url:${JSON.stringify(base)}+'lib/examples/jsm/'+s.slice(13),shortCircuit:true};return next(s,c)}`),import.meta.url);
+const THREE=await import('three');const {Deer,DEER_FATAL_SPEED,selectDeerSites}=await import('../src/deer.js');const {Corridor}=await import('../src/corridor.js');
+const map=JSON.parse(fs.readFileSync(new URL('../data/map.json',import.meta.url)));map.canopyTrees=JSON.parse(fs.readFileSync(new URL('../data/canopy.json',import.meta.url))).trees;
+const terrain={nearestRoad(){return {seg:{hw:4}}},roadDeck(){return {d:0,hw:5,y:0}},meshHeight(){return 0},groundHeight(){return 0}};
+const corridor=new Corridor(map.roadLine,terrain);const sites=selectDeerSites(map,corridor);assert.equal(sites.length,5);assert.ok(sites.every(s=>s.canopyCount>=6));const events=[];const herd=new Deer(new THREE.Scene(),map,terrain,corridor,{onHit:e=>events.push(e)});
+for(const a of herd.animals){a.root.traverse(o=>{if(o.geometry)for(const v of Object.values(o.geometry.attributes))assert.ok(v.array.every(Number.isFinite));});assert.equal(a.root.position.y,0);}
+const player={pos:new THREE.Vector3(),v:20,state:'riding'};
+function hit(v,jump=0){herd.reset();const a=herd.animals[0];a.state='alert';a.timer=-99;a.offset=0;herd.place(a);player.v=v;player.pos.copy(a.root.position);player.pos.x-=4;player.pos.y+=jump;herd.update(.01,player,true);player.pos.x+=8;herd.update(.01,player,true);return a;}
+let a=hit(DEER_FATAL_SPEED-.001);assert.equal(events.at(-1).fatalToDeer,false);assert.equal(a.state,'flee');assert.equal(events.at(-1).penalty,0);
+a=hit(DEER_FATAL_SPEED);assert.equal(events.at(-1).fatalToDeer,true);assert.equal(events.at(-1).penalty,250);assert.equal(a.state,'fallen');const count=events.length;for(let i=0;i<80;i++)herd.update(.016,player,true);assert.equal(events.length,count);assert.ok(a.root.visible);assert.ok(Math.abs(a.body.rotation.z)>1);assert.ok(a.body.position.y>.3);
+hit(47,2.2);assert.equal(events.length,count,'jump clears animal');herd.reset();assert.ok(herd.animals.every(a=>!a.hit&&a.state==='waiting'&&a.body.rotation.z===0));
+// Paused/resumed or restarted games must not sweep an old player teleport.
+player.pos.set(10000,0,10000);herd.update(.016,player,false);assert.equal(herd.previous,null);
+console.log(JSON.stringify({result:'PASS',threshold:DEER_FATAL_SPEED,sites:sites.map(s=>({station:s.s,side:s.side,canopyPeaks:s.canopyCount})),checks:['five canopy-supported clear sites','finite mesh attributes','surface ground contact','swept collision','normal-speed wipeout callback','top-speed boundary','one penalty per deer','non-graphic persistent fall','jump clearance','race reset','paused teleport safety']}));

@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+import hashlib
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,76 +24,63 @@ CHILD = {"pitch": 1.34}
 CHILD_BOY = {"pitch": 1.62}
 
 LINES = [
-    # key, voice, text
-    ("intro", "am_michael", "Welcome to Departure Bay Speedway, punks!"),
-    ("intro2", "am_michael", "Circle K to the beach. Try to keep it on two wheels."),
-    ("sendit", "am_michael", "Hit the ramp! Send it through the rings of fire!"),
-    ("ring", "am_michael", "Yeehaw! Through the fire!"),
-    ("finish", "am_michael", "Mission passed, baby! Mad respect, my guy."),
-    ("crash1", "bf_emma", "I can't believe how people drive in this town."),
-    ("crash2", "am_adam", "What the heck? Get off the road, you maniac!"),
-    ("crash3", "af_bella", "My insurance is NOT covering this!"),
-    ("crash4", "bm_george", "That's it, I'm calling the cops!"),
-    ("crash5", "af_nicole", "Not the Nanaimo bars! Anything but the Nanaimo bars!"),
-    ("crash6", "am_adam", "Who taught you how to ride?!"),
-    ("crash7", "bf_emma", "Watch where you're going, you lunatic!"),
-    ("crash8", "am_michael", "I just had this thing washed!"),
-    ("crash9", "af_bella", "Unbelievable. Every single day on this road."),
-    ("crash10", "bm_george", "Right off the road! Who does that?"),
-    # pedestrians wearing a Nanaimo bar
-    ("ped1", "af_nicole", "Hey! That was my good jacket!"),
-    ("ped2", "bm_george", "Did that lunatic just throw dessert at me?"),
-    ("ped3", "af_bella", "Oh my god, it's in my hair!"),
-    ("ped4", "am_adam", "Slow down, this is a school zone!"),
-    ("ped5", "bf_emma", "Honestly, the youth of today."),
-    ("ped6", "am_michael", "Free Nanaimo bar! I'm not even mad."),
-    # crossing guard / school zone
-    ("school1", "bf_emma", "School zone! Kids crossing, slow down!"),
-    # the kids on the crossings, who are entirely unbothered about being hit and
-    # mostly disappointed it was not more impressive. CHILD marks them for the pitch
-    # shift below — Kokoro has no child voice, so the lightest adult voices are
-    # rendered slow and resampled up.
-    ("kid1", "af_sky", "That hit was mid, ngl, try again.", CHILD),
-    ("kid2", "af_nova", "Bro got zero rizz for that crosswalk hit.", CHILD),
-    ("kid3", "bf_lily", "A Nanaimo bar to the face, lowkey bussin.", CHILD),
-    ("kid4", "af_kore", "Chat, did that even count as a crash out.", CHILD),
-    ("kid5", "am_puck", "Sigma driving skills, but the aura was cooked.", CHILD_BOY),
-    ("kid6", "af_river", "I want hazard pay, this school is ohio.", CHILD),
-    ("kid7", "af_sky", "Ratio. My backpack survived, your bike did not.", CHILD),
-    ("kid8", "af_nova", "No cap, that dessert splat was kind of slay.", CHILD),
-    ("kid9", "bf_lily", "Getting run over on a crosswalk, so delulu.", CHILD),
-    ("kid10", "af_kore", "Highkey rate that hit a solid two out of ten.", CHILD),
-    ("church1", "am_michael", "Pastor Jeremy says: ride safe, punks."),
-    # the congregation on the Baptist lawn, who get their own book. These play
-    # instead of the street lines whenever the victim is one of the party.
-    # ---- Jesus alive on the lawn: forgiving to the point of provocation ----
-    ("church_a1", "af_bella", "Bless you, dear, you missed my good side."),
-    ("church_a2", "bf_emma", "I forgive you, seventy times seven, dear."),
-    ("church_a3", "af_nicole", "Oh my stars, that tire tread tickles."),
-    ("church_a4", "bm_george", "The Lord is my shepherd, and my chiropractor."),
-    ("church_a5", "af_bella", "No harm done, take a Nanaimo bar."),
-    ("church_a6", "am_adam", "Turn the other cheek, then run me again."),
-    ("church_a7", "bf_emma", "Praise be, my casserole survived the impact."),
-    ("church_a8", "am_michael", "Amen, I needed to lie down anyway."),
-    # ---- Jesus dead and risen as the other one: same whites, different testament ----
-    ("church_d1", "am_michael", "Satan's tire tracks, glory be to doom."),
-    ("church_d2", "af_nicole", "We are damned, and also flattened."),
-    ("church_d3", "bf_emma", "Hallelujah, the lawn is lava now, ow."),
-    ("church_d4", "bm_george", "Ride on, herald of our fiery king."),
-    ("church_d5", "af_bella", "The bake sale is cancelled, we are cursed."),
-    ("church_d6", "am_adam", "Run me again, hell needs the mileage."),
-    ("church_d7", "af_nicole", "Our casseroles burn, our souls too, amen."),
-    ("church_d8", "bm_george", "Deacon's damned and dented, praise the flames."),
-    # pickups — the announcer calls every one of them, two lines apiece so a run
-    # with four cases of Lucky in it does not repeat the same take
-    ("pow_beer1", "am_michael", "Frick yeah! Lucky beer, bud!"),
-    ("pow_beer2", "am_michael", "A case of Lucky! Frick yeah, send it, bud!"),
-    ("pow_coffee1", "am_michael", "Double-double, bud! Frick yeah!"),
-    ("pow_coffee2", "am_michael", "Oh, that's a double-double! Now we're cooking, bud!"),
-    ("pow_bars1", "am_michael", "A whole crate of Nanaimo bars! Frick yeah!"),
-    ("pow_bars2", "am_michael", "Bar crate, bud! Let 'em have it!"),
-    ("pow_blessed1", "am_michael", "Blessed, bud! Frick yeah, you cannot bin it!"),
-    ("pow_blessed2", "am_michael", "The congregation's got you now! Ride on, punk!"),
+    ('intro', 'am_michael', 'Well hey there, bud! Welcome to Departure Bay Speedway!'),
+    ('intro2', 'am_michael', 'Country Club to the beach, pal! Keep the rubber side down, eh!'),
+    ('sendit', 'am_michael', 'Hit that ramp, bud! Send it through the frickin fire!'),
+    ('ring', 'am_michael', 'Holy shnikeys, bud! Right through the fire!'),
+    ('finish', 'am_michael', 'Holy crap, bud! Made it to the beach! Beauty of a run, eh!'),
+    ('crash1', 'bf_emma', 'Holy crap, bud! People drive wild around here!'),
+    ('crash2', 'am_adam', 'What the heck, pal! Watch where you are going!'),
+    ('crash3', 'af_bella', 'Aw shoot, bud! My insurance is not covering that!'),
+    ('crash4', 'bm_george', 'Yikes, pal! The Mounties are gonna hear about this!'),
+    ('crash5', 'af_nicole', 'Holy shnikeys! Save the Nanaimo bars, bud!'),
+    ('crash6', 'am_adam', 'Frickin heck! Who taught you to ride, bud?'),
+    ('crash7', 'bf_emma', 'Watch it, pal! You nearly took me clean out!'),
+    ('crash8', 'am_michael', 'Aw crap, bud! I just washed this thing!'),
+    ('crash9', 'af_bella', 'Ooh shoot, man, you little bugger!'),
+    ('crash10', 'bm_george', 'Right off the road, bud! What in the heck!'),
+    ('ped1', 'af_nicole', 'A frikkin Nanaimo bar! You terd!'),
+    ('ped2', 'bm_george', 'Holy crap, bud! Did you just throw dessert at me?'),
+    ('ped3', 'af_bella', 'Aw shoot, pal! Custard right in my hair!'),
+    ('ped4', 'am_adam', 'Easy, bud! Nanaimo bars belong on a plate!'),
+    ('ped5', 'bf_emma', 'You little bugger! Chocolate all over my jacket!'),
+    ('ped6', 'am_michael', 'Free Nanaimo bar, bud! Frick yeah, I will take it!'),
+    ('school1', 'bf_emma', 'School zone, bud! Kids crossing! Slow it down, eh!'),
+    ('kid1', 'af_sky', 'Holy crap, bud! My backpack went flying!', CHILD),
+    ('kid2', 'af_nova', 'Yikes, pal! You better watch it!', CHILD),
+    ('kid3', 'bf_lily', 'A frickin Nanaimo bar! Right in the face, eh!', CHILD),
+    ('kid4', 'af_kore', 'Aw shoot, bud! That bike needs better brakes!', CHILD),
+    ('kid5', 'am_puck', 'Holy shnikeys, bud! What in the heck!', CHILD_BOY),
+    ('kid6', 'af_river', 'Easy there, pal! This is a school, eh!', CHILD),
+    ('kid7', 'af_sky', 'Aw crap! My backpack survived, bud!', CHILD),
+    ('kid8', 'af_nova', 'Ooh shoot! Chocolate in my hoodie, you bugger!', CHILD),
+    ('kid9', 'bf_lily', 'Watch the crosswalk, pal! I am walking here!', CHILD),
+    ('kid10', 'af_kore', 'Frickin heck, bud! That was a rough one!', CHILD),
+    ('church1', 'am_michael', 'Pastor Jeremy says ride safe, bud! Keep it holy, eh!'),
+    ('church_a1', 'af_bella', 'Bless you, bud! You missed my good side!'),
+    ('church_a2', 'bf_emma', 'I forgive you, pal! Watch the frickin brakes though!'),
+    ('church_a3', 'af_nicole', 'Holy shnikeys, bud! Those tires leave a mark!'),
+    ('church_a4', 'bm_george', 'The Lord is my shepherd and my chiropractor, eh!'),
+    ('church_a5', 'af_bella', 'No worries, bud! Take a Nanaimo bar for the road!'),
+    ('church_a6', 'am_adam', 'Easy, pal! Turn the other cheek, not the bike!'),
+    ('church_a7', 'bf_emma', 'Holy crap, bud! My casserole survived!'),
+    ('church_a8', 'am_michael', 'Aw shoot! Needed a lie-down anyway, eh!'),
+    ('church_d1', 'am_michael', 'Frickin heck, bud! Satan left tire tracks!'),
+    ('church_d2', 'af_nicole', 'Aw crap, pal! Damned and flattened in one go!'),
+    ('church_d3', 'bf_emma', 'Holy shnikeys! The lawn is lava now, bud!'),
+    ('church_d4', 'bm_george', 'Ride on, pal! Mind the frickin flames!'),
+    ('church_d5', 'af_bella', 'Aw shoot, bud! The cursed bake sale is cancelled!'),
+    ('church_d6', 'am_adam', 'Easy, pal! Hell has enough dents already!'),
+    ('church_d7', 'af_nicole', 'Holy crap! Burnt casseroles, burnt souls, eh!'),
+    ('church_d8', 'bm_george', 'Yikes, bud! Even the deacon needs bodywork!'),
+    ('pow_beer1', 'am_michael', 'Frick yeah! Lucky beer, bud!'),
+    ('pow_beer2', 'am_michael', 'A case of Lucky! Beauty, bud! Send it!'),
+    ('pow_coffee1', 'am_michael', 'Double-double, bud! Frick yeah!'),
+    ('pow_coffee2', 'am_michael', 'Oh beauty! Double-double! Now we are cooking, bud!'),
+    ('pow_bars1', 'am_michael', 'Holy crap! A crate of Nanaimo bars, bud!'),
+    ('pow_bars2', 'am_michael', 'Bar crate, pal! Let them have it, eh!'),
+    ('pow_blessed1', 'am_michael', 'Blessed, bud! Frick yeah, you cannot bin it!'),
+    ('pow_blessed2', 'am_michael', 'The congregation has your back, pal! Ride on, eh!'),
 ]
 
 
@@ -119,13 +107,19 @@ def main():
     dialogue = json.loads(source.split('export default ', 1)[1].strip().rstrip(';'))
     extra = [(r['key'], r['voice'], r['text'], {'pitch': r.get('pitch', 1)}) for r in dialogue]
     entries = extra if '--dialogue-only' in sys.argv else LINES + extra
+    manifest_path = os.path.join(OUT_DIR, 'generated-lines.json')
+    manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
     for entry in entries:
         key, voice, text = entry[:3]
         opts = entry[3] if len(entry) > 3 else {}
         pitch = opts.get("pitch", 1.0)
         out = os.path.join(OUT_DIR, f"{key}.wav")
-        if os.path.exists(out) and "--force" not in sys.argv:
-            print(f"skip {key} (exists)")
+        source = {'text': text, 'voice': voice, 'pitch': pitch}
+        previous = manifest.get(key, {})
+        if (os.path.exists(out) and "--force" not in sys.argv
+                and all(previous.get(k) == v for k, v in source.items())
+                and previous.get('sha256') == hashlib.sha256(open(out, 'rb').read()).hexdigest()):
+            print(f"skip {key} (verified render)")
             continue
         audio, sr = kokoro.create(text, voice=voice, speed=1.02 / pitch, lang="en-us")
         if pitch != 1.0:
@@ -136,6 +130,13 @@ def main():
                 np.linspace(0, len(audio) - 1, n), np.arange(len(audio)), audio,
             ).astype("float32")
         sf.write(out, audio, sr)
+        manifest[key] = {**source, 'sha256': hashlib.sha256(open(out, 'rb').read()).hexdigest(),
+                         'seconds': round(len(audio) / sr, 4), 'sampleRate': sr}
+        # Save after every completed clip so an interrupted batch resumes safely.
+        temporary = manifest_path + '.tmp'
+        with open(temporary, 'w') as handle:
+            json.dump(manifest, handle, indent=2)
+        os.replace(temporary, manifest_path)
         print(f"{key}: {len(audio) / sr:.2f}s [{voice}{'' if pitch == 1.0 else f' +{pitch:.2f}x'}]")
 
     print("done:", OUT_DIR)

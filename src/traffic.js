@@ -175,6 +175,76 @@ export const TYPES = [
   { name: 'rcmp', n: 2, len: 5.15, width: 2.05, vmax: [13, 18] },
 ];
 
+// Contact positions are taken from the actual tyre locations, in model metres.
+export const TRAFFIC_CONTACTS = {
+  sedan: { halfTrack: .8, front: -1.42, rear: 1.44 },
+  suv: { halfTrack: .86, front: -1.5, rear: 1.5 },
+  pickup: { halfTrack: .86, front: -1.72, rear: 1.62 },
+  bus: { halfTrack: 1.12, front: -3.65, rear: 3.65 },
+  cybertruck: { halfTrack: 1, front: -1.81, rear: 1.72 },
+  rcmp: { halfTrack: .91, front: -1.62, rear: 1.54 },
+};
+
+export function trafficSurfaceHeight(terrain, x, z) {
+  if (terrain.renderedGroundHeight) return terrain.renderedGroundHeight(x, z);
+  const deck = terrain.roadDeck(x, z);
+  const ground = terrain.meshHeight(x, z) ?? terrain.surfaceHeight(x, z);
+  return deck && deck.d <= deck.hw ? Math.max(deck.y, ground) : ground;
+}
+
+// Fit a rigid chassis to the four wheel contacts. Use the heading of the drawn
+// vehicle, not a six-metre centreline lookahead (which also wrapped at lane ends).
+// Yaw precedes pitch/roll: XYZ Euler pitch tilted eastbound cars sideways.
+export function solveTrafficGrounding(terrain, x, z, heading, contact) {
+  const { halfTrack, front, rear, y: localY = 0 } = contact;
+  const points = [[-halfTrack, front], [halfTrack, front], [-halfTrack, rear], [halfTrack, rear]];
+  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading);
+  const right = new THREE.Vector3(), back = new THREE.Vector3(), up = new THREE.Vector3();
+  const matrix = new THREE.Matrix4();
+  let transformed;
+  for (let iteration = 0; iteration < 4; iteration++) {
+    transformed = points.map(([px, pz]) => new THREE.Vector3(px, localY, pz).applyQuaternion(q));
+    const h = transformed.map(p => trafficSurfaceHeight(terrain, x + p.x, z + p.z));
+    const ax = (transformed[1].x + transformed[3].x - transformed[0].x - transformed[2].x) / 2;
+    const az = (transformed[1].z + transformed[3].z - transformed[0].z - transformed[2].z) / 2;
+    const bx = (transformed[2].x + transformed[3].x - transformed[0].x - transformed[1].x) / 2;
+    const bz = (transformed[2].z + transformed[3].z - transformed[0].z - transformed[1].z) / 2;
+    const ah = (h[1] + h[3] - h[0] - h[2]) / 2;
+    const bh = (h[2] + h[3] - h[0] - h[1]) / 2;
+    const determinant = ax * bz - az * bx;
+    const gx = (ah * bz - az * bh) / determinant;
+    const gz = (ax * bh - ah * bx) / determinant;
+    right.set(Math.cos(heading), gx * Math.cos(heading) - gz * Math.sin(heading), -Math.sin(heading)).normalize();
+    up.set(-gx, 1, -gz).normalize();
+    back.crossVectors(right, up).normalize();
+    q.setFromRotationMatrix(matrix.makeBasis(right, up, back));
+  }
+  transformed = points.map(([px, pz]) => new THREE.Vector3(px, localY, pz).applyQuaternion(q));
+  const heights = transformed.map(p => trafficSurfaceHeight(terrain, x + p.x, z + p.z));
+  // Keep every tyre above the rendered triangles over crests and curb transitions.
+  // On non-planar ground the remaining clearance is suspension travel, not height lag.
+  const y = Math.max(...heights.map((h, i) => h - transformed[i].y));
+  return { y, quaternion: q, contacts: transformed.map((p, i) => ({
+    x: x + p.x, z: z + p.z, y: y + p.y, surface: heights[i], clearance: y + p.y - heights[i],
+  })) };
+}
+
+function modelContacts(geometry, fallback) {
+  geometry.computeBoundingBox();
+  const b = geometry.boundingBox, a = geometry.attributes.position;
+  const buckets = [[], [], [], []];
+  for (let i = 0; i < a.count; i++) {
+    if (a.getY(i) > b.min.y + .035) continue;
+    const x = a.getX(i), z = a.getZ(i);
+    if (Math.abs(x) < (b.max.x - b.min.x) * .22) continue;
+    buckets[(z >= 0 ? 2 : 0) + (x >= 0 ? 1 : 0)].push([x, z]);
+  }
+  if (buckets.some(v => !v.length)) return fallback;
+  const means = buckets.map(v => v.reduce((a, p) => [a[0] + p[0] / v.length, a[1] + p[1] / v.length], [0, 0]));
+  return { halfTrack: means.reduce((sum, p) => sum + Math.abs(p[0]) / 4, 0),
+    front: (means[0][1] + means[1][1]) / 2, rear: (means[2][1] + means[3][1]) / 2, y: b.min.y };
+}
+
 export class Traffic {
   constructor(scene, map, terrain, carModels = null) {
     this.terrain = terrain;
@@ -185,7 +255,7 @@ export class Traffic {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.35, envMapIntensity: 1.0 });
     // Authored CC0 cars when the kit is available, the built-in shapes otherwise.
     // Special reference vehicles always use their own models and collision sizes.
-    this.usingModels = !!(carModels && carModels.length >= 4);
+    this.usingModels = !!(carModels && carModels.length >= 3);
     // Generic kit fallback is reserved for ordinary passenger traffic.
     const order = ['sedan', 'suv', 'pickup', 'bus'];
     const pick = (name) => {
@@ -201,10 +271,12 @@ export class Traffic {
     this.meshes = {};
     for (const t of TYPES) {
       const model = pick(t.name);
-      const parts = buildReferenceVehicle(t.name) || [{ geometry: model ? model.geometry : bakeParts(t.build()), material: model ? model.material : mat }];
+      const contacts = model?.contacts || (model ? modelContacts(model.geometry, TRAFFIC_CONTACTS[t.name]) : TRAFFIC_CONTACTS[t.name]);
+      const parts = buildReferenceVehicle(t.name) || model?.renderParts || [{ geometry: model ? model.geometry : bakeParts(t.build()), material: model ? model.material : mat }];
       const instances = parts.map(part => {
         const inst = new THREE.InstancedMesh(part.geometry, part.material, t.n);
         inst.name = part.name || `Traffic ${t.name}`;
+        inst.userData.tintable = part.tintable !== false;
         inst.castShadow = true; inst.receiveShadow = true;
         inst.frustumCulled = false;
         inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -216,16 +288,16 @@ export class Traffic {
       // into the front of the buffer meant a car's slot — and therefore its baked
       // colour — changed whenever another car spawned, which read as flashing.
       this.cars.push(...Array.from({ length: t.n }, (_, slot) => ({
-        type: t.name, active: false, len: t.len, width: t.width || 1.95, maxSpeed: t.vmax[1], slot,
+        type: t.name, active: false, contacts, len: model?.size?.z || t.len, width: model?.size?.x || t.width || 1.95, maxSpeed: t.vmax[1], slot,
       })));
     }
     this.col = new THREE.Color();
     // colour belongs to the car, and its slot never moves, so it stays put
     for (const car of this.cars) {
       if (REFERENCE_VEHICLES[car.type]) this.col.set(0xffffff);
-      else if (this.usingModels) this.col.setHSL(Math.random(), 0.12, 0.62 + Math.random() * 0.3);
+      else if (this.usingModels) this.col.set(choice(CAR_COLORS));
       else this.col.set(choice(CAR_COLORS));
-      for (const inst of this.meshes[car.type].instances) inst.setColorAt(car.slot, this.col);
+      for (const inst of this.meshes[car.type].instances) inst.setColorAt(car.slot, inst.userData.tintable ? this.col : new THREE.Color(0xffffff));
     }
     for (const t of TYPES) for (const inst of this.meshes[t.name].instances) inst.instanceColor.needsUpdate = true;
     this.nearMissEvents = [];
@@ -245,7 +317,7 @@ export class Traffic {
         const pts = dir === 1 ? r.p : [...r.p].reverse();
         const es = dir === 1 ? r.e : [...r.e].reverse();
         for (const off of lanes) {
-          const path = { pts: [], cum: [0], total: 0, vmax: (r.c === 'trunk' || r.c === 'primary') ? rand(19, 24) : rand(11, 16), name: r.n };
+          const path = { pts: [], cum: [0], total: 0, vmax: (r.c === 'trunk' || r.c === 'primary') ? rand(19, 24) : rand(11, 16), name: r.n, laneOffset: off, halfWidth: r.w / 2 };
           for (let i = 0; i < pts.length; i++) {
             const prev = pts[Math.max(0, i - 1)], next = pts[Math.min(pts.length - 1, i + 1)];
             let dx = next[0] - prev[0], dz = next[1] - prev[1];
@@ -302,6 +374,7 @@ export class Traffic {
         car.v = Math.min(path.vmax, car.maxSpeed) * rand(0.75, 1);
         car.active = true;
         car.justSpawned = true;
+        car.policeStopped = false;
         car.gen = (car.gen || 0) + 1;      // bumped each spawn, so tools can tell lives apart
         car.crashed = false; car.swerveT = 0; car.latOffset = 0; car.yaw = 0; car.tilt = 0;
         // Place it on the road right now. Leaving x/z at last life's values for a frame
@@ -313,6 +386,7 @@ export class Traffic {
         car.headingSmooth = car.heading;
         car.ySmooth = car.y;
         car.drawX = undefined; car.drawZ = undefined;
+        if (!this.groundCar(car)) continue;
         car.hideFrames = 0;
         return true;
       }
@@ -348,6 +422,7 @@ export class Traffic {
     car.x = st.x; car.y = st.y; car.z = st.z;
     car.ySmooth = st.y;
     car.justSpawned = true;
+    this.groundCar(car);
     return true;
   }
 
@@ -359,6 +434,7 @@ export class Traffic {
         if (Math.random() < 0.13) this.spawnNear(car, pos, 400);
         continue;
       }
+      if (car.policeStopped) { car.v = 0; this.groundCar(car); continue; }
       if (car.crashed) {
         // off the road and done: sit tilted, smoke now and then, fade out of scope
         car.v = Math.max(0, car.v - 9 * dt);
@@ -426,13 +502,11 @@ export class Traffic {
       const rx = -sm2.dz / dl, rz = sm2.dx / dl;
       car.x = sm2.x + rx * (car.latOffset || 0);
       car.z = sm2.z + rz * (car.latOffset || 0);
-      const deck = this.terrain.roadDeck(car.x, car.z);
-      if (deck && deck.d < deck.hw + 0.8) car.y = deck.y - 0.05;
-      else {
-        // the drawn triangles are the ground you can see; the analytic surface is only
-        // the fallback for before buildMesh() has left its cache behind
-        const drawn = this.terrain.meshHeight(car.x, car.z);
-        car.y = drawn ?? this.terrain.surfaceHeight(car.x, car.z);
+      // Outer lanes must leave enough room for bus tyres on the asphalt.
+      const laneLimit = Math.max(0, car.path.halfWidth - car.width / 2 - .12);
+      if (!car.crashed && !(car.swerveT > 0) && car.path.laneOffset > laneLimit) {
+        const inward = car.path.laneOffset - laneLimit;
+        car.x -= rx * inward; car.z -= rz * inward;
       }
       car.dx = sm2.dx; car.dz = sm2.dz;
       car.heading = Math.atan2(-sm2.dx, -sm2.dz) - (car.yaw || 0);
@@ -450,9 +524,7 @@ export class Traffic {
         // hover after lane handoffs and over sharp cross-slopes.
         car.ySmooth = car.y;
       }
-      // lean into the grade a touch, so cars sit on the hill rather than float level
-      const aheadS = this.sample(car.path, (car.s + 6) % car.path.total);
-      car.pitch = clamp(Math.atan2(car.y - aheadS.y, 6), -0.12, 0.12);
+      this.groundCar(car);
       if (Math.hypot(car.x - pos.x, car.z - pos.z) > 950) {
         this.retire = this.retire || {}; this.retire.farAway = (this.retire.farAway || 0) + 1;
         car.active = false;
@@ -463,6 +535,24 @@ export class Traffic {
     }
     this.writeMatrices();
     this.checkPlayer(player, playerActive);
+  }
+
+  groundCar(car) {
+    const pose = solveTrafficGrounding(this.terrain, car.x, car.z,
+      car.headingSmooth ?? car.heading, car.contacts || TRAFFIC_CONTACTS[car.type]);
+    car.y = car.ySmooth = pose.y;
+    car.groundQuaternion = pose.quaternion;
+    car.wheelContacts = pose.contacts;
+    const euler = new THREE.Euler().setFromQuaternion(pose.quaternion, 'YXZ');
+    car.pitch = euler.x; car.roll = euler.z;
+    // Some peripheral mapped lanes cross discontinuous terrain/retaining walls.
+    // Do not render a rigid car balancing a metre above the visible road.
+    if(pose.contacts.some(p=>p.clearance > .32) || Math.abs(euler.x) > .55 || Math.abs(euler.z) > .4){
+      car.active=false;car.drawX=undefined;car.drawZ=undefined;
+      this.retire ||= {};this.retire.unsupportedSurface=(this.retire.unsupportedSurface||0)+1;
+      return false;
+    }
+    return true;
   }
 
   // a bar splattered across the windshield: driver bolts off the road
@@ -505,7 +595,8 @@ export class Traffic {
       }
       if (car.active) {
         d.position.set(car.x, car.ySmooth ?? car.y, car.z);
-        d.rotation.set(car.pitch || 0, car.headingSmooth ?? car.heading, car.tilt || 0);
+        if (car.groundQuaternion) d.quaternion.copy(car.groundQuaternion);
+        else d.rotation.set(0, car.headingSmooth ?? car.heading, 0);
       } else {
         d.position.set(0, -500, 0);
         d.rotation.set(0, 0, 0);

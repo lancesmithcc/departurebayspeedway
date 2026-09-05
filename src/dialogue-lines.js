@@ -5,7 +5,7 @@ export default [
     "bank": "street_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "That is not a bike lane!",
+    "text": "Holy crap, bud! Watch the handlebars!",
     "pitch": 1
   },
   {
@@ -13,7 +13,7 @@ export default [
     "bank": "street_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "A bell! Have you heard of a bell?",
+    "text": "Yikes, pal, you better watch it!",
     "pitch": 1
   },
   {
@@ -21,7 +21,7 @@ export default [
     "bank": "street_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "My chiropractor sends his thanks.",
+    "text": "Holy shnikeys, bud! What in the heck!",
     "pitch": 1
   },
   {
@@ -29,7 +29,7 @@ export default [
     "bank": "street_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "You missed the road. All of it.",
+    "text": "Aw crap, you got me there, man!",
     "pitch": 1
   },
   {
@@ -37,7 +37,7 @@ export default [
     "bank": "street_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "That is not a bike lane!",
+    "text": "Ooh shoot, man, you little bugger!",
     "pitch": 1
   },
   {
@@ -45,7 +45,7 @@ export default [
     "bank": "street_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "A bell! Have you heard of a bell?",
+    "text": "Easy there, bud! That is my kneecap!",
     "pitch": 1
   },
   {
@@ -53,7 +53,7 @@ export default [
     "bank": "street_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "My chiropractor sends his thanks.",
+    "text": "Frickin heck, pal! Use your bell!",
     "pitch": 1
   },
   {
@@ -61,7 +61,7 @@ export default [
     "bank": "street_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "You missed the road. All of it.",
+    "text": "Watch it, bud! I am walking here, eh!",
     "pitch": 1
   },
   {
@@ -69,7 +69,7 @@ export default [
     "bank": "street_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Dessert delivery needs some work!",
+    "text": "A frikkin Nanaimo bar! You terd!",
     "pitch": 1
   },
   {
@@ -77,7 +77,7 @@ export default [
     "bank": "street_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Is that custard in my ear?",
+    "text": "Aw crap, bud! Custard right in the ear!",
     "pitch": 1
   },
   {
@@ -85,7 +85,7 @@ export default [
     "bank": "street_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "I ordered takeout, not knockout!",
+    "text": "Holy shnikeys! That bar nearly took my moustache off!",
     "pitch": 1
   },
   {
@@ -93,7 +93,7 @@ export default [
     "bank": "street_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Three layers. Straight to the face.",
+    "text": "Easy, pal! Pass the dessert, do not launch it!",
     "pitch": 1
   },
   {
@@ -101,7 +101,7 @@ export default [
     "bank": "street_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Dessert delivery needs some work!",
+    "text": "Ooh shoot! A Nanaimo bar in my hair, bud!",
     "pitch": 1
   },
   {
@@ -109,7 +109,7 @@ export default [
     "bank": "street_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Is that custard in my ear?",
+    "text": "Holy crap, pal! My good hoodie is full of custard!",
     "pitch": 1
   },
   {
@@ -117,7 +117,7 @@ export default [
     "bank": "street_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "I ordered takeout, not knockout!",
+    "text": "Frickin heck, bud! Three layers right to the face!",
     "pitch": 1
   },
   {
@@ -125,7 +125,7 @@ export default [
     "bank": "street_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Three layers. Straight to the face.",
+    "text": "You little bugger! Next bar goes on a plate, eh!",
     "pitch": 1
   },
   {
@@ -133,7 +133,7 @@ export default [
     "bank": "kid_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Bro! Crosswalks are not launch ramps!",
+    "text": "Holy crap, bud! This is a crosswalk!",
     "pitch": 1.2
   },
   {
@@ -141,7 +141,7 @@ export default [
     "bank": "kid_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "My backpack has better brakes!",
+    "text": "Yikes, pal! My backpack has better brakes!",
     "pitch": 1.2
   },
   {
@@ -149,7 +149,7 @@ export default [
     "bank": "kid_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "That was a zero star bike ride.",
+    "text": "Aw shoot, bud! You nearly flattened my lunch!",
     "pitch": 1.2
   },
   {
@@ -157,7 +157,7 @@ export default [
     "bank": "kid_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Use your bell next time!",
+    "text": "Easy there, you little bugger! Ring your bell!",
     "pitch": 1.2
   },
   {
@@ -165,7 +165,7 @@ export default [
     "bank": "kid_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Bro! Crosswalks are not launch ramps!",
+    "text": "Holy shnikeys! Watch the school zone, bud!",
     "pitch": 1.2
   },
   {
@@ -173,7 +173,7 @@ export default [
     "bank": "kid_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "My backpack has better brakes!",
+    "text": "Ooh shoot, pal! My sneakers went flying!",
     "pitch": 1.2
   },
   {
@@ -181,7 +181,7 @@ export default [
     "bank": "kid_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "That was a zero star bike ride.",
+    "text": "Frickin heck! That bike needs training wheels, eh!",
     "pitch": 1.2
   },
   {
@@ -189,7 +189,7 @@ export default [
     "bank": "kid_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Use your bell next time!",
+    "text": "Watch it, bud! Recess is rough enough!",
     "pitch": 1.2
   },
   {
@@ -197,7 +197,7 @@ export default [
     "bank": "kid_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Headshot! With a snack?",
+    "text": "Holy crap! A Nanaimo bar, right in the face!",
     "pitch": 1.2
   },
   {
@@ -205,7 +205,7 @@ export default [
     "bank": "kid_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Lunch has entered the chat.",
+    "text": "Aw shoot, bud! Custard on my homework!",
     "pitch": 1.2
   },
   {
@@ -213,7 +213,7 @@ export default [
     "bank": "kid_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "You got custard on my homework!",
+    "text": "Yikes, pal! You throw a mean snack!",
     "pitch": 1.2
   },
   {
@@ -221,7 +221,7 @@ export default [
     "bank": "kid_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Okay, the chocolate part is pretty good.",
+    "text": "Frickin heck! Save a bar for lunch, eh!",
     "pitch": 1.2
   },
   {
@@ -229,7 +229,7 @@ export default [
     "bank": "kid_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Headshot! With a snack?",
+    "text": "Ooh shoot! Chocolate right in my hoodie, bud!",
     "pitch": 1.2
   },
   {
@@ -237,7 +237,7 @@ export default [
     "bank": "kid_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Lunch has entered the chat.",
+    "text": "You little bugger! That bar was supposed to be mine!",
     "pitch": 1.2
   },
   {
@@ -245,7 +245,7 @@ export default [
     "bank": "kid_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "You got custard on my homework!",
+    "text": "Holy shnikeys! Flying dessert, eh!",
     "pitch": 1.2
   },
   {
@@ -253,7 +253,7 @@ export default [
     "bank": "kid_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Okay, the chocolate part is pretty good.",
+    "text": "Aw crap, pal! At least the custard tastes good!",
     "pitch": 1.2
   },
   {
@@ -261,7 +261,7 @@ export default [
     "bank": "church_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Turn the other cheek. Not the handlebars!",
+    "text": "Holy crap, bud! Turn the other cheek, not the handlebars!",
     "pitch": 1
   },
   {
@@ -269,7 +269,7 @@ export default [
     "bank": "church_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Bless your heart. And fix your brakes.",
+    "text": "Yikes, pal! Bless your heart and fix your brakes!",
     "pitch": 1
   },
   {
@@ -277,7 +277,7 @@ export default [
     "bank": "church_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "The Lord moves me in mysterious directions.",
+    "text": "Aw shoot! The Lord just moved me sideways, bud!",
     "pitch": 1
   },
   {
@@ -285,7 +285,7 @@ export default [
     "bank": "church_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "I prayed for a lift, not a launch.",
+    "text": "Frickin heck! I prayed for a lift, not a launch!",
     "pitch": 1
   },
   {
@@ -293,7 +293,7 @@ export default [
     "bank": "church_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Turn the other cheek. Not the handlebars!",
+    "text": "Holy shnikeys! You flattened the church picnic, bud!",
     "pitch": 1
   },
   {
@@ -301,7 +301,7 @@ export default [
     "bank": "church_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Bless your heart. And fix your brakes.",
+    "text": "Easy, pal! Jeremy cannot pray those brakes better!",
     "pitch": 1
   },
   {
@@ -309,7 +309,7 @@ export default [
     "bank": "church_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "The Lord moves me in mysterious directions.",
+    "text": "Aw crap, bud! My casserole survived, barely!",
     "pitch": 1
   },
   {
@@ -317,7 +317,7 @@ export default [
     "bank": "church_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "I prayed for a lift, not a launch.",
+    "text": "You little bugger! Leave room for the collection plate!",
     "pitch": 1
   },
   {
@@ -325,7 +325,7 @@ export default [
     "bank": "church_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Our daily bread has a custard layer!",
+    "text": "Holy crap! Our daily bread has custard now, bud!",
     "pitch": 1
   },
   {
@@ -333,7 +333,7 @@ export default [
     "bank": "church_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "The bake sale has become a contact sport.",
+    "text": "Frickin heck! The bake sale is a contact sport, eh!",
     "pitch": 1
   },
   {
@@ -341,7 +341,7 @@ export default [
     "bank": "church_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Forgive us our desserts.",
+    "text": "Aw shoot, pal! Forgive us our desserts!",
     "pitch": 1
   },
   {
@@ -349,7 +349,7 @@ export default [
     "bank": "church_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "That is not how we pass the collection plate.",
+    "text": "Easy, bud! That Nanaimo bar missed the collection plate!",
     "pitch": 1
   },
   {
@@ -357,7 +357,7 @@ export default [
     "bank": "church_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Our daily bread has a custard layer!",
+    "text": "Holy shnikeys! Three layers of blessings in my hair!",
     "pitch": 1
   },
   {
@@ -365,7 +365,7 @@ export default [
     "bank": "church_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "The bake sale has become a contact sport.",
+    "text": "You little bugger! Jeremy wanted that bar for tea!",
     "pitch": 1
   },
   {
@@ -373,7 +373,7 @@ export default [
     "bank": "church_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Forgive us our desserts.",
+    "text": "Yikes, bud! Pass the custard with a little grace!",
     "pitch": 1
   },
   {
@@ -381,7 +381,7 @@ export default [
     "bank": "church_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "That is not how we pass the collection plate.",
+    "text": "Aw crap! Dessert first, dental work later, eh!",
     "pitch": 1
   },
   {
@@ -389,7 +389,7 @@ export default [
     "bank": "hell_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Even eternal punishment has traffic rules!",
+    "text": "Holy crap, bud! Even hell has traffic rules!",
     "pitch": 1
   },
   {
@@ -397,7 +397,7 @@ export default [
     "bank": "hell_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Great. Now my deductible is eternal.",
+    "text": "Frickin heck! My deductible lasts forever now!",
     "pitch": 1
   },
   {
@@ -405,7 +405,7 @@ export default [
     "bank": "hell_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "The road to hell needs a bike lane.",
+    "text": "Easy, pal! The road to hell needs a bike lane!",
     "pitch": 1
   },
   {
@@ -413,7 +413,7 @@ export default [
     "bank": "hell_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "My insurance excludes acts of Satan!",
+    "text": "Aw shoot! Satan does not cover collision, bud!",
     "pitch": 1
   },
   {
@@ -421,7 +421,7 @@ export default [
     "bank": "hell_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Even eternal punishment has traffic rules!",
+    "text": "Holy shnikeys! You flattened me twice, you bugger!",
     "pitch": 1
   },
   {
@@ -429,7 +429,7 @@ export default [
     "bank": "hell_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Great. Now my deductible is eternal.",
+    "text": "Yikes, pal! I came for flames, not tire tracks!",
     "pitch": 1
   },
   {
@@ -437,7 +437,7 @@ export default [
     "bank": "hell_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "The road to hell needs a bike lane.",
+    "text": "Aw crap, bud! Hell needs better brakes!",
     "pitch": 1
   },
   {
@@ -445,7 +445,7 @@ export default [
     "bank": "hell_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "My insurance excludes acts of Satan!",
+    "text": "Watch it, eh! These horns cost a fortune!",
     "pitch": 1
   },
   {
@@ -453,7 +453,7 @@ export default [
     "bank": "hell_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Devils food cake was right there!",
+    "text": "Frickin heck! Three layers of sin, bud!",
     "pitch": 1
   },
   {
@@ -461,7 +461,7 @@ export default [
     "bank": "hell_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "The custard is cold. This is hell?",
+    "text": "Aw shoot, pal! Cold custard? This is supposed to be hell!",
     "pitch": 1
   },
   {
@@ -469,7 +469,7 @@ export default [
     "bank": "hell_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Finally, a sin with three layers.",
+    "text": "Holy crap! A Nanaimo bar straight from the dark side!",
     "pitch": 1
   },
   {
@@ -477,7 +477,7 @@ export default [
     "bank": "hell_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "I sold my soul, not my dry cleaning!",
+    "text": "Easy, bud! I sold my soul, not my good shirt!",
     "pitch": 1
   },
   {
@@ -485,7 +485,7 @@ export default [
     "bank": "hell_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Devils food cake was right there!",
+    "text": "You little bugger! Satan wanted devils food!",
     "pitch": 1
   },
   {
@@ -493,7 +493,7 @@ export default [
     "bank": "hell_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "The custard is cold. This is hell?",
+    "text": "Yikes, pal! The custard is putting the fire out!",
     "pitch": 1
   },
   {
@@ -501,7 +501,7 @@ export default [
     "bank": "hell_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Finally, a sin with three layers.",
+    "text": "Aw crap! Chocolate on my horns again, eh!",
     "pitch": 1
   },
   {
@@ -509,7 +509,7 @@ export default [
     "bank": "hell_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "I sold my soul, not my dry cleaning!",
+    "text": "Holy shnikeys, bud! That bar tastes downright heavenly!",
     "pitch": 1
   },
   {
@@ -517,7 +517,7 @@ export default [
     "bank": "driver_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Custard on the windshield! Really?",
+    "text": "Holy crap! Nanaimo bar on the windshield, bud!",
     "pitch": 1
   },
   {
@@ -525,7 +525,7 @@ export default [
     "bank": "driver_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Use the drive through like everyone else!",
+    "text": "Easy, pal! Dessert goes through the drive-through!",
     "pitch": 1
   },
   {
@@ -533,7 +533,7 @@ export default [
     "bank": "driver_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "That is not windshield washer fluid!",
+    "text": "Aw shoot! My wipers are spreading the custard!",
     "pitch": 1
   },
   {
@@ -541,7 +541,7 @@ export default [
     "bank": "driver_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Dessert delivery. Terrible parking.",
+    "text": "Frickin heck, bud! That bar dented my lunch plans!",
     "pitch": 1
   },
   {
@@ -549,7 +549,7 @@ export default [
     "bank": "driver_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Custard on the windshield! Really?",
+    "text": "You little bugger! Chocolate all over my clean car!",
     "pitch": 1
   },
   {
@@ -557,7 +557,7 @@ export default [
     "bank": "driver_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Use the drive through like everyone else!",
+    "text": "Yikes, pal! I cannot see through custard!",
     "pitch": 1
   },
   {
@@ -565,7 +565,7 @@ export default [
     "bank": "driver_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "That is not windshield washer fluid!",
+    "text": "Holy shnikeys! Flying Nanaimo bars again, eh!",
     "pitch": 1
   },
   {
@@ -573,7 +573,7 @@ export default [
     "bank": "driver_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Dessert delivery. Terrible parking.",
+    "text": "Aw crap, bud! The windshield is not a dessert plate!",
     "pitch": 1
   },
   {
@@ -581,7 +581,7 @@ export default [
     "bank": "jesus_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "I can walk on water. You cannot ride on sidewalks.",
+    "text": "Holy shnikeys, bud! Walk on water, ride on the road!",
     "pitch": 1
   },
   {
@@ -589,7 +589,7 @@ export default [
     "bank": "jesus_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "I said follow me, not rear end me.",
+    "text": "Easy, pal! Follow me does not mean rear-end me!",
     "pitch": 1
   },
   {
@@ -597,7 +597,7 @@ export default [
     "bank": "jesus_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Forgiveness is free. Bike lessons cost extra.",
+    "text": "Aw shoot, bud! Forgiveness is free. Bike lessons cost extra!",
     "pitch": 1
   },
   {
@@ -605,7 +605,7 @@ export default [
     "bank": "jesus_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Breaking bread was merely a suggestion.",
+    "text": "Frickin heck, bud! I said break bread, not throw dessert!",
     "pitch": 1
   },
   {
@@ -613,7 +613,7 @@ export default [
     "bank": "jesus_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Loaves, fishes, and apparently airborne custard.",
+    "text": "Holy crap! Loaves, fishes, and airborne custard, eh!",
     "pitch": 1
   },
   {
@@ -621,7 +621,7 @@ export default [
     "bank": "jesus_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Blessed are the snack makers. Mind your aim.",
+    "text": "Easy, you little bugger! Blessed are the snack makers!",
     "pitch": 1
   },
   {
@@ -629,7 +629,7 @@ export default [
     "bank": "jesus_greet",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Peace be with you. Both hands on the bars.",
+    "text": "Peace be with you, bud! Keep both hands on the bars, eh!",
     "pitch": 1
   },
   {
@@ -637,7 +637,7 @@ export default [
     "bank": "jesus_greet",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Love thy neighbour. Leave them some sidewalk.",
+    "text": "Hey there, pal! Love thy neighbour, leave them some sidewalk!",
     "pitch": 1
   },
   {
@@ -645,7 +645,7 @@ export default [
     "bank": "jesus_rise",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Back again. The warranty is quite good.",
+    "text": "Back again, bud! That warranty is pretty frickin good!",
     "pitch": 1
   },
   {
@@ -653,7 +653,7 @@ export default [
     "bank": "jesus_rise",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Let us call that a teachable moment.",
+    "text": "Aw shoot, pal! Three days off would have been nice!",
     "pitch": 1
   },
   {
@@ -661,7 +661,7 @@ export default [
     "bank": "satan_bike",
     "gender": "male",
     "voice": "am_adam",
-    "text": "I invented temptation. Who invented your brakes?",
+    "text": "Holy crap, bud! I invented temptation, not those brakes!",
     "pitch": 1
   },
   {
@@ -669,7 +669,7 @@ export default [
     "bank": "satan_bike",
     "gender": "male",
     "voice": "am_adam",
-    "text": "Welcome to hell. Parking is still extra.",
+    "text": "Easy, pal! Welcome to hell. Parking is still extra, eh!",
     "pitch": 1
   },
   {
@@ -677,7 +677,7 @@ export default [
     "bank": "satan_bike",
     "gender": "male",
     "voice": "am_adam",
-    "text": "You ride like the terms and conditions.",
+    "text": "Frickin heck! You ride like a shopping cart with horns!",
     "pitch": 1
   },
   {
@@ -685,7 +685,7 @@ export default [
     "bank": "satan_bar",
     "gender": "male",
     "voice": "am_adam",
-    "text": "Three layers of sin. Finally, some ambition.",
+    "text": "Three layers of sin, bud! Now that is frickin ambition!",
     "pitch": 1
   },
   {
@@ -693,7 +693,7 @@ export default [
     "bank": "satan_bar",
     "gender": "male",
     "voice": "am_adam",
-    "text": "I asked for devils food. Read the order.",
+    "text": "Aw shoot, pal! I asked for devils food, not custard!",
     "pitch": 1
   },
   {
@@ -701,7 +701,7 @@ export default [
     "bank": "satan_bar",
     "gender": "male",
     "voice": "am_adam",
-    "text": "That custard has a suspiciously heavenly finish.",
+    "text": "You little bugger! That bar tastes suspiciously heavenly!",
     "pitch": 1
   },
   {
@@ -709,7 +709,7 @@ export default [
     "bank": "satan_greet",
     "gender": "male",
     "voice": "am_adam",
-    "text": "Nice bike. What is your soul worth in trade?",
+    "text": "Nice bike, bud! What is your soul worth on trade?",
     "pitch": 1
   },
   {
@@ -717,7 +717,7 @@ export default [
     "bank": "satan_greet",
     "gender": "male",
     "voice": "am_adam",
-    "text": "Welcome. We have reserved your usual pothole.",
+    "text": "Come on in, pal! Saved you a pothole by the flames!",
     "pitch": 1
   },
   {
@@ -725,7 +725,7 @@ export default [
     "bank": "satan_rise",
     "gender": "male",
     "voice": "am_adam",
-    "text": "New management. Same terrible drivers.",
+    "text": "New management, bud! Same frickin terrible drivers!",
     "pitch": 1
   },
   {
@@ -733,7 +733,7 @@ export default [
     "bank": "satan_rise",
     "gender": "male",
     "voice": "am_adam",
-    "text": "The resurrection came with a very small surcharge.",
+    "text": "Well shoot, pal! Resurrection comes with a cover charge!",
     "pitch": 1
   },
   {
@@ -741,7 +741,7 @@ export default [
     "bank": "driver_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "That is a bike, not a battering ram!",
+    "text": "Holy crap, bud! That is my door!",
     "pitch": 1
   },
   {
@@ -749,7 +749,7 @@ export default [
     "bank": "driver_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Watch the paint!",
+    "text": "Yikes, pal! Watch the frickin paint!",
     "pitch": 1
   },
   {
@@ -757,7 +757,7 @@ export default [
     "bank": "driver_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "My insurance needs a new category for you.",
+    "text": "Aw shoot, bud! You ride like a shopping cart!",
     "pitch": 1
   },
   {
@@ -765,7 +765,7 @@ export default [
     "bank": "driver_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "You have the whole road. Why my door?",
+    "text": "Easy, you little bugger! This is not bumper cars!",
     "pitch": 1
   },
   {
@@ -773,7 +773,7 @@ export default [
     "bank": "driver_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "That is a bike, not a battering ram!",
+    "text": "Holy shnikeys! You nearly spilled my double-double!",
     "pitch": 1
   },
   {
@@ -781,7 +781,7 @@ export default [
     "bank": "driver_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Watch the paint!",
+    "text": "Aw crap, pal! I just washed this thing!",
     "pitch": 1
   },
   {
@@ -789,7 +789,7 @@ export default [
     "bank": "driver_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "My insurance needs a new category for you.",
+    "text": "Frickin heck, bud! There goes my mirror!",
     "pitch": 1
   },
   {
@@ -797,7 +797,7 @@ export default [
     "bank": "driver_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "You have the whole road. Why my door?",
+    "text": "Watch it, eh! My car is not a bike rack!",
     "pitch": 1
   }
 ];

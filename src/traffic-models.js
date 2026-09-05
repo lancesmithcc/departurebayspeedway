@@ -6,7 +6,7 @@ export const REFERENCE_VEHICLES = {
 };
 function kit() {
   const materials = {
-    paint: new THREE.MeshStandardMaterial({vertexColors:true,roughness:.36,metalness:.28}),
+    paint: new THREE.MeshPhysicalMaterial({vertexColors:true,roughness:.3,metalness:.32,clearcoat:.75,clearcoatRoughness:.22}),
     metal: new THREE.MeshStandardMaterial({vertexColors:true,roughness:.29,metalness:.8}),
     glass: new THREE.MeshStandardMaterial({color:0x233d48,roughness:.16,metalness:.65}),
     rubber: new THREE.MeshStandardMaterial({color:0x171b20,roughness:.85}),
@@ -26,10 +26,24 @@ function kit() {
   }
   function rod(a,b,r=.025,key='rubber',color=0xffffff){const p=new THREE.Vector3(...a),q=new THREE.Vector3(...b),g=new THREE.CylinderGeometry(r,r,p.distanceTo(q),8);g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),q.clone().sub(p).normalize()));g.translate(...p.add(q).multiplyScalar(.5).toArray());add(g,key,color);}
   function wheel(x,z,r=.42,steel=false){
-    const cyl=(radius,width,xx,key,color)=>{const g=new THREE.CylinderGeometry(radius,radius,width,24);g.rotateZ(Math.PI/2);g.translate(xx,r,z);add(g,key,color);};
-    cyl(r,.3,x,'rubber');cyl(r*.68,.315,x,'metal',steel?0x32373c:0xa5adb2);cyl(r*.22,.34,x,'metal',0xaeb4b8);
-    const outside=x+Math.sign(x)*.17;
-    for(let i=0;i<8;i++){const a=i*Math.PI/4;box(.025,.045,.045,outside,r+Math.cos(a)*r*.4,z+Math.sin(a)*r*.4,'rubber');}
+    // Rounded shoulders and recessed rims replace flat cylinder tyres.
+    const cyl=(radius,width,xx,key,color)=>{const g=new THREE.CylinderGeometry(radius,radius,width,32);g.rotateZ(Math.PI/2);g.translate(xx,r,z);add(g,key,color);};
+    const shoulder=new THREE.TorusGeometry(r-.065,.065,10,40);shoulder.rotateY(Math.PI/2);shoulder.translate(x,r,z);add(shoulder,'rubber');
+    cyl(r-.017,.19,x,'rubber');
+    for(const edge of [-1,1]){const t=new THREE.TorusGeometry(r-.072,.05,8,40);t.rotateY(Math.PI/2);t.translate(x+edge*.093,r,z);add(t,'rubber');}
+    cyl(r*.66,.275,x,'metal',steel?0x32373c:0x9ca5af);
+    const outside=x+Math.sign(x)*.15;
+    const rim=new THREE.TorusGeometry(r*.65,.013,6,32);rim.rotateY(Math.PI/2);rim.translate(outside,r,z);add(rim,'metal',0x9ca6b0);
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4,cy=r+Math.cos(a)*r*.43,cz=z+Math.sin(a)*r*.43;
+      const hole=new THREE.CylinderGeometry(r*.075,r*.075,.012,10);hole.rotateZ(Math.PI/2);hole.translate(outside,cy,cz);add(hole,'rubber');
+      const bolt=new THREE.CylinderGeometry(.018,.018,.027,6);bolt.rotateZ(Math.PI/2);bolt.translate(outside+Math.sign(x)*.012,r+Math.cos(a)*r*.19,z+Math.sin(a)*r*.19);add(bolt,'metal',0xc3c7cb);
+    }
+    cyl(r*.15,.315,x,'metal',0xaeb4b8);
+    for(let i=0;i<40;i++){
+      const a=i*Math.PI/20;
+      const g=new THREE.BoxGeometry(.155,.006,.017);g.rotateX(-a);g.translate(x,r+Math.cos(a)*(r-.005),z+Math.sin(a)*(r-.005));add(g,'rubber');
+    }
   }
   function quad(points,key='glass',color=0xffffff){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,2,1,0,3,2].flatMap(i=>points[i]),3));g.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,0,1,1,0,1],2));g.computeVertexNormals();add(g,key,color);}
   const labels=[];
@@ -52,8 +66,11 @@ function kit() {
 }
 function bus(){
   const k=kit(),{box:b,rod:r}=k;
-  k.profile([[-5.85,.48],[-5.97,1.15],[-5.86,2.95],[-5.55,3.18],[5.6,3.18],[5.9,2.94],[5.9,.48]],2.5);
-  b(2.53,.63,11.65,0,.84,0,'metal',0x929ca3);b(2.48,.23,11.8,0,.48,0,'rubber');
+  const arch=z=>Array.from({length:19},(_,i)=>[z+Math.cos(i*Math.PI/18)*.61,.52+Math.sin(i*Math.PI/18)*.61]);
+  const bottom=[...arch(3.65),...arch(-3.65)];
+  k.profile([[-5.85,.48],[-5.97,1.15],[-5.86,2.95],[-5.55,3.18],[5.6,3.18],[5.9,2.94],[5.9,.48],...bottom],2.5);
+  k.profile([[-5.82,.52],[-5.82,1.155],[5.82,1.155],[5.82,.52],...bottom],2.53,'metal',0x929ca3);
+  for(const [z,d] of [[-5.08,1.64],[0,6.04],[5.08,1.64]])b(2.48,.23,d,0,.48,z,'rubber');
   for(const side of [-1,1]){
     const x=side*1.268;
     b(.025,.10,11.45,x,1.32,0,'paint',0x164c6d);b(.027,.06,11.45,x,1.43,0,'paint',0x52a98f);
@@ -105,10 +122,11 @@ function cybertruck(){
 }
 function rcmp(){
   const k=kit(),{box:b}=k;
-  k.profile([[-2.53,.4],[-2.48,1.12],[-1.35,1.24],[-.72,1.83],[1.66,1.85],[2.45,1.55],[2.5,.4]],1.99);
+  const arch=(z)=>Array.from({length:17},(_,i)=>[z+Math.cos(i*Math.PI/16)*.49,.42+Math.sin(i*Math.PI/16)*.49]);
+  k.profile([[-2.53,.4],[-2.48,1.12],[-1.35,1.24],[-.72,1.83],[1.66,1.85],[2.45,1.55],[2.5,.4],...arch(1.54),...arch(-1.62)],1.99);
   k.profile([[-1.18,1.31],[-.65,1.73],[1.57,1.75],[2.16,1.5],[2.16,1.29]],2.013,'glass');
   k.quad([[-.88,1.31,-1.31],[.88,1.31,-1.31],[.85,1.855,-.72],[-.85,1.855,-.72]]);
-  b(1.95,.28,4.6,0,.4,0,'rubber');b(1.99,.34,.13,0,.65,-2.53,'rubber');b(1.35,.29,.08,0,1.04,-2.56,'rubber');
+  for(const [z,d] of [[-2.31,.35],[-.04,2.18],[2.29,.35]])b(1.95,.22,d,0,.4,z,'rubber');b(1.99,.34,.13,0,.65,-2.53,'rubber');b(1.35,.29,.08,0,1.04,-2.56,'rubber');
   // Recessed grille slats, centre badge, lower intake and road-use front plate.
   for(let row=0;row<5;row++)b(1.24,.015,.017,0,.935+row*.047,-2.608,'metal',0x535b62);
   b(.22,.055,.018,0,1.05,-2.625,'metal',0x88959e);

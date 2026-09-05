@@ -1,3 +1,4 @@
+import {createMultiplayerHandler} from './multiplayer-server.mjs';
 // serve-prod.mjs — the static server behind the Cloudflare tunnel.
 //
 // serve.mjs is the dev one: it reads whole files into memory, answers every request
@@ -96,7 +97,9 @@ function cacheFor(file, versioned) {
 
 const send = (res, code, body = '') => { res.writeHead(code, { 'Content-Length': Buffer.byteLength(body) }); res.end(body); };
 
+const multiplayerHandler = createMultiplayerHandler({maxPlayers:7});
 const server = createServer(async (req, res) => {
+  if (await multiplayerHandler(req,res)) return;
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);

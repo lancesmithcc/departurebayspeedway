@@ -24,6 +24,9 @@ export class Game {
     this.camera = camera;
     this.refs = refs; // { buildCollide, corridor, peds, powerups, baptist, apocalypse, zones }
     this.peds = refs.peds || null;
+    this.police = refs.police || null;
+    this.deer = refs.deer || null;
+    this.policeHits = 0;
     // school zones and the church, each announced once per run as the rider arrives
     this.zones = (refs.zones || []).map(z => ({ ...z, done: false }));
     this.powerups = refs.powerups || null;
@@ -68,7 +71,7 @@ export class Game {
 
     // gates
     const gatePos = GATE_FRACTIONS.map(f => this.routeAt(f, true));
-    this.gates = buildGates(refs.scene, gatePos, terrain);
+    this.gates = buildGates(refs.scene, gatePos, terrain, refs.corridor);
     this.nextGate = 0;
 
     // Nanaimo bar combat
@@ -406,6 +409,7 @@ export class Game {
 
   // ---------------- state ----------------
   startRide() {
+    if (this.multiplayer && this.multiplayer.status !== 'active') { this.multiplayer.join(); return; }
     try {
       this.audio.init();
       if (this.audio.ctx && this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
@@ -422,6 +426,9 @@ export class Game {
     this.player.trickScore = 0;
     this.pedsHit = 0;
     if (this.peds) this.peds.reset();
+    this.police?.reset();
+    this.deer?.reset();
+    this.policeHits = 0;
     if (this.powerups) this.powerups.reset();
     this.closeNaming();
     if (this.el.score) this.el.score.textContent = '0';
@@ -440,7 +447,7 @@ export class Game {
     }
     this.setCaption('Rip down Departure Bay Road — watch for traffic!', 4.5);
     this.audio.voice('intro', 0.95, 0.55, 4);
-    setTimeout(() => { if (this.state === 'riding') this.audio.voice('intro2', 0.8, 0.55, 4); }, 3400);
+    setTimeout(() => { if (this.state === 'riding') this.audio.voice('intro2', 0.8, 0.55, 4); }, 4200);
   }
 
   restart() {
@@ -449,6 +456,8 @@ export class Game {
   }
 
   respawn() {
+    this.police?.reset();
+    this.policeHits = 0;
     const gateIdx = Math.max(0, this.nextGate - 1);
     const gp = this.gates[gateIdx] ? this.gates[gateIdx].pos : null;
     const p = gp ? [gp.x, gp.z] : this.startPos;
@@ -495,6 +504,7 @@ export class Game {
   }
 
   onBarHit(car) {
+    this.police?.trigger(car);
     // a bar landed: score, popup, and the driver has opinions
     const pts = 75;
     this.player.trickScore += pts;
@@ -506,6 +516,31 @@ export class Game {
       this.el.trick.classList.remove('hidden');
     }
     this.audio.dialogue('bar', { driver: true, voiceGender: car.slot % 2 ? 'female' : 'male', voiceId: `driver-${car.type}-${car.slot}` });
+  }
+
+  onPoliceShot() {
+    if (this.state !== 'riding' || this.player.mods?.invuln) return;
+    this.policeHits++;
+    this.player.shake = Math.max(this.player.shake || 0, .65);
+    this.effects.sparks(this.player.pos.x, this.player.pos.y + .8, this.player.pos.z, 5);
+    this.setCaption(`POLICE FIRE — ${this.policeHits}/3 HITS — GET OUT OF SIGHT`, 2);
+    if (this.policeHits >= 3) this.player.crash('police');
+  }
+
+  onDeerHit({fatalToDeer, penalty}) {
+    if (this.state !== 'riding') return;
+    if (fatalToDeer) {
+      this.player.trickScore -= penalty;
+      if (this.el.score) this.el.score.textContent = this.player.trickScore.toLocaleString();
+      this.trickText = `DEER KILLED — ${penalty} POINT PENALTY`;
+      this.trickT = 3;
+      if (this.el.trick) { this.el.trick.textContent = this.trickText; this.el.trick.classList.remove('hidden'); }
+      this.setCaption('WILDLIFE STRIKE — SLOW DOWN NEAR THE FOREST', 3);
+      this.player.shake = Math.max(this.player.shake || 0, .45);
+    } else {
+      this.player.crash('deer');
+      this.setCaption('DEER ON THE ROAD!', 2.5);
+    }
   }
 
   onPedSplat(ped) {
@@ -676,7 +711,11 @@ export class Game {
 
     // player physics (runs in all states for crash tumble / finish float)
     this.player.setLastInput(this.input);
-    this.player.update(dt, riding ? this.input : { throttle: 0, brake: 1, steer: 0, hop: false }, );
+    if (this.state === 'title') {
+      this.player.v = 0; this.player.vy = 0; this.player.grounded = true;
+      this.player.pos.y = this.player.groundAt(this.player.pos.x, this.player.pos.z);
+      this.player.updateVisual(dt);
+    } else this.player.update(dt, riding ? this.input : { throttle: 0, brake: 1, steer: 0, hop: false });
 
     // people on the sidewalks, the school crossing and the church lawn
     if (this.peds) this.peds.update(dt, this.player.pos, Math.abs(this.player.v));
@@ -685,14 +724,21 @@ export class Game {
     this.traffic.update(dt, this.player, playerActive);
     const col = riding ? this.traffic.checkPlayer(this.player, playerActive) : null;
     if (col) {
+      this.police?.trigger(col.car);
       if (col.type === 'crash') {
-        this.player.crash('car');
+        if (col.car.type === 'rcmp') {
+          this.player.v *= .65;
+          this.player.shake = Math.max(this.player.shake || 0, .8);
+          this.setCaption('RCMP ALERT — OFFICER IN PURSUIT', 3);
+        } else this.player.crash('car');
         if (Math.random() < 0.45) this.audio.dialogue('bike', { driver: true, voiceGender: col.car.slot % 2 ? 'female' : 'male', voiceId: `driver-${col.car.type}-${col.car.slot}` });
       } else if (col.type === 'scrape') {
         this.audio.scrape();
         this.effects.sparks(this.player.pos.x, this.player.pos.y, this.player.pos.z, 10);
       }
     }
+    this.police?.update(dt, this.player, this.state === 'riding');
+    this.deer?.update(dt, this.player, this.state === 'riding');
     // near-miss events
     if (riding) {
       for (const ev of this.traffic.nearMissEvents) {
@@ -901,16 +947,8 @@ export class Game {
   }
 
   titleCamera(time) {
-    const cam = this.camera;
-    const r = this.effects.ramp;
-    const a = time * 0.1;
-    const cx = r.base.x + r.dir.x * 55;
-    const cz = r.base.y + r.dir.y * 55;
-    cam.position.set(cx + Math.cos(a) * 95, 16 + Math.sin(time * 0.21) * 7, cz + Math.sin(a) * 95);
-    const ring = this.effects.rings[1] ? this.effects.rings[1].center : new THREE.Vector3(cx, 8, cz);
-    cam.lookAt(ring.x, ring.y + 2, ring.z);
-    cam.fov = 58;
-    cam.updateProjectionMatrix();
+    this.player.cameraMode = 3;
+    this.player.updateCamera(this.camera, 0, time);
   }
 
   fmtTime(t) {

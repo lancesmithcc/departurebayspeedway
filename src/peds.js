@@ -1,3 +1,4 @@
+import { settleBody } from './body-support.js';
 import { PERSON_VOICES } from './dialogue.js';
 // peds.js — people on the sidewalks, kids crossing at the school zone, and the
 // congregation running around the Baptist church lawn.
@@ -87,7 +88,11 @@ export class Peds {
       // Each character is baked at several points of its walk cycle. A walker keeps its
       // character and its slot, and steps between the frame meshes as its phase
       // advances — animated legs without skinning every instance each frame.
-      const per = Math.ceil((this.MAX + this.KIDS) / this.variants.length) + 2;
+      this.adultVariants = this.variants.map((v,i)=>i).filter(i => this.variants[i].adult);
+      if (!this.adultVariants.length) this.adultVariants = this.variants.map((v,i)=>i);
+      this.childVariants = this.variants.map((v,i)=>i).filter(i => !this.variants[i].adult);
+      if (!this.childVariants.length) this.childVariants = this.adultVariants;
+      const per = Math.ceil(this.MAX / this.adultVariants.length) + Math.ceil(this.KIDS / this.childVariants.length) + 2;
       this.frameCount = Math.max(1, (this.variants[0].frames || [null]).length);
       this.variants.forEach((v) => {
         const src = (v.frames && v.frames.length ? v.frames : [v.geometry]);
@@ -123,15 +128,16 @@ export class Peds {
     // Every walker keeps one instance slot for good. Compacting the live ones into
     // the front of the buffer meant a slot's colour and position jumped to a
     // different person whenever somebody spawned — that is what flickered.
-    const nv = this.meshes.length;
+    const adults = this.adultVariants || [0], children = this.childVariants || [0];
+    const nv = adults.length;
     this.people = [];
     for (let i = 0; i < this.MAX; i++) {
-      this.people.push({ active: false, kid: false, splat: 0, variant: i % nv, slot: Math.floor(i / nv) });
+      this.people.push({ active: false, kid: false, splat: 0, variant: adults[i % nv], slot: Math.floor(i / nv) });
     }
     this.kids = [];
     const kidBase = Math.ceil(this.MAX / nv);
     for (let i = 0; i < this.KIDS; i++) {
-      this.kids.push({ active: false, kid: true, splat: 0, variant: i % nv, slot: kidBase + Math.floor(i / nv) });
+      this.kids.push({ active: false, kid: true, splat: 0, variant: children[i % children.length], slot: kidBase + Math.floor(i / children.length) });
     }
 
     // ---- the congregation on the church lawn ----
@@ -155,7 +161,7 @@ export class Peds {
       if (this.variants && this.variants[0] && this.variants[0].parts) {
         // Half the kit is plenty for 26 people on one lawn, and every extra variant
         // costs another six instanced meshes for its six walk frames.
-        const cast = this.variants.slice(0, 4);
+        const cast = (opts.partyModels || this.variants).slice(0, 4);
         const perP = Math.ceil(this.PARTY / cast.length) + 2;
         cast.forEach((v) => {
           const src = (v.frames && v.frames.length ? v.frames : [v.geometry]);
@@ -242,7 +248,9 @@ export class Peds {
   stand(x, z) {
     const rd = this.terrain.roadDeck(x, z);
     let y;
-    if (rd && rd.d < rd.hw + 0.7) {
+    if (this.terrain.renderedGroundHeight) {
+      y = this.terrain.renderedGroundHeight(x,z);
+    } else if (rd && rd.d <= rd.hw) {
       y = rd.y;                                   // out on the carriageway
     } else {
       const drawn = this.terrain.meshHeight ? this.terrain.meshHeight(x, z) : null;
@@ -307,7 +315,7 @@ export class Peds {
   // through both — which is exactly what the buried pedestrians were.
   standHeight(x, z, i, side) {
     const ground = this.stand(x, z);
-    if (i === undefined || !side) return ground;
+    if (this.terrain.contactGrid || i === undefined || !side) return ground;
     // Match the sloped slab segments in buildRoadEdges, rather than snapping
     // an entire walker's height to the closest route vertex on a steep hill.
     const idx = Math.floor(clamp(i, 0, this.corridor.pts.length - 2));
@@ -418,7 +426,8 @@ export class Peds {
     ped.walkOff = walkOff;
     ped.shy = 0;
     ped.dir = Math.random() < 0.5 ? 1 : -1;
-    ped.speed = rand(WALK_SPEED[0], WALK_SPEED[1]);
+    ped.dancing = this.variants?.[ped.variant]?.animation === 'dance';
+    ped.speed = ped.dancing ? 0 : rand(WALK_SPEED[0], WALK_SPEED[1]);
     ped.phase = rand(0, 6.28);
     ped.shirt = choice(this.shirts);
     ped.x = this.corridor.pts[i][0] + nx * side * (this.corridor.hw[i] + walkOff);
@@ -488,7 +497,7 @@ export class Peds {
       }
       this.pushOut(ped);
       const gy = this.standHeight(ped.x, ped.z, ped.i, ped.side);
-      ped.y = ped.y === undefined ? gy : Math.max(gy, ped.y + (gy - ped.y) * Math.min(1, 9 * dt));
+      ped.y = gy;
       const t0 = this.corridor.tan[i0], t1 = this.corridor.tan[i1];
       const tx = t0[0] + (t1[0] - t0[0]) * f, tz = t0[1] + (t1[1] - t0[1]) * f;
       const want = Math.atan2(tx * ped.dir, tz * ped.dir);
@@ -496,7 +505,7 @@ export class Peds {
       while (dh > Math.PI) dh -= Math.PI * 2;
       while (dh < -Math.PI) dh += Math.PI * 2;
       ped.heading = (ped.heading ?? want) + dh * Math.min(1, 8 * dt);
-      ped.phase += dt * ped.speed * 4.2;
+      ped.phase += dt * (ped.dancing ? 4.2 : ped.speed * 4.2);
     }
 
     // kids on the crossing
@@ -513,7 +522,7 @@ export class Peds {
       kid.z = kid.a[1] + (kid.b[1] - kid.a[1]) * kid.t + kid.tan[1] * kid.lane;
       // t < 0.5 is the a end, which is the -n side of the corridor
       const kgy = this.standHeight(kid.x, kid.z, kid.ci, kid.t < 0.5 ? -1 : 1);
-      kid.y = kid.y === undefined ? kgy : Math.max(kgy, kid.y + (kgy - kid.y) * Math.min(1, 9 * dt));
+      kid.y = kgy;
       const kwant = Math.atan2((kid.b[0] - kid.a[0]) * kid.dir, (kid.b[1] - kid.a[1]) * kid.dir);
       let kdh = kwant - (kid.heading ?? kwant);
       while (kdh > Math.PI) kdh -= Math.PI * 2;
@@ -556,7 +565,7 @@ export class Peds {
         p.x = px; p.z = pz;
         this.pushOut(p);
         const gy = this.stand(p.x, p.z);
-        p.y = p.y === undefined ? gy : Math.max(gy, p.y + (gy - p.y) * Math.min(1, 9 * dt));
+        p.y = gy;
         let dh = want - (p.heading ?? want);
         while (dh > Math.PI) dh -= Math.PI * 2;
         while (dh < -Math.PI) dh += Math.PI * 2;
@@ -571,7 +580,7 @@ export class Peds {
       if (!sp.active) continue;
       if (sp.splat > 0) { this.downed(sp, dt); continue; }
       const gy = this.stand(sp.x, sp.z);
-      sp.y = sp.y === undefined ? gy : Math.max(gy, sp.y + (gy - sp.y) * Math.min(1, 9 * dt));
+      sp.y = gy;
     }
 
     // chocolate rides the body while they are down, then stays on the pavement
@@ -599,11 +608,13 @@ export class Peds {
   downed(ped, dt) {
     // Nobody gets back up. The launch arcs, the body lands, and it stays there for the
     // rest of the run — the road behind you is the scoreboard.
-    const gy = this.stand(ped.x, ped.z);
+    let gy = this.stand(ped.x, ped.z);
     if (ped.vy !== undefined) {
       ped.vy -= 16 * dt;
       ped.x += (ped.vx || 0) * dt;
       ped.z += (ped.vz || 0) * dt;
+      this.pushOut(ped);
+      gy = this.stand(ped.x,ped.z);
       ped.y = (ped.y ?? gy) + ped.vy * dt;
       if (ped.y <= gy) {
         ped.y = gy;
@@ -665,7 +676,10 @@ export class Peds {
         frames[f].setMatrixAt(slot, this._m);
       }
     };
-    const write = (meshes, list) => {
+    const write = (meshes, list, streetAdults = false) => {
+      // Sculpted poses cost more vertices: draw only visible instances of each pose,
+      // instead of drawing the entire pool parked below the terrain eight times.
+      if(streetAdults) this.variants?.forEach((v,i)=>{if(v.adult)for(const m of meshes[i])m.count=0;});
       for (const ped of list) {
         const frames = meshes[ped.variant] || meshes[0];
         // step through the baked walk frames with the stride phase
@@ -673,9 +687,11 @@ export class Peds {
           ? Math.floor(((ped.phase || 0) / (Math.PI * 2)) * frames.length) % frames.length
           : 0;
         const mesh = frames[(fi + frames.length) % frames.length];
-        parkAll(frames, ped.slot, (fi + frames.length) % frames.length);
+        const compact = streetAdults && this.variants?.[ped.variant]?.adult;
+        if(!compact) parkAll(frames, ped.slot, (fi + frames.length) % frames.length);
         if (!ped.active || ped.y === undefined) {
           ped.drawX = undefined;
+          if(compact) continue;
           this._p.set(0, -500, 0);
           this._q.identity();
           this._m.compose(this._p, this._q, this._s);
@@ -691,6 +707,7 @@ export class Peds {
         ped.drawX = ped.x; ped.drawZ = ped.z;
         if (ped.hideFrames > 0) {
           ped.hideFrames--;
+          if(compact) continue;
           this._p.set(0, -500, 0);
           this._q.identity();
           this._m.compose(this._p, this._q, this._s);
@@ -700,8 +717,8 @@ export class Peds {
         // walk cycle: a small vertical bob with a matching side-to-side roll, which
         // reads as steps without needing a skeleton
         const ph = ped.phase || 0;
-        const bob = ped.splat > 0 ? 0 : Math.abs(Math.sin(ph)) * 0.055;
-        const sway = ped.splat > 0 ? 0 : Math.sin(ph * 0.5) * 0.05;
+        const bob = 0; // Grounded baked poses already contain their weight shift.
+        const sway = 0;
         this._p.set(ped.x, ped.y + bob, ped.z);
         if (ped.splat > 0) {
           // Flat out. The body pivots about the feet, so as it goes past horizontal the
@@ -724,8 +741,12 @@ export class Peds {
           const roll = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), sway);
           this._q.copy(spin).multiply(roll);
         }
+        if (ped.splat > 0 && ped.grounded) {
+          settleBody(mesh.geometry, this._p, this._q, ped.kid ? this._sKid : this._s,
+            (x,z)=>this.standHeight(x,z));
+        }
         this._m.compose(this._p, this._q, ped.kid ? this._sKid : this._s);
-        mesh.setMatrixAt(ped.slot, this._m);
+        mesh.setMatrixAt(compact ? mesh.count++ : ped.slot, this._m);
         // the authored people carry their own textures; only tint the stand-ins
         const want = ped.choc > 0 ? '#4a2c14' : (ped.shirt || '#c8452f');
         if (mesh.instanceColor !== undefined && !this.variants && ped.colourSet !== want) {
@@ -737,7 +758,7 @@ export class Peds {
       }
       for (const frames of meshes) for (const m of frames) m.instanceMatrix.needsUpdate = true;
     };
-    write(this.meshes, this.people);
+    write(this.meshes, this.people, true);
     write(this.kidMeshes, this.kids);
     if (this.partyMeshes.length) write(this.partyMeshes, this.party);
 
@@ -756,6 +777,13 @@ export class Peds {
           sp.y + 0.16 * lay,
           sp.z - Math.cos(sp.heading || 0) * sp.fallLength * lay,
         );
+        if (sp.grounded) {
+          sp.object.updateMatrixWorld(true);
+          this._fallenBounds ||= new THREE.Box3();
+          this._fallenBounds.setFromObject(sp.object);
+          const floor = this.standHeight(sp.object.position.x, sp.object.position.z);
+          sp.object.position.y += Math.max(0, floor + .008 - this._fallenBounds.min.y);
+        }
       } else {
         sp.object.position.set(sp.x, sp.y, sp.z);
         sp.object.quaternion.setFromAxisAngle(this._up, sp.heading || 0);
@@ -815,7 +843,7 @@ export class Peds {
     const url = this.variants?.[ped.variant || 0]?.url || '';
     const authoredIndex = Number(url.match(/person-(\d+)\.glb/)?.[1]) - 1;
     return {
-      voiceGender: ped.voiceGender || PERSON_VOICES[authoredIndex] || 'male',
+      voiceGender: ped.voiceGender || this.variants?.[ped.variant || 0]?.voiceGender || PERSON_VOICES[authoredIndex] || 'male',
       voiceId: ped.special ? ped.name : `${ped.party ? 'party' : ped.kid ? 'kid' : 'street'}:${ped.variant}:${ped.slot}`,
       kid: !!ped.kid, party: !!ped.party, hell: this.jesusDead,
       persona: ped.name === 'jesus' ? (ped.risen ? 'satan' : 'jesus') : undefined,

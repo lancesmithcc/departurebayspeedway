@@ -39,7 +39,16 @@ for(const [j,p] of rig.parts.entries()){
  }
  assert.ok(moved>100,'authored vertices animate');
 }
+rig.reset();
+let idleLookMin=0,idleLookMax=0;
+for(let frame=0;frame<17*60;frame++){
+ rig.update(1/60,{v:0,grounded:true});
+ idleLookMin=Math.min(idleLookMin,rig.look);idleLookMax=Math.max(idleLookMax,rig.look);
+}
+assert(idleLookMin<-.18 && idleLookMax>.24,'idle glances look both ways');
+rig.reset();for(let i=0;i<180;i++)rig.update(1/60,{v:30,grounded:true,steerVis:1,lean:.5});
+assert(rig.look>.35 && rig.look<=.48,'steering looks ahead without twisting neck excessively');
 rig.reset();rig.update(0,{v:0,grounded:true});
 for(const [j,p] of rig.parts.entries())for(let i=0;i<p.position.array.length;i++)assert.ok(Math.abs(p.position.array[i]-original[j][i])<2e-5,'rest pose restored');
 rig.dispose();assert.equal(rig.parts.length,0);
-console.log(JSON.stringify({result:'PASS',checks:['real GLB','transformed parent','source preservation','UV preservation','fixed bike','animated rider','spring recovery','rest pose','dispose']}));
+console.log(JSON.stringify({result:'PASS',checks:['real GLB','transformed parent','source preservation','UV preservation','fixed bike','animated rider','spring recovery','idle glances','turn look ahead','rest pose','dispose']}));

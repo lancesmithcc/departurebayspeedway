@@ -2,10 +2,66 @@
 import * as THREE from 'three';
 import { RiderAnimation } from './rider-animation.js';
 import { AuthoredRiderAnimation } from './authored-rider-animation.js';
-import { CFG, clamp, lerp, damp, rand, distPointToSeg } from './util.js';
+import { CFG, clamp, lerp, damp, rand, distPointToSeg, pointInPoly } from './util.js';
 
 const forwardOf = (θ) => new THREE.Vector3(-Math.sin(θ), 0, -Math.cos(θ));
 const headingOf = (dx, dz) => Math.atan2(-dx, -dz);
+
+// Continuous circle sweep: edges and rounded corners are tested analytically, so
+// even a thin facade cannot be skipped by a fast bike or a long animation frame.
+export function sweepBuildingContact(grid, from, to, radius = 0.65, height = 1.6) {
+  if (!grid) return null;
+  const dx = to.x - from.x, dz = to.z - from.z, speed2 = dx * dx + dz * dz;
+  let best = null;
+  const accept = (t, nx, nz, building, x, z) => {
+    if (t < 0 || t > 1 || (best && t >= best.t)) return;
+    const y = from.y + (to.y - from.y) * t;
+    if (y > building.gy + building.h + 0.05 || y + height < building.gy) return;
+    best = { t, nx, nz, building, x: x ?? from.x + dx * t, z: z ?? from.z + dz * t };
+  };
+  const candidates = new Set(grid.query((from.x + to.x) / 2, (from.z + to.z) / 2, Math.sqrt(speed2) / 2 + radius));
+  for (const b of candidates) {
+    const inside = pointInPoly(b.pts, from.x, from.z);
+    let nearest = null;
+    for (let i = 0; i < b.pts.length; i++) {
+      const a = b.pts[i], c = b.pts[(i + 1) % b.pts.length];
+      const ex = c[0] - a[0], ez = c[1] - a[1], length = Math.hypot(ex, ez);
+      if (length < 1e-8) continue;
+      const ux = ex / length, uz = ez / length, nx = -uz, nz = ux;
+      const along = Math.max(0, Math.min(length, (from.x - a[0]) * ux + (from.z - a[1]) * uz));
+      const qx = a[0] + ux * along, qz = a[1] + uz * along;
+      const d = Math.hypot(from.x - qx, from.z - qz);
+      if (!nearest || d < nearest.d) nearest = { d, qx, qz, nx, nz };
+      const vn = dx * nx + dz * nz, dn = (from.x - a[0]) * nx + (from.z - a[1]) * nz;
+      for (const side of [-1, 1]) {
+        if (vn * side >= -1e-10) continue;
+        const t = (side * radius - dn) / vn;
+        const u = (from.x + dx * t - a[0]) * ux + (from.z + dz * t - a[1]) * uz;
+        if (u >= 0 && u <= length) accept(t, nx * side, nz * side, b);
+      }
+      if (speed2 > 1e-12) {
+        const ox = from.x - a[0], oz = from.z - a[1];
+        const B = 2 * (ox * dx + oz * dz), C = ox * ox + oz * oz - radius * radius;
+        const disc = B * B - 4 * speed2 * C;
+        if (disc >= 0) {
+          const t = (-B - Math.sqrt(disc)) / (2 * speed2);
+          const hx = ox + t * dx, hz = oz + t * dz, d = Math.hypot(hx, hz) || 1;
+          accept(t, hx / d, hz / d, b);
+        }
+      }
+    }
+    if (nearest && (inside || nearest.d < radius - 1e-5)) {
+      let nx = (from.x - nearest.qx) / (nearest.d || 1), nz = (from.z - nearest.qz) / (nearest.d || 1);
+      if (inside) { nx = -nx; nz = -nz; }
+      if (nearest.d < 1e-8) {
+        nx = nearest.nx; nz = nearest.nz;
+        if (pointInPoly(b.pts, from.x + nx * .01, from.z + nz * .01)) { nx = -nx; nz = -nz; }
+      }
+      accept(0, nx, nz, b, nearest.qx + nx * (radius + .01), nearest.qz + nz * (radius + .01));
+    }
+  }
+  return best;
+}
 
 export class Player {
   constructor(scene, terrain, ctx) {
@@ -284,7 +340,7 @@ export class Player {
   }
 
   reset(pos, heading) {
-    this.pos.set(pos[0], this.terrain.groundHeight(pos[0], pos[1]) + 0.02, pos[1]);
+    this.pos.set(pos[0], this.groundAt(pos[0], pos[1]), pos[1]);
     this.heading = heading;
     this.v = 0; this.vy = 0;
     this.grounded = true;
@@ -298,6 +354,7 @@ export class Player {
     this.wobblePhase = 0;
     this.steerSm = 0;
     this._landingImpact = 0;
+    this._cameraReady = false;
     this.riderRig?.reset();
     this.authoredRig?.reset();
     this.root.visible = true;
@@ -310,7 +367,9 @@ export class Player {
   get kmh() { return Math.abs(this.v) * 3.6; }
 
   groundAt(x, z) {
-    let g = this.terrain.groundHeight(x, z);
+    const deck = this.terrain.roadDeck?.(x, z);
+    let g = this.terrain.renderedGroundHeight?.(x, z) ?? this.terrain.meshHeight?.(x, z) ?? this.terrain.groundHeight(x, z);
+    if (deck && deck.d <= deck.hw) g = Math.max(g, deck.y);
     const rh = this.ctx.effects ? this.ctx.effects.rampHeightAt(x, z) : -Infinity;
     this.onRamp = rh > g;
     if (this.onRamp) g = rh;
@@ -353,8 +412,19 @@ export class Player {
       const mu = this.offroad ? 8.5 : 5.6;
       this.v = Math.max(0, this.v - mu * dt);
       this.vy -= P.gravity * dt;
+      const last = this.pos.clone();
       this.pos.addScaledVector(dir, this.v * dt);
       this.pos.y += this.vy * dt;
+      const wall = sweepBuildingContact(this.ctx.buildingGrid, last, this.pos, 0.95, 1.2);
+      if (wall) {
+        this.pos.x = wall.x + wall.nx * .015; this.pos.z = wall.z + wall.nz * .015;
+        const inward = Math.min(0, dir.x * wall.nx + dir.z * wall.nz);
+        const tangent = dir.clone().add(new THREE.Vector3(wall.nx, 0, wall.nz).multiplyScalar(-inward));
+        this.v *= tangent.length() * .55;
+        this.crashDir = tangent.lengthSq() > 1e-8 ? tangent.normalize() : new THREE.Vector3();
+        this.crashYaw *= .2;
+        this.shake = Math.max(this.shake, .65);
+      }
       const g = this.groundAt(this.pos.x, this.pos.z);
       if (this.pos.y <= g) {
         this.pos.y = g;
@@ -367,8 +437,19 @@ export class Player {
       const skid = Math.min(1, this.v / 8);
       this.root.rotation.set(this.crashPitch * skid, this.heading, this.crashRoll);
       this.root.position.copy(this.pos);
-      // the bike is on its side, so its centre rides lower than the wheels did
-      this.root.position.y += 0.18 * Math.sin(Math.abs(this.crashRoll));
+      // Settle the actual rotated model on the rendered surface, including its
+      // handlebar and rider. A fixed offset buries whichever side falls first.
+      this.root.updateMatrixWorld(true);
+      this._crashBounds ||= new THREE.Box3();
+      this._crashBounds.makeEmpty();
+      this._partBounds ||= new THREE.Box3();
+      this.root.traverseVisible(part => {
+        if (!part.isMesh || !part.geometry) return;
+        if (!part.geometry.boundingBox) part.geometry.computeBoundingBox();
+        this._partBounds.copy(part.geometry.boundingBox).applyMatrix4(part.matrixWorld);
+        this._crashBounds.union(this._partBounds);
+      });
+      if (Number.isFinite(this._crashBounds.min.y)) this.root.position.y += g - this._crashBounds.min.y + .015;
       // dust and sparks while it is still scrubbing
       if (this.v > 3 && this.ctx.effects) {
         this.ctx.effects.sparks(this.pos.x, this.pos.y + 0.25, this.pos.z, 2);
@@ -376,6 +457,7 @@ export class Player {
       return;
     }
 
+    const movementStart = this.pos.clone();
     const f = forwardOf(this.heading);
     const gHere = this.groundAt(this.pos.x, this.pos.z);
 
@@ -479,6 +561,15 @@ export class Player {
 
     this.topSpeed = Math.max(this.topSpeed, this.kmh);
 
+    const wall = sweepBuildingContact(this.ctx.buildingGrid, movementStart, this.pos, 0.7);
+    if (wall) {
+      this.pos.x = wall.x + wall.nx * .015; this.pos.z = wall.z + wall.nz * .015;
+      if (this.v > 7) this.crash('building');
+      this.v = 0;
+      this.crashDir = new THREE.Vector3();
+      this.shake = Math.max(this.shake, .65);
+    }
+
     // guardrail: the ribbon of real road is the only place to ride
     this.railScrape = Math.max(0, this.railScrape - dt);
     const cor = this.ctx.corridor;
@@ -514,14 +605,6 @@ export class Player {
       return Math.abs(pr.lat) <= pr.hw + 0.6;
     })() : false;
     if (!inCorridor && (this.grounded || this.pos.y < (this.terrain.groundHeight(this.pos.x, this.pos.z) + 2))) {
-      const bc = this.ctx.buildingGrid && this.ctx.buildingCollide(this.ctx.buildingGrid, this.pos.x, this.pos.z);
-      if (bc) {
-        const len = Math.hypot(bc.nx, bc.nz) || 1;
-        this.pos.x += (bc.nx / len) * 1.2;
-        this.pos.z += (bc.nz / len) * 1.2;
-        if (this.v > 7) this.crash('building');
-        else this.v *= 0.4;
-      }
       // trees
       if (this.ctx.treeGrid) {
         for (const t of this.ctx.treeGrid.query(this.pos.x, this.pos.z, 8)) {
@@ -688,11 +771,13 @@ export class Player {
     const floor = this.groundAt(this.pos.x, this.pos.z);
     if (this.pos.y < floor) this.pos.y = floor;
     this.root.position.copy(this.pos);
-    // when the bike is pitched or rolled hard, lift it enough that the model's low
-    // corner still clears the ground
-    const tilt = Math.abs(this.leanG ? this.leanG.rotation.z : 0)
-      + Math.abs(this.pitchG ? this.pitchG.rotation.x : 0);
-    if (tilt > 0.15) this.root.position.y += Math.min(0.75, (tilt - 0.15) * 0.55);
+    // Rear-wheel contact correction, in metres. The rear axle pivot keeps a
+    // wheelie planted; the former angle-scaled 0.75 m lift made it hover.
+    if (this.grounded && this.state === 'riding') {
+      const roll = Math.abs(this.lean || 0), pitch = Math.abs(this.wheelie || 0);
+      this.root.position.y += Math.max(0, .30 * (1 - Math.cos(pitch))
+        + .085 * Math.sin(roll) - .30 * (1 - Math.cos(roll)));
+    }
     this.root.rotation.y = this.heading;
     if (this.state === 'riding') {
       this._whipPeak = Math.max(this._whipPeak || 0, Math.abs(this.trickYaw));
@@ -714,19 +799,29 @@ export class Player {
     this._lastBrake = input.brake;
   }
 
+  clipCamera(position) {
+    const anchor = this.pos.clone().add(new THREE.Vector3(0, 1.4, 0));
+    const hit = sweepBuildingContact(this.ctx.buildingGrid, anchor, position, .3, 0);
+    if (hit) position.copy(anchor).lerp(position, Math.max(0, hit.t - .025));
+    const deck = this.terrain.roadDeck?.(position.x, position.z);
+    let floor = this.terrain.renderedGroundHeight?.(position.x, position.z) ?? this.terrain.meshHeight?.(position.x, position.z) ?? this.terrain.groundHeight(position.x, position.z);
+    if (deck && deck.d <= deck.hw) floor = Math.max(floor, deck.y);
+    position.y = Math.max(position.y, floor + .65);
+  }
+
   // ---------- cameras ----------
   updateCamera(camera, dt, time) {
     const f = forwardOf(this.heading);
     const speedT = clamp(Math.abs(this.v) / CFG.player.vmax, 0, 1);
-    if (this.cameraMode === 3) { // title orbit
-      const r = this._orbitR || 26;
-      const a = time * 0.12;
-      const cx = this.pos.x + Math.cos(a) * r;
-      const cz = this.pos.z + Math.sin(a) * r;
-      camera.position.lerp(new THREE.Vector3(cx, this.pos.y + (this._orbitH || 9), cz), 1 - Math.exp(-2 * dt));
-      camera.lookAt(this.pos.x, this.pos.y + 2, this.pos.z);
-      camera.fov = damp(camera.fov, 58, 3, dt);
+    if (this.cameraMode === 3) { // stationary title shot, installed on the first frame
+      const desired = this.pos.clone().addScaledVector(f, -7).add(new THREE.Vector3(0, 2.6, 0));
+      this.clipCamera(desired);
+      camera.position.copy(desired);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(this.pos.clone().addScaledVector(f, 9).add(new THREE.Vector3(0, 1.4, 0)));
+      camera.fov = 58;
       camera.updateProjectionMatrix();
+      this._cameraReady = true;
       return;
     }
     if (this.cameraMode === 2) { // fpv
@@ -744,8 +839,11 @@ export class Player {
     const height = (near ? 1.9 : CFG.camera.height) + speedT * 0.6;
     const desired = this.pos.clone().addScaledVector(f, -dist).add(new THREE.Vector3(0, height, 0));
     // keep camera above ground
-    desired.y = Math.max(desired.y, this.terrain.groundHeight(desired.x, desired.z) + 1.2);
-    camera.position.lerp(desired, 1 - Math.exp(-(near ? 9 : 6.5) * dt));
+    this.clipCamera(desired);
+    if (!this._cameraReady) camera.position.copy(desired);
+    else camera.position.lerp(desired, 1 - Math.exp(-(near ? 9 : 6.5) * dt));
+    this._cameraReady = true;
+    this.clipCamera(camera.position);
     const look = this.pos.clone().addScaledVector(f, 7).add(new THREE.Vector3(0, 1.4, 0));
     camera.up.set(0, 1, 0);
     camera.lookAt(look);
@@ -755,6 +853,7 @@ export class Player {
       camera.position.x += rand(-1, 1) * this.shake * 0.25;
       camera.position.y += rand(-1, 1) * this.shake * 0.2;
     }
+    this.clipCamera(camera.position);
     camera.fov = damp(camera.fov, CFG.camera.fovBase + speedT * CFG.camera.fovBoost, 4, dt);
     camera.updateProjectionMatrix();
   }

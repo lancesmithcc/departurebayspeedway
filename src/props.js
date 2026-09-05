@@ -1,3 +1,4 @@
+import {pushOffRoad} from './roadside-clearance.js';
 import {buildReferenceSchoolBoard} from './reference-schools.js';
 import { addChurchCharacterDetail } from './church-character-detail.js';
 import { surveyedTreeGeometry, leafSprayTexture } from './surveyed-tree-geometry.js';
@@ -18,27 +19,6 @@ function cyl(rt, rb, h, mat, seg = 8) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
   m.castShadow = true;
   return m;
-}
-
-// OSM sign/signal nodes commonly lie on a carriageway centreline. Move furniture to
-// the nearest mapped verge, then recheck because an intersection has two roads.
-function pushOffRoad(x, z, terrain, clearance = 1.1) {
-  for (let pass = 0; pass < 4; pass++) {
-    const nr = terrain.nearestRoad(x, z);
-    if (!nr || nr.d >= nr.seg.hw + clearance) break;
-    const hit = distPointToSeg(x, z, nr.seg.ax, nr.seg.az, nr.seg.bx, nr.seg.bz);
-    const qx = nr.seg.ax + (nr.seg.bx - nr.seg.ax) * hit.t;
-    const qz = nr.seg.az + (nr.seg.bz - nr.seg.az) * hit.t;
-    let dx = x - qx, dz = z - qz, len = Math.hypot(dx, dz);
-    if (len < 0.01) {
-      const sx = nr.seg.bx - nr.seg.ax, sz = nr.seg.bz - nr.seg.az;
-      len = Math.hypot(sx, sz) || 1; dx = -sz / len; dz = sx / len; len = 1;
-    }
-    const want = nr.seg.hw + clearance;
-    x = qx + dx / len * want;
-    z = qz + dz / len * want;
-  }
-  return [x, z];
 }
 
 // ---------- trees ----------
@@ -395,7 +375,7 @@ export function buildStreetlights(corridor, terrain) {
   utilitySpots.forEach(({ i, side }, k) => {
     const [nx, nz] = corridor.normalAt(i);
     const off = corridor.hw[i] + 1.9;
-    const px = pts[i][0] + nx * side * off, pz = pts[i][1] + nz * side * off;
+    const [px, pz] = pushOffRoad(pts[i][0] + nx * side * off, pts[i][1] + nz * side * off, terrain);
     const gy = terrain.groundHeight(px, pz);
     P.set(px, gy, pz);
     // local +x (the arm) must point back toward the road centre
@@ -408,7 +388,7 @@ export function buildStreetlights(corridor, terrain) {
   beachSpots.forEach(({ i, side }, k) => {
     const [nx, nz] = corridor.normalAt(i);
     const off = corridor.hw[i] + 2.2;
-    const px = pts[i][0] + nx * side * off, pz = pts[i][1] + nz * side * off;
+    const [px, pz] = pushOffRoad(pts[i][0] + nx * side * off, pts[i][1] + nz * side * off, terrain);
     P.set(px, terrain.groundHeight(px, pz), pz);
     Q.setFromAxisAngle(up, Math.atan2(nz * side, -nx * side));
     M.compose(P, Q, S); beachInst.setMatrixAt(k, M);
@@ -979,9 +959,11 @@ export function buildRoadEdges(corridor, terrain) {
       if (hasSidewalk((corridor.cum[i - 1] + corridor.cum[i]) / 2, side)) {
         const curb = slopeBox(0.22, 0.20, len, ang, gyC - gyA);
         curb.translate(mx, midY + 0.12, mz);
+        terrain.registerGroundGeometry?.(curb);
         curbGeos.push(curb);
         const walk = slopeBox(1.7, 0.16, len, ang, gyC - gyA);
         walk.translate(mx + nx * side * 1.0, midY + 0.2, mz + nz * side * 1.0);
+        terrain.registerGroundGeometry?.(walk);
         walkGeos.push(walk);
       }
 
@@ -1182,8 +1164,8 @@ export function buildElementarySchool(map, corridor, terrain, opts = {}) {
   for (const s of [-1, 1]) {
     for (const kerb of [-1, 1]) {
       const along = s * 34;
-      const sx = cbase[0] + ctan[0] * along + cnx * kerb * (hw + 1.4);
-      const sz = cbase[1] + ctan[1] * along + cnz * kerb * (hw + 1.4);
+      const [sx,sz] = pushOffRoad(cbase[0] + ctan[0] * along + cnx * kerb * (hw + 1.4),
+        cbase[1] + ctan[1] * along + cnz * kerb * (hw + 1.4), terrain);
       const sgy = terrain.groundHeight(sx, sz);
       const pole = cyl(0.05, 0.055, 3.4, poleMat, 6);
       pole.position.set(sx, sgy + 1.7, sz);

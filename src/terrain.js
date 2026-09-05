@@ -408,6 +408,34 @@ export class Terrain {
     return { y: lerp(nr.seg.ea, nr.seg.eb, t) + 0.07, d: nr.d, hw: nr.seg.hw };  // +0.07 = roads.js deck offset
   }
 
+  // Physical support uses the same triangles as the road/curb/sidewalk meshes.
+  registerGroundGeometry(geometry) {
+    this.contactGrid ||= new Grid(12);
+    const a=geometry.attributes.position,index=geometry.index;
+    const count=index?index.count:a.count;
+    for(let i=0;i<count;i+=3){
+      const ids=[0,1,2].map(k=>index?index.getX(i+k):i+k);
+      const v=ids.map(j=>[a.getX(j),a.getY(j),a.getZ(j)]);
+      const den=(v[1][2]-v[2][2])*(v[0][0]-v[2][0])+(v[2][0]-v[1][0])*(v[0][2]-v[2][2]);
+      if(Math.abs(den)<1e-9)continue;
+      this.contactGrid.insertAABB(Math.min(...v.map(p=>p[0])),Math.min(...v.map(p=>p[2])),Math.max(...v.map(p=>p[0])),Math.max(...v.map(p=>p[2])),{v,den});
+    }
+  }
+
+  renderedGroundHeight(x,z) {
+    let y=this.meshHeight(x,z) ?? this.groundHeight(x,z);
+    if(this.contactGrid){
+      for(const {v,den} of this.contactGrid.query(x,z,.01)){
+        const u=((v[1][2]-v[2][2])*(x-v[2][0])+(v[2][0]-v[1][0])*(z-v[2][2]))/den;
+        const w=((v[2][2]-v[0][2])*(x-v[2][0])+(v[0][0]-v[2][0])*(z-v[2][2]))/den;
+        if(u>=-1e-7&&w>=-1e-7&&u+w<=1+1e-7)y=Math.max(y,u*v[0][1]+w*v[1][1]+(1-u-w)*v[2][1]);
+      }
+    }else{
+      const rd=this.roadDeck(x,z);if(rd&&rd.d<=rd.hw)y=Math.max(y,rd.y);
+    }
+    return y;
+  }
+
   surfaceHeight(x, z) {
     const rd = this.roadDeck(x, z);
     if (rd && rd.d < rd.hw + 0.7) return rd.y;

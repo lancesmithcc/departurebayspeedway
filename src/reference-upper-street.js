@@ -85,7 +85,7 @@ export function buildReferenceUpperStreet(map,corridor,terrain){
  // Board inscription in the supplied frame reads UNITED CHURCH; OSM's denomination
  // label is not used to overwrite visible evidence.
  sign(group,board,2.55,.72,st.x-st.nx*.12,y+3,st.z-st.nz*.12,rot);
- const text=texture((g,w,h)=>{g.fillStyle='#182220';g.fillRect(0,0,w,h);g.fillStyle='#e3d7a1';g.font='bold 46px monospace';g.textAlign='center';g.fillText('JOIN US WITH PASTOR JEREMY',w/2,h*.43);g.fillText('SUNDAYS 10 AM',w/2,h*.75);});
+ const text=texture((g,w,h)=>{g.fillStyle='#182220';g.fillRect(0,0,w,h);g.fillStyle='#e3d7a1';g.font='bold 43px monospace';g.textAlign='center';g.fillText('Join us with Pasteur Jeremy,',w/2,h*.28);g.fillText('he puts the STUD',w/2,h*.57);g.fillText('in Bible Study.',w/2,h*.86);});
  sign(group,text,2.34,.83,st.x-st.nx*.12,y+2.1,st.z-st.nz*.12,rot);
  // 00:20–00:30: tall conifers dominate the right verge, above a red closeboard
  // boundary. Their positions/heights are visual estimates, not individual surveys.
