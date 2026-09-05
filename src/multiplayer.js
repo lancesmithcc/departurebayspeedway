@@ -1,6 +1,6 @@
 import {PLAYER_COLORS,PLAYER_COLOR_NAMES,validPlayerSlot,colorRider} from './player-colors.js';
 // Seven-rider same-origin room. Network peers are visuals only: each client keeps
-// its own terrain, collision, scoring and NPC simulation. No personal names needed.
+// its own terrain, collision, scoring and NPC simulation. Display names are supplied by players.
 import * as THREE from 'three';
 import {AuthoredRiderAnimation} from './authored-rider-animation.js';
 
@@ -9,8 +9,8 @@ const ENDPOINT='/api/multiplayer';
 const finite=(n,fallback=0)=>Number.isFinite(n)?n:fallback;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
-function riderBadge(id,slot){
-  // Public random session ids produce stable anonymous badges. Never paint names.
+function riderBadge(id,slot,name){
+  // Render supplied names as canvas text, never HTML.
   if(typeof document==='undefined')return null;
   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=72;
   const ctx=canvas.getContext('2d');if(!ctx)return null;
@@ -18,17 +18,17 @@ function riderBadge(id,slot){
   const colour=PLAYER_COLORS[slot]||'#ffffff',suffix=validPlayerSlot(slot)?String(slot+1):(hash>>>0).toString(36).slice(-3).toUpperCase();
   ctx.fillStyle='rgba(12,22,30,.88)';ctx.fillRect(0,0,256,72);
   ctx.fillStyle=colour;ctx.fillRect(0,0,7,72);ctx.beginPath();ctx.arc(28,36,8,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ffffff';ctx.font='bold 27px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('RIDER '+suffix,151,37);
+  ctx.fillStyle='#ffffff';ctx.font='bold 27px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name||'RIDER '+suffix,151,37,198);
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
   const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,depthTest:true,toneMapped:false});
-  const sprite=new THREE.Sprite(material);sprite.name='Anonymous online rider badge';sprite.scale.set(1.45,.408,1);sprite.renderOrder=3;
+  const sprite=new THREE.Sprite(material);sprite.name='Online rider name badge';sprite.scale.set(1.45,.408,1);sprite.renderOrder=3;
   return {sprite,texture,material};
 }
 
 
 export class Multiplayer {
   constructor(scene,player,options={}) {
-    this.scene=scene;this.player=player;this.options=options;
+    this.scene=scene;this.player=player;this.options=options;this.name='';
     this.slot=null;this.localColorCleanup=null;this.status='idle';this.id=null;this.token=null;this.queuePosition=0;
     this.capacity=7;this.online=0;this.remotes=new Map();
     this.pollAfterMs=100;this.elapsed=0;this.busy=false;this.failures=0;
@@ -44,11 +44,12 @@ export class Multiplayer {
     if(this.disposed)return false;
     if(this.status==='active')return true;
     if(this.status==='joining'||this.status==='waiting')return false;
+    if(!this.name&&this.options.onNameRequired){this.options.onNameRequired();return false;}
     const generation=++this.generation;
     this.status='joining';this.failures=0;this.elapsed=0;this.busy=true;
     this._notify();
     try {
-      const data=await this._post('/join',{},generation);
+      const data=await this._post('/join',{name:this.name},generation);
       if(generation!==this.generation)return false;
       this._accept(data);
       return this.status==='active';
@@ -135,8 +136,8 @@ export class Multiplayer {
       if(Math.abs(s.x)>100000||Math.abs(s.z)>100000||Math.abs(s.y)>10000)continue;
       seen.add(peer.id);
       let remote=this.remotes.get(peer.id);
-      if(remote&&(remote.slot!==peer.slot||remote.modelId!==(this.player.modelRoot?.uuid||'fallback'))){this._remove(peer.id);remote=null;}
-      if(!remote){remote=this._buildRemote(peer.id,peer.slot);if(!remote)continue;this.remotes.set(peer.id,remote);}
+      if(remote&&(remote.slot!==peer.slot||remote.name!==peer.name||remote.modelId!==(this.player.modelRoot?.uuid||'fallback'))){this._remove(peer.id);remote=null;}
+      if(!remote){remote=this._buildRemote(peer.id,peer.slot,peer.name);if(!remote)continue;this.remotes.set(peer.id,remote);}
       remote.target={...s};remote.age=0;
       if(!remote.initialized||remote.root.position.distanceToSquared(this._position.set(s.x,s.y,s.z))>225){
         remote.root.position.set(s.x,s.y,s.z);remote.heading=s.heading;remote.lean=s.lean;remote.pitch=s.pitch;remote.initialized=true;
@@ -145,7 +146,7 @@ export class Multiplayer {
     for(const id of this.remotes.keys())if(!seen.has(id))this._remove(id);
   }
 
-  _buildRemote(id,slot) {
+  _buildRemote(id,slot,name) {
     const player=this.player;if(!player.root)return null;
     const root=player.root.clone(true),sources=[],copies=[];
     player.root.traverse(o=>sources.push(o));root.traverse(o=>copies.push(o));
@@ -160,8 +161,8 @@ export class Multiplayer {
     root.updateMatrixWorld(true);
     const rig=model&&bike?new AuthoredRiderAnimation(model,bike):null;
     if(model){model.visible=true;for(const part of player.procParts||[]){const copy=correspondence.get(part);if(copy)copy.visible=false;}}
-    const remote={id,slot,root,leanGroup:lean,pitchGroup:pitch,rig,modelId:player.modelRoot?.uuid||'fallback',initialized:false,target:null,age:0,heading:0,lean:0,pitch:0,speed:0,wheelSpin:0};
-    remote.colorCleanup=colorRider(rig,slot);remote.badge=riderBadge(id,slot);if(remote.badge)this.scene.add(remote.badge.sprite);this.scene.add(root);return remote;
+    const remote={id,slot,name,root,leanGroup:lean,pitchGroup:pitch,rig,modelId:player.modelRoot?.uuid||'fallback',initialized:false,target:null,age:0,heading:0,lean:0,pitch:0,speed:0,wheelSpin:0};
+    remote.colorCleanup=colorRider(rig,slot);remote.badge=riderBadge(id,slot,name);if(remote.badge)this.scene.add(remote.badge.sprite);this.scene.add(root);return remote;
   }
 
   update(dt) {

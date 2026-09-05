@@ -385,7 +385,7 @@ async function boot() {
   });
   const roomUI=multiplayerUI(game);
   const multiplayer=new Multiplayer(scene,player,{
-    onAdmission:()=>roomUI.admitted(),onWaiting:info=>roomUI.waiting(info),onDisconnect:()=>roomUI.disconnected(),
+    onNameRequired:()=>roomUI.enterName(),onAdmission:()=>roomUI.admitted(),onWaiting:info=>roomUI.waiting(info),onDisconnect:()=>roomUI.disconnected(),
     getState:()=>({score:player.trickScore,checkpoint:game.nextGate,state:game.state})
   });
   game.multiplayer=multiplayer;
