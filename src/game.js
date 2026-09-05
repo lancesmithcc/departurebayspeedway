@@ -409,7 +409,19 @@ export class Game {
 
   // ---------------- state ----------------
   startRide() {
-    if (this.multiplayer && this.multiplayer.status !== 'active') { this.multiplayer.join(); return; }
+    // Leave the finish state before asynchronous admission can yield a frame.
+    // Otherwise the finish update reopens the scoreboard while we rejoin.
+    this.el.finish.classList.add('hidden');
+    this.finishT = 0;
+    this.closeNaming();
+    if (this.multiplayer && this.multiplayer.status !== 'active') {
+      this.state = 'title';
+      this.keys = {};
+      this.player.v = 0;
+      this.el.hud.classList.add('hidden');
+      this.multiplayer.join();
+      return;
+    }
     try {
       this.audio.init();
       if (this.audio.ctx && this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
