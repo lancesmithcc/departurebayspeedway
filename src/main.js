@@ -1,3 +1,4 @@
+import { ElevationGrid } from './elevation-grid.js';
 // main.js — bootstrap: load map data, build world, run loop
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -6,6 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { buildTextures, TEX } from './textures.js';
 import { Terrain } from './terrain.js';
+import { applyStreetProfile } from './street-profile.js';
+import { buildStreetscape } from './streetscape.js';
 import { buildRoads } from './roads.js';
 import { buildBuildings, buildingCollide } from './buildings.js';
 import { buildTrees, buildStreetlights, buildPiers, buildFerry, buildGasStation, pylonSign, buildBeachClutter, buildSevenEleven, buildRoadEdges, buildJunctionSigns, buildTrafficFurniture, buildWellingtonSchool, buildWellingtonRoadSign, buildRockCitySchool, buildDepartureBaySchool, buildReaderBoard, buildBaptistChurch } from './props.js';
@@ -49,10 +52,20 @@ async function boot() {
 
   // ---- data ----
   buildTextures();
-  const [map, routeSurvey] = await Promise.all([
+  const [map, routeSurvey, dtmMeta, dtmBytes, cityBuildings, canopyData] = await Promise.all([
     fetch('./data/map.json').then(r => r.json()),
     fetch('./data/route-elevation.json').then(r => r.json()),
+    fetch('./data/terrain-dtm.json').then(r => {if(!r.ok)throw new Error('Terrain metadata unavailable');return r.json();}),
+    fetch('./data/terrain-dtm.f32').then(r => {if(!r.ok)throw new Error('Terrain grid unavailable');return r.arrayBuffer();}),
+    fetch('./data/city-buildings.json').then(r => r.json()),
+    fetch('./data/canopy.json').then(r => r.json()),
   ]);
+  map.canopyTrees=canopyData.trees;
+  const replacedBuildings = new Set(cityBuildings.replaces);
+  map.buildings = map.buildings.filter((_,i)=>!replacedBuildings.has(i)).concat(cityBuildings.buildings);
+  console.log('CITY_BUILDINGS',cityBuildings.counts);
+  map.elevationGrid = new ElevationGrid(dtmMeta,new Float32Array(dtmBytes));
+  applyStreetProfile(map);
   map.routeElevation = routeSurvey.elevations;
   map.routeElevationOffsets = routeSurvey.lateral_offsets_m;
   map.routeElevationCross = routeSurvey.cross_sections;
@@ -184,8 +197,10 @@ async function boot() {
   const trees = buildTrees(map, terrain, buildings.buildingGrid, corridor, cedar, keepClear, treeKit);
   scene.add(trees.inst);
   scene.add(trees.leaf);
+  scene.add(trees.canopy);
   if (trees.cedar) scene.add(trees.cedar);
   scene.add(buildStreetlights(corridor, terrain));
+  scene.add(buildStreetscape(map, corridor, terrain, keepClear));
   scene.add(buildPiers(map, terrain));
   // Wellington Secondary School at its real coordinates (Wildcats sign faces the road)
   scene.add(buildWellingtonSchool(terrain));
@@ -273,6 +288,7 @@ async function boot() {
     levelled.rotation.y += Math.PI + Number(tune.get('ry') || 0);
     levelled.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     player.useModel(levelled);
+    if (tune.get('rider') === 'articulated') player.setVisualStyle('articulated');
   }
 
   // ---- traffic ----
@@ -405,7 +421,22 @@ async function boot() {
   const qa = new URLSearchParams(location.search);
   const inspect = qa.get('inspect');
   let qaCameraTarget = null;
-  if (inspect === 'seven' && map.sevenEleven) {
+  if (inspect === 'jesus' || inspect === 'satan') {
+    const p = baptist.jesus.position;
+    player.reset([p.x + 30, p.z + 30], 0);
+    player.root.visible = false;
+    game.el.title.classList.add('hidden'); game.el.hud.classList.add('hidden');
+    const angle = baptist.jesus.rotation.y;
+    qaCameraTarget = {x:p.x,z:p.z,y:p.y+1.1,dx:Math.sin(angle)*4.2+1.4,dz:Math.cos(angle)*4.2,h:0.6};
+    if (inspect === 'satan') { baptist.becomeSatan(); baptist.riseAsSatan(); }
+  } else if (inspect === 'route') {
+    const station = Math.max(0, Math.min(corridor.total - 100, Number(qa.get('station')) || 0));
+    const i = corridor.cum.findIndex(s => s >= station);
+    const p = corridor.pts[i], [tx, tz] = corridor.tan[i];
+    player.reset(p, Math.atan2(-tx, -tz)); player.cameraMode = 0;
+    game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');
+    qaCameraTarget = {x:p[0]+tx*16,z:p[1]+tz*16,y:player.pos.y+1.8,dx:-tx*23,dz:-tz*23,h:1.7};
+  } else if (inspect === 'seven' && map.sevenEleven) {
     player.reset(map.sevenEleven.p, 0); player.cameraMode = 3; player._orbitR = 42; player._orbitH = 14;
     game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');
     qaCameraTarget = { x: map.sevenEleven.p[0], z: map.sevenEleven.p[1], y: terrain.routeLevelNear(...map.sevenEleven.p) + 2, dx: 34, dz: 32, h: 14 };
@@ -418,7 +449,7 @@ async function boot() {
   if (qa.has('audit')) setInterval(() => {
     const upright = [...peds.people, ...peds.kids, ...peds.party, ...peds.specials]
       .filter(p => p.active && !(p.splat > 0) && Number.isFinite(p.y));
-    const pedGaps = upright.map(p => p.y - terrain.surfaceHeight(p.x, p.z));
+    const pedGaps = upright.map(p => p.y - peds.stand(p.x, p.z));
     const cars = traffic.cars.filter(c => c.active && Number.isFinite(c.y));
     const carGaps = cars.map(c => {
       const deck = terrain.roadDeck(c.x, c.z);

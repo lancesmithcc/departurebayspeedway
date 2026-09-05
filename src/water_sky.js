@@ -26,7 +26,7 @@ export function buildSkyWater(scene, renderer, opts = {}) {
 
   // sun disc + glow, placed on the dome
   const sunSprite = new THREE.Mesh(
-    new THREE.CircleGeometry(300, 32),
+    new THREE.CircleGeometry(48, 32),
     new THREE.MeshBasicMaterial({ color: 0xfff6df, fog: false, depthWrite: false, transparent: true, opacity: 0.95 }),
   );
   sunSprite.position.copy(sunDir).multiplyScalar(5200);
@@ -50,7 +50,7 @@ export function buildSkyWater(scene, renderer, opts = {}) {
   scene.environmentIntensity = 0.45;
 
   // ----- lights -----
-  const sun = new THREE.DirectionalLight(0xffe6c4, 3.6);
+  const sun = new THREE.DirectionalLight(0xffdfb0, 3.2);
   sun.position.copy(sunDir).multiplyScalar(600);
   sun.castShadow = true;
   // 2048 is the desktop map; a phone gets a quarter of the texels for most of the
@@ -58,17 +58,18 @@ export function buildSkyWater(scene, renderer, opts = {}) {
   const shadowSize = opts.shadowMapSize || 2048;
   sun.shadow.mapSize.set(shadowSize, shadowSize);
   const sc = sun.shadow.camera;
-  sc.left = -120; sc.right = 120; sc.top = 120; sc.bottom = -120;
+  sc.left = -75; sc.right = 75; sc.top = 75; sc.bottom = -75;
   sc.near = 50; sc.far = 1400;
   sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 1.2;
+  sun.shadow.normalBias = 0.12;
+  sun.shadow.radius = 2;
   scene.add(sun);
   scene.add(sun.target);
 
-  const hemi = new THREE.HemisphereLight(0xa8c4dc, 0x3b4034, 0.7);
+  const hemi = new THREE.HemisphereLight(0xb3cce0, 0x454337, 0.85);
   scene.add(hemi);
 
-  scene.fog = new THREE.Fog(0xc4d3dc, 1200, 7200);
+  scene.fog = new THREE.Fog(0xc4d3dc, 280, 3400);
 
   // ----- cloud dome: the Sky shader alone renders a bare gradient -----
   TEX.clouds.wrapS = TEX.clouds.wrapT = THREE.RepeatWrapping;
@@ -132,14 +133,14 @@ export function buildSkyWater(scene, renderer, opts = {}) {
       skyTint: 0xffffff,
       cloudTint: 0xffffff,
       sunSprite: 0xfff6df,
-      sunColor: 0xffe6c4,
-      sunIntensity: 3.6,
-      hemiSky: 0xa8c4dc,
-      hemiGround: 0x3b4034,
-      hemiIntensity: 0.7,
+      sunColor: 0xffdfb0,
+      sunIntensity: 3.2,
+      hemiSky: 0xb3cce0,
+      hemiGround: 0x454337,
+      hemiIntensity: 0.85,
       fog: 0xc4d3dc,
-      fogNear: 1200,
-      fogFar: 7200,
+      fogNear: 280,
+      fogFar: 3400,
       envIntensity: 0.45,
       waterColor: 0x0b3642,
       waterSun: 0xffe9c4,

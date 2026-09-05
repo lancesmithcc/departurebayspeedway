@@ -19,8 +19,8 @@ export class Corridor {
     this.hw = route.map(([x, z]) => {
       const nr = terrain.nearestRoad(x, z);
       const base = nr ? nr.seg.hw : 5;
-      // road half width plus a shoulder wide enough to swerve around oncoming traffic
-      return clamp(base + 3.6, 7, 14);
+      // road half width plus a narrow rideable shoulder; curbs must follow the real asphalt
+      return clamp(base + 0.65, 4.55, 9);
     });
     // smooth the width so the rail doesn't step at every OSM width change
     for (let pass = 0; pass < 3; pass++) {

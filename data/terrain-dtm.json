@@ -1,0 +1,20 @@
+{
+  "source": "Natural Resources Canada, CanElevation HRDEM Mosaic 1 m DTM",
+  "source_url": "https://canelevation-dem.s3.ca-central-1.amazonaws.com/hrdem-mosaic-1m/1_3-mosaic-1m-dtm.tif",
+  "stac_url": "https://datacube.services.geo.ca/stac/api/collections/hrdem-mosaic-1m/items/1_3-mosaic-1m",
+  "source_crs": "EPSG:3979",
+  "vertical_datum": "CGVD2013 (HRDEM Mosaic specification)",
+  "grid_spacing_m": 2,
+  "x0": -3600,
+  "z0": -1950,
+  "nx": 1626,
+  "nz": 751,
+  "no_data": -32767,
+  "encoding": "little-endian float32 metres; row-major southwards",
+  "origin_lat_lon": [
+    49.1965,
+    -123.96
+  ],
+  "resampling": "bilinear from 1m source",
+  "valid_fraction": 1.0
+}

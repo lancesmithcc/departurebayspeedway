@@ -1,5 +1,7 @@
 // player.js — dirtbike + rider + arcade physics + cameras
 import * as THREE from 'three';
+import { RiderAnimation } from './rider-animation.js';
+import { AuthoredRiderAnimation } from './authored-rider-animation.js';
 import { CFG, clamp, lerp, damp, rand, distPointToSeg } from './util.js';
 
 const forwardOf = (θ) => new THREE.Vector3(-Math.sin(θ), 0, -Math.cos(θ));
@@ -84,17 +86,6 @@ export class Player {
       m.castShadow = true;
       return m;
     };
-    const limb = (from, to, r, mat) => tube(from, to, r, r * 0.86, mat, 9);
-    const capsule = (from, to, r, mat) => {
-      const dir = new THREE.Vector3().subVectors(to, from);
-      const len = Math.max(0.02, dir.length() - r * 2);
-      const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat);
-      m.position.copy(from).addScaledVector(dir, 0.5);
-      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-      m.castShadow = true;
-      return m;
-    };
-
     // ---- wheel factory: tire + knobs + rim + spokes + disc, spun about local z ----
     const makeWheel = (R = 0.30, tube_r = 0.075, knobs = 18, discR = 0.13) => {
       const outer = new THREE.Group();   // orients the wheel across the bike
@@ -261,41 +252,10 @@ export class Player {
     fenderArc(steerG, -0.72, -0.16, 0.42, -0.30, 1.15, 6, 0.24, 1);   // front beak
     fenderArc(bike, 0.33, 0.73, 0.44, -0.55, 0.62, 6, 0.28, 1);       // rear fender
 
-    // ---- rider ----
-    const rider = new THREE.Group();
-    const hips = new THREE.Vector3(0, 1.0, 0.14);
-    const chest = new THREE.Vector3(0, 1.32, -0.14);
-    const neck = new THREE.Vector3(0, 1.43, -0.22);
-    rider.add(capsule(hips, chest, 0.135, jersey));                                            // torso
-    rider.add(B(0.28, 0.22, 0.13, new THREE.MeshStandardMaterial({ color: 0x101214, roughness: 0.5 }), 0, 1.28, -0.22, 0.5)); // chest protector
-    rider.add(capsule(chest, neck, 0.075, jersey));
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 14), helmetM);
-    helmet.position.set(0, 1.55, -0.28); helmet.scale.set(1, 1.02, 1.06); helmet.castShadow = true;
-    rider.add(helmet);
-    const chin = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.11, 0.16), helmetM);             // chin bar
-    chin.position.set(0, 1.48, -0.38); chin.rotation.x = 0.2;
-    rider.add(chin);
-    rider.add(B(0.21, 0.075, 0.1, visorM, 0, 1.56, -0.38, 0.1));                               // goggles
-    rider.add(B(0.24, 0.03, 0.03, red, 0, 1.56, -0.28));                                       // goggle strap
-    rider.add(B(0.2, 0.045, 0.19, helmetM, 0, 1.64, -0.38, -0.22));                            // peak
-    rider.add(B(0.24, 0.05, 0.2, red, 0, 1.63, -0.26));                                        // helmet stripe
-    for (const s of [-1, 1]) {
-      const shoulder = new THREE.Vector3(s * 0.21, 1.36, -0.2);
-      const elbow = new THREE.Vector3(s * 0.34, 1.26, -0.37);
-      const hand = new THREE.Vector3(s * 0.28, 1.21, -0.57);
-      rider.add(capsule(shoulder, elbow, 0.055, jersey));
-      rider.add(capsule(elbow, hand, 0.048, jersey));
-      rider.add(B(0.09, 0.08, 0.11, glove, hand.x, hand.y, hand.z));                           // glove
-      const knee = new THREE.Vector3(s * 0.23, 0.7, -0.1);
-      const foot = new THREE.Vector3(s * 0.21, 0.46, 0.2);
-      rider.add(capsule(new THREE.Vector3(s * 0.15, 1.0, 0.16), knee, 0.075, pants));
-      rider.add(capsule(knee, foot, 0.06, pants));
-      rider.add(B(0.1, 0.1, 0.16, boot, foot.x, foot.y + 0.04, foot.z - 0.02));                // boot
-      rider.add(B(0.1, 0.05, 0.24, boot, foot.x, foot.y - 0.03, foot.z + 0.02));               // sole
-      rider.add(B(0.11, 0.09, 0.11, new THREE.MeshStandardMaterial({ color: 0xdad6cc, roughness: 0.5 }), knee.x + s * 0.01, knee.y, knee.z - 0.06)); // knee brace
-    }
-    bike.add(rider);
-    this.rider = rider;
+    // Independent joint rig uses the same clothing/helmet palette as the bike.
+    this.riderRig = new RiderAnimation({ jersey, pants, helmetM, visorM, red, plastic, boot, glove });
+    bike.add(this.riderRig.root);
+    this.rider = this.riderRig.root;
 
     this.root = root; this.leanG = leanG; this.pitchG = pitchG; this.steerG = steerG;
     this.bikeGroup = bike;
@@ -303,20 +263,24 @@ export class Player {
     this.scene.add(root);
   }
 
-  // Swap in the authored rider-on-bike GLB. It rides under the same lean/pitch groups,
-  // so leaning, wheelies, whips and flips still drive it; the procedural rig stays in
-  // the file as the fallback when the model can't be fetched.
+  // Preserve the supplied GLB as the default rider and animate its own mesh.
   useModel(object) {
     if (!object || !this.bikeGroup) return false;
-    for (const part of this.procParts) part.visible = false;
-    this.rider = null;                     // pose animation belongs to the proc rig
-    this.frontWheel = null;
-    this.rearWheel = null;
-    // keep the ground-alignment offset fitModel computed — zeroing it here buried the
-    // bike up to the seat in the asphalt
+    this.authoredRig?.dispose();
+    if (this.modelRoot) this.bikeGroup.remove(this.modelRoot);
     this.modelRoot = object;
     this.bikeGroup.add(object);
+    this.authoredRig = new AuthoredRiderAnimation(object, this.bikeGroup);
+    this.setVisualStyle('authored');
     return true;
+  }
+
+  setVisualStyle(style) {
+    const authored = style === 'authored' && !!this.modelRoot;
+    this.visualStyle = authored ? 'authored' : 'articulated';
+    for (const part of this.procParts) part.visible = !authored;
+    if (this.modelRoot) this.modelRoot.visible = authored;
+    return this.visualStyle;
   }
 
   reset(pos, heading) {
@@ -333,6 +297,9 @@ export class Player {
     this.pedCool = 0;
     this.wobblePhase = 0;
     this.steerSm = 0;
+    this._landingImpact = 0;
+    this.riderRig?.reset();
+    this.authoredRig?.reset();
     this.root.visible = true;
     this.root.rotation.set(0, 0, 0);
     this.leanG.rotation.set(0, 0, 0);
@@ -485,6 +452,7 @@ export class Player {
       const g = this.groundAt(this.pos.x, this.pos.z);
       if (this.pos.y <= g) {
         const impact = -this.vy;
+        this._landingImpact = impact;
         this.pos.y = g;
         this.grounded = true;
         this.vy = 0;
@@ -736,22 +704,8 @@ export class Player {
       if (this.steerG) this.steerG.rotation.y = this.steerVis * 0.38;
       if (this.frontWheel) this.frontWheel.rotation.z = -this.wheelSpin;
       if (this.rearWheel) this.rearWheel.rotation.z = -this.wheelSpin;
-      // rider animation: stand on gas, sit under braking, extend for tricks,
-      // lean back with arms straight when clamping a wheelie
-      const crouch = (this._lastBrake || 0) - (this._lastThrottle || 0);
-      const superman = this.pose === 1 ? this.poseAmt : 0;
-      const nohander = this.pose === 2 ? this.poseAmt : 0;
-      const whee = this.wheelieTrick ? 1 : 0;
-      if (this.rider) {
-        this.rider.position.y = crouch * 0.05 + superman * 0.12 + nohander * 0.07 - whee * 0.06;
-        this.rider.position.z = crouch * 0.08 + superman * 0.34 - nohander * 0.1 - whee * 0.12;
-        this.rider.rotation.x = -superman * 0.6 + nohander * 0.15 - whee * 0.22;
-      } else if (this.modelRoot) {
-        // the authored model is one piece: sell the same moves by shifting the whole
-        // bike a little in the saddle
-        this.modelRoot.position.z = superman * 0.22 - nohander * 0.06 + crouch * 0.05;
-        this.modelRoot.rotation.x = -superman * 0.18 - whee * 0.05;
-      }
+      if (this.visualStyle === 'authored') this.authoredRig?.update(dt, this);
+      else this.riderRig?.update(dt, this);
     }
   }
 

@@ -97,5 +97,5 @@ export const CFG = {
     segX: 520, segZ: 386,
   },
   camera: { fovBase: 62, fovBoost: 16, dist: 6.8, height: 2.7 },
-  sun: { elevation: 33, azimuth: 128 }, // mid-morning over the bay: real shadows, no white-out haze
+  sun: { elevation: 26, azimuth: 245 }, // warm late-afternoon light across the wooded descent
 };

@@ -8,6 +8,9 @@
     "serve": "node serve.mjs",
     "bake": "node tools/bake.mjs",
     "voices": "python3 tools/make_voices.py",
-    "serve:prod": "node tools/serve-prod.mjs"
+    "serve:prod": "node tools/serve-prod.mjs",
+    "check:scene": "node tools/check-street.mjs",
+    "check:rider": "node tools/check-authored-rider.mjs",
+    "check:geography": "node tools/check-geography.mjs"
   }
 }

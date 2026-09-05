@@ -1,3 +1,5 @@
+import { surveyedTreeGeometry, leafSprayTexture } from './surveyed-tree-geometry.js';
+import { streetProfile } from './street-profile.js';
 // props.js — trees, streetlights, docks, ferries, gas station, landmark signs, beach clutter
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -154,7 +156,9 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     return true;
   };
 
+  const inSurveyedCanopy = (x,z) => map.canopyTrees?.length && corridor && corridor.projectExact(x,z).dist < 118;
   const tryPlace = (x, z, minD = 0, kind = 'auto', scaleLo = 0.75, scaleHi = 1.5) => {
+    if (inSurveyedCanopy(x,z)) return;
     if (count >= MAX) return;
     const d = terrain.seaSignedDist(x, z);
     if (d < 34 + minD) return;
@@ -163,7 +167,7 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     for (const b of buildingGrid.query(x, z, 8)) {
       if (x > b.x0 - 2 && x < b.x1 + 2 && z > b.z0 - 2 && z < b.z1 + 2) return;
     }
-    const y = terrain.groundHeight(x, z);
+    const y = terrain.meshHeight(x,z) ?? terrain.groundHeight(x, z);
     const s = trand(scaleLo, scaleHi);
     P.set(x, y - 0.2, z);
     Q.setFromAxisAngle(up, trand(0, 6.28));
@@ -184,7 +188,7 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
   };
 
   const placeCedar = (x, z, scaleLo = 0.75, scaleHi = 1.35) => {
-    if (!cedar || cedarCount >= MAX_CEDAR || !placeable(x, z)) return false;
+    if (inSurveyedCanopy(x,z) || !cedar || cedarCount >= MAX_CEDAR || !placeable(x, z)) return false;
     const y = terrain.groundHeight(x, z), sc = trand(scaleLo, scaleHi);
     P.set(x, y - 0.15, z);
     Q.setFromAxisAngle(up, trand(0, 6.28));
@@ -274,12 +278,31 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
           // Waterfront approach is open, with smaller ornamental deciduous trees.
           tryPlace(tx, tz, 0, 'leaf', 0.62, 0.95);
         } else if (!(random() < 0.58 && placeCedar(tx, tz, 0.78, 1.35))) {
-          tryPlace(tx, tz, 0, f < 0.82 ? 'conifer' : 'auto', 0.75, 1.3);
+          tryPlace(tx, tz, 0, f < 0.82 ? (random() < 0.65 ? 'leaf' : 'conifer') : 'auto', 0.75, 1.3);
         }
       }
     }
   }
 
+  const canopy=new THREE.Group();canopy.name='LiDAR canopy estimates';
+  const measured=(map.canopyTrees||[]).filter(p=>placeable(p.x,p.z));
+  const spray=leafSprayTexture();
+  for(const kind of ['conifer','broadleaf']) {
+    // Height separates a broad artistic crown from a tall conifer silhouette;
+    // the source does not identify species.
+    const points=measured.filter(p=>(p.h>=17?'conifer':'broadleaf')===kind);
+    if(!points.length)continue;
+    const parts=surveyedTreeGeometry(kind);
+    const mesh=new THREE.InstancedMesh(parts.foliage,new THREE.MeshStandardMaterial({map:spray,alphaTest:.38,side:THREE.DoubleSide,vertexColors:true,roughness:.95}),points.length);
+    const trunks=new THREE.InstancedMesh(parts.wood,new THREE.MeshStandardMaterial({color:0x574937,roughness:1}),points.length);
+    for(let i=0;i<points.length;i++){
+      const p=points[i],y=terrain.meshHeight(p.x,p.z) ?? terrain.groundHeight(p.x,p.z);
+      P.set(p.x,y-.06,p.z);Q.setFromAxisAngle(up,trand(0,Math.PI*2));S.setScalar(p.h);M.compose(P,Q,S);mesh.setMatrixAt(i,M);trunks.setMatrixAt(i,M);
+      treeGrid.insert(p.x,p.z,{x:p.x,z:p.z,r:Math.max(.2,p.h*.012),y});
+    }
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.computeBoundingSphere();trunks.castShadow=true;trunks.receiveShadow=true;trunks.computeBoundingSphere();canopy.add(mesh,trunks);
+  }
+  console.log('CANOPY',JSON.stringify({sourcePeaks:map.canopyTrees?.length||0,placed:measured.length}));
   inst.count = count;
   inst.instanceMatrix.needsUpdate = true;
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
@@ -290,7 +313,7 @@ export function buildTrees(map, terrain, buildingGrid, corridor = null, cedarAss
     cedar.count = cedarCount;
     cedar.instanceMatrix.needsUpdate = true;
   }
-  return { inst, leaf, cedar, treeGrid, count: count + leafCount + cedarCount };
+  return { inst, leaf, cedar, canopy, treeGrid, count: count + leafCount + cedarCount + measured.length };
 }
 
 function pointInPolyCached(pts, x, z) {
@@ -336,7 +359,7 @@ export function buildStreetlights(corridor, terrain) {
     dist += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     const s = corridor.cum[i];
     const beachZone = s > corridor.total - 275;
-    const spacing = beachZone ? 31 : 78;
+    const spacing = beachZone ? 31 : 43;
     if (dist > spacing) {
       dist = 0;
       // no lamps on the beach run-out / ramp chute, and none past the road end
@@ -351,7 +374,7 @@ export function buildStreetlights(corridor, terrain) {
         } else {
           // Upper houses carry the line inland; from the church eastward it moves to
           // the water side, matching the poles visible along the downhill run.
-          utilitySpots.push({ i, side: s < 900 ? -1 : 1 });
+          utilitySpots.push({ i, side: streetProfile(s).utilitySide });
         }
       }
     }
@@ -369,7 +392,7 @@ export function buildStreetlights(corridor, terrain) {
   const utilityWorld = [];
   utilitySpots.forEach(({ i, side }, k) => {
     const [nx, nz] = corridor.normalAt(i);
-    const off = corridor.hw[i] + 2.7;
+    const off = corridor.hw[i] + 1.9;
     const px = pts[i][0] + nx * side * off, pz = pts[i][1] + nz * side * off;
     const gy = terrain.groundHeight(px, pz);
     P.set(px, gy, pz);
@@ -403,10 +426,16 @@ export function buildStreetlights(corridor, terrain) {
     for (const across of [-0.78, 0, 0.78]) {
       const aix = -a.nx * a.side, aiz = -a.nz * a.side;
       const bix = -b.nx * b.side, biz = -b.nz * b.side;
-      wirePos.push(
-        a.x + aix * across, a.y + 9.62, a.z + aiz * across,
-        b.x + bix * across, b.y + 9.62, b.z + biz * across,
-      );
+      // Shallow catenary approximation: wire hangs between real support heights.
+      for (let j = 0; j < 10; j++) {
+        for (const t of [j / 10, (j + 1) / 10]) {
+          wirePos.push(
+            (a.x + aix * across) * (1 - t) + (b.x + bix * across) * t,
+            a.y * (1 - t) + b.y * t + 9.62 - 0.65 * 4 * t * (1 - t),
+            (a.z + aiz * across) * (1 - t) + (b.z + biz * across) * t,
+          );
+        }
+      }
     }
   }
   if (wirePos.length) {
@@ -905,11 +934,8 @@ export function buildTrafficFurniture(map, corridor, terrain) {
 // out on the banked verge above the Circle K that meant a metre and a half of daylight
 // under their shoes.
 export function hasSidewalk(s, side) {
-  if (s < 180) return true;
-  if (s < 900) return false;
-  if (s < 1450) return true;
-  if (s < 2580) return side < 0;
-  return true;
+  const profile = streetProfile(s);
+  return side < 0 ? profile.sidewalkLeft : profile.sidewalkRight;
 }
 
 // ---------- road edges: curb + sidewalk through town, guardrail where it belongs ----------
@@ -921,15 +947,15 @@ export function buildRoadEdges(corridor, terrain) {
   const curbGeos = [], walkGeos = [], railGeos = [], postGeos = [];
   const pts = corridor.pts;
 
-  const needsRail = (x, z) => {
-    const gy = terrain.groundHeight(x, z);
-    let drop = 0;
-    for (const d of [3, 6]) {
-      for (const [ox, oz] of [[d, 0], [-d, 0], [0, d], [0, -d]]) {
-        drop = Math.max(drop, gy - terrain.groundHeight(x + ox, z + oz));
-      }
-    }
-    return drop > 1.3 || terrain.seaSignedDist(x, z) < 45;
+  // Reference footage shows no continuous highway crash barriers. Only the
+  // short white pedestrian railing by the mid-route culvert is retained.
+  const needsRail = (station, side) => side > 0 && streetProfile(station).pedestrianRail;
+  const slopeBox = (w, h, len, angle, rise) => {
+    const geo = new THREE.BoxGeometry(w, h, len + 0.02);
+    const pos = geo.attributes.position;
+    for (let v = 0; v < pos.count; v++) pos.setY(v, pos.getY(v) + pos.getZ(v) / len * rise);
+    geo.computeVertexNormals(); geo.rotateY(angle);
+    return geo;
   };
 
   for (let side = -1; side <= 1; side += 2) {
@@ -942,33 +968,32 @@ export function buildRoadEdges(corridor, terrain) {
       // leave a gap where the rail is deliberately open (the church entrance) —
       // a curb the bike drives straight through looks like a bug
       if (corridor.inOpenZone(mx, mz)) continue;
-      const gyA = terrain.groundHeight(a[0], a[1]);
-      const gyC = terrain.groundHeight(c[0], c[1]);
+      const gyA = terrain.meshHeight(a[0], a[1]) ?? terrain.groundHeight(a[0], a[1]);
+      const gyC = terrain.meshHeight(c[0], c[1]) ?? terrain.groundHeight(c[0], c[1]);
       const midY = (gyA + gyC) / 2;
       const ang = Math.atan2(c[0] - a[0], c[1] - a[1]);
       const [nx, nz] = corridor.normalAt(i);
 
       if (hasSidewalk((corridor.cum[i - 1] + corridor.cum[i]) / 2, side)) {
-        const curb = new THREE.BoxGeometry(0.34, 0.3, len + 0.2);
-        curb.rotateY(ang);
+        const curb = slopeBox(0.22, 0.20, len, ang, gyC - gyA);
         curb.translate(mx, midY + 0.12, mz);
         curbGeos.push(curb);
-        const walk = new THREE.BoxGeometry(1.7, 0.16, len + 0.2);
-        walk.rotateY(ang);
+        const walk = slopeBox(1.7, 0.16, len, ang, gyC - gyA);
         walk.translate(mx + nx * side * 1.0, midY + 0.2, mz + nz * side * 1.0);
         walkGeos.push(walk);
       }
 
-      if (needsRail(mx, mz)) {
-        for (const [hy, th] of [[0.86, 0.26], [0.6, 0.2]]) {
-          const rail = new THREE.BoxGeometry(0.1, th, len + 0.25);
-          rail.rotateY(ang);
+      if (needsRail(corridor.cum[i], side)) {
+        for (const [hy, th] of [[1.05, 0.08], [0.28, 0.06]]) {
+          const rail = slopeBox(0.07, th, len, ang, gyC - gyA);
           rail.translate(mx + nx * side * 1.9, midY + hy, mz + nz * side * 1.9);
           railGeos.push(rail);
         }
-        if (i % 3 === 0) {
-          const post = new THREE.BoxGeometry(0.14, 1.05, 0.14);
-          post.translate(c[0] + nx * side * 1.9, gyC + 0.45, c[1] + nz * side * 1.9);
+        for (let q = 0; q < len; q += 0.6) {
+          const f = q / len;
+          const post = new THREE.BoxGeometry(0.045, 1.0, 0.045);
+          post.translate(a[0] + (c[0] - a[0]) * f + nx * side * 1.9,
+            gyA + (gyC - gyA) * f + 0.57, a[1] + (c[1] - a[1]) * f + nz * side * 1.9);
           postGeos.push(post);
         }
       }
@@ -985,8 +1010,8 @@ export function buildRoadEdges(corridor, terrain) {
   const walkMat = new THREE.MeshStandardMaterial({ map: TEX.concrete, color: 0xd8d5cd, roughness: 0.95 });
   add(curbGeos, concrete);
   add(walkGeos, walkMat);
-  add(railGeos, new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.5, metalness: 0.75 }));
-  add(postGeos, new THREE.MeshStandardMaterial({ color: 0x54595e, roughness: 0.7, metalness: 0.4 }));
+  add(railGeos, new THREE.MeshStandardMaterial({ color: 0xd4d5cc, roughness: 0.6, metalness: 0.25 }));
+  add(postGeos, new THREE.MeshStandardMaterial({ color: 0xd4d5cc, roughness: 0.6, metalness: 0.25 }));
   return group;
 }
 
@@ -1445,8 +1470,8 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
 
   // ---- Jesus, out on the grass with the kids ----
   // He is built out of the same authored character kit as everybody else on the
-  // lawn — same body, same six baked walk frames — so he reads as a person rather
-  // than a stack of cones. What he gets on top of that is his own: robe whites, long
+  // lawn. His original skeleton blends authored idle, walk and gesture clips rather
+  // than stepping between crowd poses. His own details remain: robe whites, long
   // hair, a beard, a stole, a girdle and a halo, all parented to a rig group that
   // bobs and turns underneath the transform the pedestrian system writes.
   //
@@ -1467,6 +1492,8 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const kit = (opts.pedKit && opts.pedKit.length) ? opts.pedKit[0] : null;
   const bodyFrames = [];
   let satanGeos = null, holyGeos = null;
+  let liveCharacter = null;
+  const characterMaterials = [];
   let jH = 1.74;                            // body height, for hanging the extras off
   if (kit && kit.parts) {
     const linen = new THREE.Color(0xf5f2e8);
@@ -1508,28 +1535,55 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   // that is the side the locks fall down and the far side is where the beard hangs.
   // The head centre is about 94% of the way up the body.
   const headY = jH * 0.937;
+  const robeMat = new THREE.MeshStandardMaterial({color:0xeee7d5,roughness:0.92});
+  robeMat.userData.holyColor = new THREE.Color(0xeee7d5);
+  robeMat.userData.damnedColor = new THREE.Color(0x39090d);
+  characterMaterials.push(robeMat);
+  const robeGeo = new THREE.CylinderGeometry(0.18,0.31,0.83,40,4,true);
+  const robePositions = robeGeo.attributes.position;
+  for(let i=0;i<robePositions.count;i++) {
+    const x=robePositions.getX(i),z=robePositions.getZ(i),y=robePositions.getY(i);
+    const fold=1+Math.sin(Math.atan2(z,x)*10)*0.065*(0.65-y);
+    robePositions.setXYZ(i,x*fold,y,z*fold);
+  }
+  robeGeo.computeVertexNormals();
+  const robe = new THREE.Mesh(robeGeo,robeMat);
+  robe.position.y=0.57; robe.castShadow=true; robe.receiveShadow=true; rig.add(robe);
+  const headDetails = new THREE.Group();
+  headDetails.position.y = headY;
+  rig.add(headDetails);
   const hair = new THREE.Mesh(new THREE.SphereGeometry(jH * 0.079, 14, 12), hairM);
-  hair.position.set(0, headY + 0.025, -0.035);
+  hair.position.set(0, 0.025, -0.035);
   hair.scale.set(1.05, 1.0, 1.1);
-  rig.add(hair);
+  headDetails.add(hair);
   for (const sl of [-1, 1]) {               // locks down past the shoulders
     const lock = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.22, 3, 7), hairM);
-    lock.position.set(sl * 0.115, headY - 0.13, -0.045);
+    lock.position.set(sl * 0.115, -0.13, -0.045);
     lock.rotation.z = sl * 0.08;
-    rig.add(lock);
+    headDetails.add(lock);
   }
   // The beard has to clear the front of the head — parked on the chin line it
   // disappears inside it and he comes out clean-shaven.
   const beard = new THREE.Mesh(new THREE.SphereGeometry(jH * 0.055, 12, 10), hairM);
-  beard.position.set(0, headY - 0.075, 0.075);
+  beard.position.set(0, -0.075, 0.075);
   beard.scale.set(1, 1.5, 0.9);
-  rig.add(beard);
+  headDetails.add(beard);
   const tache = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.028, 0.05), hairM);
-  tache.position.set(0, headY - 0.005, 0.115);
-  rig.add(tache);
-  const stole = new THREE.Mesh(new THREE.BoxGeometry(0.1, jH * 0.42, 0.34), sash);
-  stole.position.set(0, jH * 0.6, 0.015);
-  rig.add(stole);
+  tache.position.set(0, -0.005, 0.115);
+  headDetails.add(tache);
+  // Three cloth joints give the stole lag and flutter without a cloth solver.
+  const stoleJoints = [];
+  let clothParent = rig;
+  for (let k = 0; k < 3; k++) {
+    const joint = new THREE.Group();
+    joint.position.set(0, k ? -jH * 0.14 : jH * 0.81, k ? 0 : 0.18);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.1, jH * 0.145, 0.026), sash);
+    panel.position.y = -jH * 0.07;
+    joint.add(panel);
+    clothParent.add(joint);
+    clothParent = joint;
+    stoleJoints.push(joint);
+  }
   const girdle = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.028, 6, 16), rope);
   girdle.rotation.x = Math.PI / 2;
   girdle.position.y = jH * 0.52;
@@ -1546,13 +1600,35 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const hornMat = new THREE.MeshStandardMaterial({ color: 0xcbbb9c, roughness: 0.45, metalness: 0.1 });
   for (const sh of [-1, 1]) {
     const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 8), hornMat);
-    horn.position.set(sh * 0.085, headY + 0.15, -0.005);
+    horn.position.set(sh * 0.085, 0.15, -0.005);
     horn.rotation.z = sh * 0.42;
     horn.rotation.x = -0.2;
     horn.visible = false;
-    rig.add(horn);
+    headDetails.add(horn);
     horns.push(horn);
   }
+  // A jointed tail belongs only to the transformed character. All joints are reused.
+  const tail = new THREE.Group();
+  tail.position.set(0, jH * 0.46, -0.13);
+  tail.rotation.x = Math.PI * 0.62;
+  tail.visible = false;
+  rig.add(tail);
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0x8d2119, roughness: 0.67 });
+  const tailJoints = [];
+  let tailParent = tail;
+  for (let k = 0; k < 7; k++) {
+    const joint = new THREE.Group();
+    joint.position.y = k ? 0.13 : 0;
+    const segment = new THREE.Mesh(new THREE.CylinderGeometry(0.036 - k * 0.0035, 0.04 - k * 0.0035, 0.145, 6), tailMat);
+    segment.position.y = 0.065;
+    joint.add(segment);
+    tailParent.add(joint);
+    tailParent = joint;
+    tailJoints.push(joint);
+  }
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.18, 3), tailMat);
+  tip.position.y = 0.18;
+  tailParent.add(tip);
   jesus.position.set(jx, jgy, jz);
   jesus.rotation.y = faceAng + Math.PI;
   jesus.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -1574,11 +1650,14 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     fallen = true;
     setJesusDead(true);          // the board out front is the first thing to change
     if (satanGeos) bodyFrames.forEach((m, k) => { m.geometry = satanGeos[k] || satanGeos[0]; });
+    for (const m of characterMaterials) m.color.copy(m.userData.damnedColor);
+    tail.visible = true;
+    tail.scale.setScalar(0.1);
     hairM.color.set(0x120708);
     skinM.color.set(0x9e1f14);
     sash.color.set(0x2a0508);
     rope.color.set(0x4a2410);
-    for (const h of horns) h.visible = true;
+    for (const h of horns) { h.visible = true; h.scale.setScalar(0.12); }
     // The halo is his, not the body's: it comes off him and stays in the grass where
     // he dropped it. Parented to the rig it would stand back up with him, so it is
     // handed to the church group at the world position it fell to.
@@ -1630,11 +1709,18 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     risen = false;
     slain = false;
     if (holyGeos) bodyFrames.forEach((m, k) => { m.geometry = holyGeos[k] || holyGeos[0]; });
+    for (const m of characterMaterials) m.color.copy(m.userData.holyColor);
+    tail.visible = false;
+    tail.scale.setScalar(1);
+    jesusPhase = 0;
+    if (liveCharacter) liveCharacter.lastPosition.copy(jesus.position);
+    headDetails.position.set(0, headY, 0);
+    headDetails.quaternion.identity();
     hairM.color.set(0x4a3323);
     skinM.color.set(0xc79a72);
     sash.color.set(0xa2262c);
     rope.color.set(0xc8a86a);
-    for (const h of horns) h.visible = false;
+    for (const h of horns) { h.visible = false; h.scale.setScalar(1); }
     halo.material.color.set(0xffd23f);
     halo.material.emissive.set(0xffb400);
     halo.material.emissiveIntensity = 1.1;
@@ -1649,38 +1735,172 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     rig.scale.setScalar(1);
   };
 
-  // He is on his feet for most of the race: rocking on his heels, working the crowd,
-  // and stepping through his own walk frames so the arms and legs keep moving. Driven
-  // off the clock rather than a rig, so it costs nothing and never desyncs. While he
-  // is down the rig goes still — the pedestrian ragdoll owns him from there — and once
-  // he is back up it runs again, harder and lower, for whatever it is now.
+  // Load one original skeleton for this hero; crowds keep their cheap baked poses.
+  // Failed/slow loading keeps the existing complete character visible. Local asset
+  // material clones prevent his transformation from recolouring the congregation.
+  if (kit && kit.url) {
+    import('./models.js').then(async ({ loadGLBFull, fitModel }) => {
+      const gltf = await loadGLBFull(kit.url);
+      if (!gltf) return;
+      const model = gltf.scene;
+      const mixer = new THREE.AnimationMixer(model);
+      const actions = {};
+      for (const [key, match] of Object.entries({ idle: /_Idle$/, walk: /_Walk$/, run: /_Run$/, greet: /_Clapping$/, attack: /_Punch$/ })) {
+        const clip = gltf.animations.find(c => match.test(c.name));
+        if (clip) {
+          const action = mixer.clipAction(clip);
+          action.play().setEffectiveWeight(key === 'idle' ? 1 : 0);
+          actions[key] = action;
+        }
+      }
+      if (!actions.idle || !actions.walk) return;
+      mixer.update(0.01);
+      model.updateMatrixWorld(true);
+      fitModel(model, jH);
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        const tint = original => {
+          const m = original.clone();
+          const name = m.name || '';
+          const holy = m.color.clone();
+          if (!/skin|eye|brow|hair|shoe|sock/i.test(name)) holy.lerp(new THREE.Color(0xf5f2e8), 0.93);
+          const damned = /eye/i.test(name) ? new THREE.Color(0xffd21e)
+            : /skin/i.test(name) ? new THREE.Color(0x9e1f14)
+            : /hair|brow/i.test(name) ? new THREE.Color(0x120708)
+            : m.color.clone().lerp(new THREE.Color(0x39090d), 0.9);
+          m.userData.holyColor = holy;
+          m.userData.damnedColor = damned;
+          m.color.copy(fallen ? damned : holy);
+          characterMaterials.push(m);
+          return m;
+        };
+        o.material = Array.isArray(o.material) ? o.material.map(tint) : tint(o.material);
+        o.castShadow = true;
+        o.receiveShadow = true;
+        // Animated hands/horns can extend beyond the original bind-pose bounds.
+        o.frustumCulled = false;
+      });
+      rig.add(model);
+      bodyFrames.forEach(m => { m.visible = false; });
+      rig.updateWorldMatrix(true, true);
+      const head = model.getObjectByName('Head');
+      const headOrigin = new THREE.Vector3();
+      const headBase = new THREE.Quaternion();
+      const rigInverse = new THREE.Quaternion();
+      rig.getWorldQuaternion(rigInverse).invert();
+      if (head) {
+        rig.worldToLocal(head.getWorldPosition(headOrigin));
+        head.getWorldQuaternion(headBase).premultiply(rigInverse).invert();
+      }
+      liveCharacter = {
+        model, mixer, actions, head, headOrigin, headBase, rigInverse,
+        headPoint: new THREE.Vector3(), headRotation: new THREE.Quaternion(),
+        lastPosition: jesus.position.clone(), speed: 0,
+        layers: ['Head', 'Torso', 'LowerArm.L', 'LowerArm.R'].map(name => {
+          const bone = model.getObjectByName(name);
+          return bone ? { bone, base: bone.quaternion.clone() } : null;
+        }).filter(Boolean),
+      };
+    }).catch(error => console.warn('Church character keeps baked animation:', error.message));
+  }
+
   let jesusPhase = 0;
   const animateJesus = (t, dt) => {
+    const step = Math.min(Math.max(dt, 0), 0.1);
     if (fallen && !risen) {
-      // the fire gutters while he is face down, and goes out altogether once he is
-      // finished — no ember light over a corpse and a sky that has gone back to blue
       const want = slain ? 0 : 22 + Math.sin(t * 7.3) * 6;
-      glow.intensity += (want - glow.intensity) * Math.min(1, 1.6 * dt);
+      glow.intensity += (want - glow.intensity) * Math.min(1, 1.6 * step);
+      if (!slain) {
+        // The horns emerge while the outer pedestrian ragdoll owns the body.
+        for (const h of horns) h.scale.setScalar(h.scale.x + (1 - h.scale.x) * step * 1.5);
+        const growth = Math.min(1, tail.scale.x + step * 0.8);
+        tail.scale.setScalar(growth);
+      }
+      if (liveCharacter) liveCharacter.lastPosition.copy(jesus.position);
       return;
     }
     const hell = risen ? 1 : 0;
-    if (hell) riseT += dt;
-    jesusPhase += dt * (hell ? 8.2 : 5.4);
-    if (bodyFrames.length > 1) {
+    if (hell) riseT += step;
+    jesusPhase += step * (hell ? 8.2 : 5.4);
+    const greeting = Math.pow(Math.max(0, Math.sin(t * 0.58)), 4);
+    const menace = Math.pow(Math.max(0, Math.sin(t * 1.7)), 4);
+    if (liveCharacter) {
+      const c = liveCharacter;
+      const dx = jesus.position.x - c.lastPosition.x;
+      const dz = jesus.position.z - c.lastPosition.z;
+      const speed = dt > 0 ? Math.min(7, Math.hypot(dx, dz) / dt) : 0;
+      c.lastPosition.copy(jesus.position);
+      c.speed += (speed - c.speed) * (1 - Math.exp(-step * 7));
+      const moving = THREE.MathUtils.smoothstep(c.speed, 0.06, 0.8);
+      const gesture = hell ? menace * 0.8 : greeting * (1 - moving) * 0.85;
+      const targets = {
+        idle: (1 - moving) * (1 - gesture),
+        walk: moving * (1 - gesture) * (hell && c.actions.run ? 0.18 : 1),
+        run: hell && c.actions.run ? moving * (1 - gesture) * 0.82 : 0,
+        greet: hell ? 0 : gesture,
+        attack: hell ? gesture : 0,
+      };
+      for (const [key, action] of Object.entries(c.actions)) {
+        action.setEffectiveWeight(action.getEffectiveWeight() + (targets[key] - action.getEffectiveWeight()) * (1 - Math.exp(-step * 6)));
+        action.setEffectiveTimeScale(key === 'walk' ? Math.max(0.45, c.speed / 1.25) : key === 'run' ? Math.max(0.65, c.speed / 3.5) : hell ? 1.1 : 0.85);
+      }
+      // Restore last unmodified joint poses before mixing, avoiding additive drift
+      // on joints omitted by a particular authored clip.
+      for (const layer of c.layers) layer.bone.quaternion.copy(layer.base);
+      c.mixer.update(step);
+      for (const layer of c.layers) {
+        layer.base.copy(layer.bone.quaternion);
+        const name = layer.bone.name;
+        if (name === 'Head') {
+          layer.bone.rotateY(Math.sin(t * (hell ? 1.3 : 0.55)) * (hell ? 0.19 : 0.24));
+          layer.bone.rotateX(hell ? 0.12 + menace * 0.09 : Math.sin(t * 1.1) * 0.06);
+        } else if (name === 'Torso') {
+          layer.bone.rotateX(hell ? 0.08 + menace * 0.08 : Math.sin(t * 1.8) * 0.018);
+        } else {
+          // Gentle open-palmed blessing; the damned arms tense before each strike.
+          layer.bone.rotateZ((name.endsWith('.L') ? 1 : -1) * (hell ? 0.1 + menace * 0.12 : (1 - moving) * (1 - greeting) * 0.14));
+        }
+      }
+      c.model.updateWorldMatrix(true, true);
+      if (c.head) {
+        rig.getWorldQuaternion(c.rigInverse).invert();
+        c.head.getWorldQuaternion(c.headRotation).premultiply(c.rigInverse).multiply(c.headBase);
+        headDetails.quaternion.copy(c.headRotation);
+        rig.worldToLocal(c.head.getWorldPosition(c.headPoint));
+        headDetails.position.copy(c.headPoint).sub(c.headOrigin);
+        headDetails.position.y += headY;
+      }
+    } else if (bodyFrames.length > 1) {
       const fi = Math.floor((jesusPhase / (Math.PI * 2)) * bodyFrames.length) % bodyFrames.length;
       bodyFrames.forEach((m, k) => { m.visible = k === fi; });
+      headDetails.rotation.set(Math.sin(t * 1.1) * 0.05, Math.sin(t * 0.55) * 0.18, 0);
     }
-    rig.position.y = Math.abs(Math.sin(jesusPhase * 0.5)) * (hell ? 0.11 : 0.06);
-    rig.rotation.y = Math.sin(t * (hell ? 1.1 : 0.42)) * (hell ? 0.9 : 0.5);
-    rig.rotation.z = Math.sin(t * (hell ? 3.1 : 1.25)) * (hell ? 0.07 : 0.03);
+    // Grounded breathing and weight shifts; feet no longer float through a walk.
+    rig.position.y = liveCharacter ? 0 : Math.abs(Math.sin(jesusPhase * 0.5)) * 0.025;
+    rig.rotation.y = Math.sin(t * (hell ? 1.1 : 0.42)) * (hell ? 0.2 : 0.1);
+    rig.rotation.z = Math.sin(t * (hell ? 3.1 : 1.25)) * (hell ? 0.035 : 0.015);
+    robe.rotation.z = Math.sin(t * (hell ? 4.2 : 1.8)) * 0.025;
+    robe.scale.z = 1 + Math.sin(jesusPhase) * (liveCharacter ? Math.min(0.16,liveCharacter.speed*0.055) : 0.03);
+    for (let k = 0; k < stoleJoints.length; k++) {
+      stoleJoints[k].rotation.x = Math.sin(t * (hell ? 5.2 : 2.4) - k * 0.7) * (hell ? 0.13 : 0.045);
+      stoleJoints[k].rotation.z = Math.sin(t * 1.8 - k * 0.8) * 0.025;
+    }
     if (hell) {
-      // the first second back is the flare; after that it burns and gutters
+      const emerge = THREE.MathUtils.smoothstep(riseT, 0, 1.1);
+      rig.rotation.x = -0.28 * (1 - emerge) + menace * 0.04;
       const flare = Math.max(0, 1 - riseT);
       glow.intensity = 34 + flare * 90 + Math.sin(t * 9.1) * 10;
-      rig.scale.setScalar(1.12 + flare * 0.16);
+      rig.scale.setScalar(1.12 + flare * 0.1);
+      tail.scale.setScalar(Math.max(tail.scale.x, 0.1, emerge));
+      for (const h of horns) h.scale.setScalar(Math.max(h.scale.x, 0.12, emerge));
+      for (let k = 0; k < tailJoints.length; k++) {
+        tailJoints[k].rotation.z = Math.sin(t * 3.4 - k * 0.6) * 0.22;
+        tailJoints[k].rotation.x = -0.16 + Math.sin(t * 2.1 - k * 0.45) * 0.12;
+      }
     } else {
-      halo.rotation.z += dt * 0.9;
-      halo.position.y = headY + 0.26 + Math.sin(t * 2.1) * 0.03;
+      rig.rotation.x = 0;
+      halo.rotation.z += step * 0.9;
+      halo.position.set(headDetails.position.x, headDetails.position.y + 0.26 + Math.sin(t * 2.1) * 0.025, headDetails.position.z);
       glow.intensity = 34 + Math.sin(t * 1.7) * 7;
     }
   };

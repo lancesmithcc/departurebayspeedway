@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { TEX } from './textures.js';
 import { clamp } from './util.js';
+import { streetProfile } from './street-profile.js';
 
 function ribbon(pts, elev, halfW, yOff) {
   // builds a flat ribbon following polyline; returns BufferGeometry in XZ with y from elev
@@ -74,7 +75,7 @@ export function buildRoads(map, terrain) {
           let dx = pts[i + 1][0] - pts[i][0], dz = pts[i + 1][1] - pts[i][1];
           const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
           const px = -dz, pz = dx;
-          const w = 0.14;
+          const w = 0.065;
           const a0 = offA - w, a1 = offA + w;
           const pos = [
             x0 + px * a1, e0 + 0.1, z0 + pz * a1,
@@ -93,11 +94,13 @@ export function buildRoads(map, terrain) {
     };
     const solid = (off) => dashes('solid', white, off); // dash with 55% duty looks broken; use full duty
     // full-duty variant
-    const solidLine = (off, color = white) => {
+    const solidLine = (off, color = white, accept = () => true) => {
       for (let i = 0; i < pts.length - 1; i++) {
+        const station = r.stations ? (r.stations[i] + r.stations[i + 1]) / 2 : 0;
+        if (!accept(streetProfile(station))) continue;
         let dx = pts[i + 1][0] - pts[i][0], dz = pts[i + 1][1] - pts[i][1];
         const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
-        const px = -dz, pz = dx, w = 0.15;
+        const px = -dz, pz = dx, w = 0.065;
         const pos = [
           pts[i][0] + px * (off + w), e[i] + 0.1, pts[i][1] + pz * (off + w),
           pts[i][0] + px * (off - w), e[i] + 0.1, pts[i][1] + pz * (off - w),
@@ -128,14 +131,17 @@ export function buildRoads(map, terrain) {
     const isDivided = !isDepartureBay && (r.c === 'trunk' || r.c === 'motorway' || r.c === 'primary');
     if (r.w >= 5.8) {
       if (isDepartureBay) {
-        solidLine(-0.18, yellow);
-        solidLine(0.18, yellow);
-        // These read as the real shoulder / parking / cycle-lane boundaries. Some
-        // short driveway pieces omit them in life, but a continuous line is far less
-        // misleading than the old yellow road edges at riding speed.
+        solidLine(0, yellow, p => p.center === 'single');
+        solidLine(-0.13, yellow, p => p.center === 'double');
+        solidLine(0.13, yellow, p => p.center === 'double');
+        solidLine(-1.65, yellow, p => p.center === 'turn-lane');
+        solidLine(1.65, yellow, p => p.center === 'turn-lane');
+        if (r.stations && Math.max(...r.stations) <= 507) {
+          dashes('dash', yellow, -1.4); dashes('dash', yellow, 1.4);
+        }
         if (r.w >= 7.5) {
-          solidLine(r.w / 2 - 0.38, white);
-          solidLine(-(r.w / 2 - 0.38), white);
+          solidLine(r.w / 2 - 0.28, white, p => p.edgeLines);
+          solidLine(-(r.w / 2 - 0.28), white, p => p.edgeLines);
         }
       } else if (isDivided) {
         // white edge lines + dashed lane dividers at quarters
@@ -149,7 +155,7 @@ export function buildRoads(map, terrain) {
   }
 
   const group = new THREE.Group();
-  const asphaltMat = new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.94, metalness: 0 });
+  const asphaltMat = new THREE.MeshStandardMaterial({ map: TEX.asphalt, bumpMap: TEX.asphalt, bumpScale: 0.025, roughness: 0.91, metalness: 0 });
   const merged = mergeGeometries(roadGeos, false);
   const roadMesh = new THREE.Mesh(merged, asphaltMat);
   roadMesh.receiveShadow = true;

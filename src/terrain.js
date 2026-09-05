@@ -8,6 +8,7 @@ const W = CFG.world;
 export class Terrain {
   constructor(map) {
     this.map = map;
+    this.elevationGrid = map.elevationGrid || null;
     this.routeElevation = Array.isArray(map.routeElevation) && map.routeElevation.length === map.route.length
       ? map.routeElevation : null;
     this.routeElevationOffsets = Array.isArray(map.routeElevationOffsets) ? map.routeElevationOffsets : null;
@@ -195,6 +196,14 @@ export class Terrain {
   }
 
   applyRouteSurvey(x, z, h) {
+    const elevation = this.elevationGrid?.sample(x, z);
+    if (elevation != null) {
+      const edge = this.elevationGrid.edgeDistance(x, z);
+      if (edge >= 45) return elevation;
+      const survey = this.surveyedElevationNear(x, z);
+      const fallback = survey && survey.d < 220 ? lerp(survey.e, h, smoothstep(180, 220, survey.d)) : h;
+      return lerp(fallback, elevation, smoothstep(0, 45, edge));
+    }
     const survey = this.surveyedElevationNear(x, z);
     if (!survey || survey.d >= 220) return h;
     // The 1 m HRDEM cross-sections cover the entire visible street corridor. Keep the
@@ -364,11 +373,12 @@ export class Terrain {
     // wins, so levelling a lawn can never lift grass over the asphalt beside it
     if (this.pads && this.pads.length) h = this.applyPads(x, z, h);
     const nr = this.nearestRoad(x, z);
-    if (nr && nr.d < nr.seg.hw + 15) {
+    const apron = this.elevationGrid?.sample(x,z) != null ? 7 : 15;
+    if (nr && nr.d < nr.seg.hw + apron) {
       // Carve the ground below the deck, not level with it. The terrain grid is ~15 m
       // per cell, so a surface that only just touches the road interpolates *above* it
       // between samples and grass ends up covering the asphalt.
-      const t = smoothstep(nr.seg.hw + 15, nr.seg.hw + 3, nr.d);
+      const t = smoothstep(nr.seg.hw + apron, nr.seg.hw + 1.5, nr.d);
       const { t: st } = distPointToSeg(x, z, nr.seg.ax, nr.seg.az, nr.seg.bx, nr.seg.bz);
       let roadE = lerp(nr.seg.ea, nr.seg.eb, st);
       // Where roads meet, the nearest one is not always the lowest: an adjacent deck
@@ -412,9 +422,14 @@ export class Terrain {
   // that is not really where the maths says it is. This reads the same triangles the
   // eye sees, out of the cache buildMesh() leaves behind.
   meshHeight(x, z) {
-    const h = this.meshHeights;
-    if (!h) return null;
-    const { sx, sz, x0, z0, dx, dz, nx } = this.meshGrid;
+    const fine = this.detailGrid;
+    const useFine = fine && x >= fine.x0 && x <= fine.x1 && z >= fine.z0 && z <= fine.z1;
+    return this.gridHeight(x,z,useFine ? fine : this.meshGrid,useFine ? this.detailHeights : this.meshHeights);
+  }
+
+  gridHeight(x,z,grid,h) {
+    if (!h || !grid) return null;
+    const { sx, sz, x0, z0, dx, dz, nx } = grid;
     const fi = clamp((x - x0) / dx, 0, sx), fj = clamp((z - z0) / dz, 0, sz);
     const i = Math.min(sx - 1, Math.floor(fi)), j = Math.min(sz - 1, Math.floor(fj));
     const tx = fi - i, tz = fj - j;
@@ -436,8 +451,25 @@ export class Terrain {
   }
 
   buildMesh() {
-    const sx = W.segX, sz = W.segZ;
-    const x0 = W.terrainMinX, x1 = W.terrainMaxX, z0 = W.terrainMinZ, z1 = W.terrainMaxZ;
+    const dx=(W.terrainMaxX-W.terrainMinX)/W.segX, dz=(W.terrainMaxZ-W.terrainMinZ)/W.segZ;
+    // The rectangle snaps to coarse cell edges; detail vertices on the perimeter
+    // interpolate those same coarse triangles, avoiding gaps/T-junction cracks.
+    let detail=null;
+    if(this.elevationGrid) {
+      const e=this.elevationGrid;
+      const i0=Math.ceil((e.x0+65-W.terrainMinX)/dx), i1=Math.floor((e.x1-65-W.terrainMinX)/dx);
+      const j0=Math.ceil((e.z0+65-W.terrainMinZ)/dz), j1=Math.floor((e.z1-65-W.terrainMinZ)/dz);
+      detail={i0,i1,j0,j1,x0:W.terrainMinX+i0*dx,x1:W.terrainMinX+i1*dx,z0:W.terrainMinZ+j0*dz,z1:W.terrainMinZ+j1*dz,sx:(i1-i0)*4,sz:(j1-j0)*4};
+    }
+    this.detailBounds=detail;
+    const coarse=this.buildGridMesh({sx:W.segX,sz:W.segZ,x0:W.terrainMinX,x1:W.terrainMaxX,z0:W.terrainMinZ,z1:W.terrainMaxZ},false);
+    if(!detail)return coarse;
+    const fine=this.buildGridMesh(detail,true);
+    const group=new THREE.Group();group.name='LiDAR terrain with detailed road corridor';group.add(coarse,fine);return group;
+  }
+
+  buildGridMesh(bounds,isDetail) {
+    const {sx,sz,x0,x1,z0,z1}=bounds;
     const nx = sx + 1, nz = sz + 1;
     const pos = new Float32Array(nx * nz * 3);
     const col = new Float32Array(nx * nz * 3);
@@ -453,7 +485,12 @@ export class Terrain {
       for (let i = 0; i < nx; i++) {
         const x = x0 + i * dx, z = z0 + j * dz;
         const idx = j * nx + i;
-        heights[idx] = this.groundHeight(x, z);
+        let h=this.groundHeight(x,z);
+        if(isDetail) {
+          const edge=Math.min(x-x0,x1-x,z-z0,z1-z);
+          if(edge<12)h=lerp(this.gridHeight(x,z,this.meshGrid,this.meshHeights),h,smoothstep(0,12,edge));
+        }
+        heights[idx] = h;
         sds[idx] = this.seaSignedDist(x, z);
       }
     }
@@ -491,10 +528,13 @@ export class Terrain {
     }
     // keep the sampled grid: meshHeight() reads it so anything that walks on the
     // terrain stands on the triangles that are drawn rather than the analytic surface
-    this.meshHeights = heights;
-    this.meshGrid = { sx, sz, x0, z0, dx, dz, nx };
+    const grid={sx,sz,x0,x1,z0,z1,dx,dz,nx};
+    if(isDetail){this.detailHeights=heights;this.detailGrid=grid;}
+    else {this.meshHeights=heights;this.meshGrid=grid;}
     const idxArr = [];
     for (let j = 0; j < sz; j++) for (let i = 0; i < sx; i++) {
+      const hole=this.detailBounds;
+      if(!isDetail && hole && i>=hole.i0 && i<hole.i1 && j>=hole.j0 && j<hole.j1)continue;
       const a = j * nx + i, b = a + 1, c = a + nx, d2 = c + 1;
       idxArr.push(a, c, b, b, c, d2);
     }

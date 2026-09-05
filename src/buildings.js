@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Grid, pointInPoly, clamp, CFG } from './util.js';
 import { TEX } from './textures.js';
 
-const HOUSE_COLORS = ['#d8cfc0', '#cfd6d2', '#c9b8a3', '#b9c4c9', '#d6c6b0', '#c4b39c', '#aebfb4', '#d9d2c5', '#b8a88f', '#9fb3a6'];
+const HOUSE_COLORS = ['#b4aa97', '#a5b0ab', '#a88b72', '#8cabb8', '#c4b798', '#988675', '#839784', '#cdc7b7', '#a28d70', '#7b9085'];
 const COMM_COLORS = ['#c6c2b8', '#b9bcbf', '#cfc8ba', '#a9b0b5', '#bdb3a4'];
 const ROOF_COLORS = ['#4a4642', '#5a5048', '#3f4245', '#6b5b4d', '#54604f', '#5f5148'];
 const HOUSE_TYPES = new Set(['house', 'detached', 'semidetached_house', 'yes', 'garage', 'hut', 'barn', 'boathouse', 'outbuilding', 'shed']);
@@ -135,12 +135,12 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
     let cx = 0, cz = 0;
     for (const p of pts) { cx += p[0]; cz += p[1]; }
     cx /= pts.length; cz /= pts.length;
-    const gy = terrain.groundHeight(cx, cz);
+    const gy = terrain.meshHeight(cx, cz) ?? terrain.groundHeight(cx, cz);
     const random = buildingRandom(cx, cz);
     const pick = values => values[Math.floor(random() * values.length) % values.length];
     // OSM uses building=yes for many shops. Named footprints are landmarks or
     // commercial unless their type explicitly says residential.
-    const isHouse = b.h < 7.5 && HOUSE_TYPES.has(b.t) && !b.n;
+    const isHouse = b.h < 11 && (HOUSE_TYPES.has(b.t) || b.t === 'residential') && !b.n;
     const wantsPitched = isHouse || PITCHED_TYPES.has(b.t);
     const palette = LANDMARK_PALETTE[b.n];
     wallColor.set(palette ? palette[0] : (isHouse ? pick(HOUSE_COLORS) : pick(COMM_COLORS)));
@@ -170,7 +170,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
       ru0 = Math.min(ru0, pu); ru1 = Math.max(ru1, pu); rv0 = Math.min(rv0, pv); rv1 = Math.max(rv1, pv);
     }
     const rectangularity = Math.abs(area2) * 0.5 / Math.max(1, (ru1 - ru0) * (rv1 - rv0));
-    const isPitched = wantsPitched && pts.length <= 8 && rectangularity >= 0.76;
+    const isPitched = wantsPitched && rectangularity >= 0.84;
     const roofAllowance = isPitched ? (b.t === 'apartments' ? 1.35 : 1.9) : 0;
     const wallTop = Math.max(2.8, b.h - roofAllowance);
 
@@ -191,7 +191,10 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
       pos.push(a[0], baseY, a[1], c[0], baseY, c[1], c[0], topY, c[1], a[0], topY, a[1]);
       norm.push(nx, 0, nz, nx, 0, nz, nx, 0, nz, nx, 0, nz);
       const tile = isHouse ? 3.0 : 3.3;
-      const u0 = 0, u1 = len / tile, v0 = baseY / tile, v1 = topY / tile;
+      // Whole window rows stop below the eaves, including short bungalows.
+      const storeys = Math.max(1, Math.round(wallTop / 2.8));
+      const floorHeight = wallTop / storeys;
+      const u0 = 0, u1 = Math.max(1,Math.round(len / tile)), v0 = -1.6 / floorHeight, v1 = storeys;
       uv.push(u0, v0, u1, v0, u1, v1, u0, v1);
       for (let k = 0; k < 4; k++) col.push(wallColor.r, wallColor.g, wallColor.b);
       idx.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);

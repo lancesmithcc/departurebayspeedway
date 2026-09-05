@@ -23,20 +23,20 @@ export function buildTextures() {
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       // weathered grey asphalt, not fresh black tar
       const n = fbm(x * 0.14, y * 0.14, 4), n2 = fbm(x * 0.03 + 40, y * 0.03, 3);
-      const v = 104 + n * 30 + n2 * 20;
+      const v = 88 + n * 16 + n2 * 6 + rand(-5,5);
       const i = (y * w + x) * 4;
       d[i] = v; d[i + 1] = v + 1; d[i + 2] = v + 2;
     }
     g.putImageData(img, 0, 0);
     // patches
     for (let i = 0; i < 14; i++) {
-      g.fillStyle = `rgba(${58 + Math.random() * 26 | 0},${58 + Math.random() * 26 | 0},${60 + Math.random() * 26 | 0},0.16)`;
+      g.fillStyle = `rgba(${58 + Math.random() * 26 | 0},${58 + Math.random() * 26 | 0},${60 + Math.random() * 26 | 0},0.07)`;
       g.beginPath();
       g.ellipse(rand(0, w), rand(0, h), rand(24, 90), rand(18, 60), rand(0, 6.3), 0, 6.3);
       g.fill();
     }
     // cracks
-    g.strokeStyle = 'rgba(52,52,55,0.55)'; g.lineWidth = 1.2;
+    g.strokeStyle = 'rgba(38,39,40,0.32)'; g.lineWidth = 0.7;
     for (let i = 0; i < 8; i++) {
       g.beginPath();
       let x = rand(0, w), y = rand(0, h);

@@ -307,18 +307,22 @@ export class Peds {
   standHeight(x, z, i, side) {
     const ground = this.stand(x, z);
     if (i === undefined || !side) return ground;
-    const idx = Math.round(clamp(i, 0, this.corridor.pts.length - 1));
-    // Only where a slab was actually laid. Over the gravel-shouldered stretches this
-    // was inventing one, and on the banked verge above the Circle K that stood people
-    // a metre and a half clear of the ground they were walking on.
-    if (!hasSidewalk(this.corridor.cum[idx], side)) return ground;
-    const e = this.corridor.edgePoint(idx, side);
-    // and only when they are on it: it is 1.7 m wide, laid just outside the edge
-    if (Math.hypot(x - e[0], z - e[1]) > 2.4) return ground;
-    const walkTop = this.terrain.groundHeight(e[0], e[1]) + 0.28;
-    // whichever surface is actually on top: the slab where it stands proud of the
-    // verge, the verge where the slab is cut into a bank
-    return Math.max(ground, walkTop);
+    // Match the sloped slab segments in buildRoadEdges, rather than snapping
+    // an entire walker's height to the closest route vertex on a steep hill.
+    const idx = Math.floor(clamp(i, 0, this.corridor.pts.length - 2));
+    let top = ground;
+    for (let k = Math.max(0, idx - 1); k <= Math.min(this.corridor.pts.length - 2, idx + 1); k++) {
+      const station = (this.corridor.cum[k] + this.corridor.cum[k + 1]) / 2;
+      if (!hasSidewalk(station, side)) continue;
+      const a = this.corridor.edgePoint(k, side), b = this.corridor.edgePoint(k + 1, side);
+      const dx = b[0] - a[0], dz = b[1] - a[1], len2 = dx * dx + dz * dz;
+      const f = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / (len2 || 1), 0, 1);
+      if (Math.hypot(x - a[0] - dx * f, z - a[1] - dz * f) > 1.9) continue;
+      const ya = this.terrain.meshHeight(a[0], a[1]) ?? this.terrain.groundHeight(a[0], a[1]);
+      const yb = this.terrain.meshHeight(b[0], b[1]) ?? this.terrain.groundHeight(b[0], b[1]);
+      top = Math.max(top, ya + (yb - ya) * f + 0.28);
+    }
+    return top;
   }
 
   // A named character with its own model instead of an instanced slot. It carries the
