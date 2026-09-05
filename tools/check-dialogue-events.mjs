@@ -1,0 +1,15 @@
+import {register} from 'node:module';
+import assert from 'node:assert/strict';
+const base=new URL('../',import.meta.url).href;
+register('data:text/javascript,'+encodeURIComponent(`export async function resolve(s,c,next){if(s==='three')return {url:${JSON.stringify(base)}+'lib/build/three.module.js',shortCircuit:true};if(s.startsWith('three/addons/'))return {url:${JSON.stringify(base)}+'lib/examples/jsm/'+s.slice(13),shortCircuit:true};return next(s,c)}`),import.meta.url);
+const {Peds}=await import('../src/peds.js');
+const {Game}=await import('../src/game.js');
+const calls=[];
+const p=Object.create(Peds.prototype);
+Object.assign(p,{audio:{dialogue:(...a)=>calls.push(a),splat(){}},voiceCool:0,effects:null,dropDecal(){},onSplat(){},onBump(){},variants:[{url:'/assets/peds/person-2.glb'}]});
+const person=()=>({variant:0,slot:2,x:0,y:0,z:0,heading:0});
+p.splat(person());assert.equal(calls.at(-1)[0],'bar');assert.equal(calls.at(-1)[1].voiceGender,'female');
+p.voiceCool=0;p.bump(person(),{v:8,heading:0,pos:{x:0,z:0}});assert.equal(calls.at(-1)[0],'bike');assert.equal(calls.at(-1)[1].voiceGender,'female');
+p.voiceCool=9;p.splat({...person(),special:true,name:'jesus',risen:true,voiceGender:'male'});assert.equal(calls.at(-1)[1].persona,'satan');assert.equal(calls.at(-1)[2],3);
+const g=Object.create(Game.prototype);Object.assign(g,{player:{trickScore:0},el:{},audio:p.audio});g.onBarHit({type:'rcmp',slot:1});assert.equal(calls.at(-1)[0],'bar');assert.equal(calls.at(-1)[1].driver,true);assert.equal(calls.at(-1)[1].voiceGender,'female');assert.equal(g.player.trickScore,75);
+console.log(JSON.stringify({result:'PASS',checks:['actual bike/bar dispatch','gender after missing model','named hit cooldown bypass','driver bar dialogue and scoring']}));

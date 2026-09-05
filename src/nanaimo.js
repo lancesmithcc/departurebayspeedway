@@ -1,24 +1,8 @@
 // nanaimo.js — throw Nanaimo bars at traffic: splat, swerve, crash
 import * as THREE from 'three';
 import { TEX } from './textures.js';
+import { createNanaimoBar } from './pickup-models.js';
 import { clamp, rand, choice } from './util.js';
-
-// a Nanaimo bar: chocolate top, custard middle, coconut-graham base
-function barGeometry() {
-  const parts = [];
-  const choco = new THREE.MeshStandardMaterial({ color: 0x3a2412, roughness: 0.55 });
-  const custard = new THREE.MeshStandardMaterial({ color: 0xf2cf6e, roughness: 0.6 });
-  const base = new THREE.MeshStandardMaterial({ color: 0xe9dfc6, roughness: 0.8 });
-  const mk = (y, h, mat) => {
-    const g = new THREE.BoxGeometry(0.3, h, 0.22);
-    g.translate(0, y, 0);
-    parts.push({ g, mat });
-  };
-  mk(0.03, 0.05, base);
-  mk(0.085, 0.06, custard);
-  mk(0.155, 0.07, choco);
-  return parts;
-}
 
 export class BarThrower {
   constructor(scene, opts) {
@@ -35,14 +19,8 @@ export class BarThrower {
 
     // bar pool
     this.bars = [];
-    const proto = barGeometry();
     for (let i = 0; i < 14; i++) {
-      const g = new THREE.Group();
-      for (const p of proto) {
-        const m = new THREE.Mesh(p.g, p.mat);
-        m.castShadow = true;
-        g.add(m);
-      }
+      const g = createNanaimoBar();
       g.visible = false;
       scene.add(g);
       this.bars.push({ mesh: g, active: false, pos: new THREE.Vector3(), vel: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0 });

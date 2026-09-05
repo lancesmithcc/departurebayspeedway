@@ -1,3 +1,7 @@
+import {UPPER_BUILDING_IDS,buildReferenceUpperBuilding} from './reference-upper-street.js';
+import {SCHOOL_IDS,buildReferenceSchool} from './reference-schools.js';
+import {REFERENCE_LOWER_NAMES,buildReferenceLowerBuilding} from './reference-lower-street.js';
+import {buildReferenceApartment,REFERENCE_APARTMENT_ID} from './reference-apartment.js';
 // buildings.js — extrude real OSM footprints, merged sector meshes
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -59,6 +63,24 @@ function uniform(g) {
   return g;
 }
 
+// Close custom-building foundations against the same rendered terrain as traffic.
+function customFoundation(pts,gy,terrain){
+  const parts=[];
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1],b=pts[i],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz),steps=Math.ceil(len/2);
+    for(let j=0;j<steps;j++){
+      const x=a[0]+dx*(j+.5)/steps,z=a[1]+dz*(j+.5)/steps;
+      const y=terrain.meshHeight(x,z)??terrain.groundHeight(x,z);
+      if(gy-y<.12)continue;
+      const h=gy-y+.18,g=new THREE.BoxGeometry(len/steps+.035,h,.18);
+      g.rotateY(Math.atan2(-dz,dx));g.translate(x,gy-h/2+.035,z);parts.push(g);
+    }
+  }
+  if(!parts.length)return null;
+  const m=new THREE.Mesh(mergeGeometries(parts,false),new THREE.MeshStandardMaterial({color:0x8d8c80,roughness:1}));
+  m.name='Terrain-contact foundation';m.castShadow=m.receiveShadow=true;parts.forEach(g=>g.dispose());return m;
+}
+
 export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
   const SEC = 4;
   const W = CFG.world;
@@ -70,6 +92,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
   const wallColor = new THREE.Color();
   const roofColor = new THREE.Color();
   let placed = 0;
+  const authored=[];
 
   // Some OSM footprints (the mall canopy at the start, a few carports) reach out over
   // the carriageway. Push any vertex that lands inside the driving corridor back to
@@ -129,13 +152,25 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
   };
 
   for (const b of map.buildings) {
+    const customBuilder=b.cityId===REFERENCE_APARTMENT_ID?buildReferenceApartment:
+      UPPER_BUILDING_IDS.has(b.cityId)?buildReferenceUpperBuilding:
+      SCHOOL_IDS.includes(b.cityId)?buildReferenceSchool:
+      REFERENCE_LOWER_NAMES.includes(b.n)?buildReferenceLowerBuilding:null;
     const pts = trimToCorridor(b.p);
     if (!pts) continue;                        // the road runs through it
-    if (skipNear.some(s => Math.hypot(pts[0][0] - s[0], pts[0][1] - s[1]) < 40)) continue;
+    if (!customBuilder && skipNear.some(s => Math.hypot(pts[0][0] - s[0], pts[0][1] - s[1]) < 40)) continue;
     let cx = 0, cz = 0;
     for (const p of pts) { cx += p[0]; cz += p[1]; }
     cx /= pts.length; cz /= pts.length;
     const gy = terrain.meshHeight(cx, cz) ?? terrain.groundHeight(cx, cz);
+    if(customBuilder && corridor){
+      const model=customBuilder(b,terrain,corridor);
+      if(!SCHOOL_IDS.includes(b.cityId)){const base=customFoundation(b.p,gy,terrain);if(base)model.add(base);}
+      authored.push(model);
+      const xs=pts.map(p=>p[0]),zs=pts.map(p=>p[1]);
+      buildingGrid.insertAABB(Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs),{pts,x0:Math.min(...xs),x1:Math.max(...xs),z0:Math.min(...zs),z1:Math.max(...zs),h:model.userData.roofParts?Math.max(...model.userData.roofParts.map(p=>p.h)):b.h,gy});
+      placed++;continue;
+    }
     const random = buildingRandom(cx, cz);
     const pick = values => values[Math.floor(random() * values.length) % values.length];
     // OSM uses building=yes for many shops. Named footprints are landmarks or
@@ -340,6 +375,7 @@ export function buildBuildings(map, terrain, skipNear = [], corridor = null) {
   const roofMat = new THREE.MeshStandardMaterial({ map: TEX.shingle, vertexColors: true, roughness: 0.95, metalness: 0.02, side: THREE.DoubleSide });
   const trimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05, side: THREE.DoubleSide });
   const group = new THREE.Group();
+  authored.forEach(model=>group.add(model));
   const addMesh = (geos, mat) => {
     if (!geos.length) return;
     const m = new THREE.Mesh(mergeGeometries(geos.map(uniform), false), mat);

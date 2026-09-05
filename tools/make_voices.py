@@ -3,6 +3,7 @@
 # Model files land in tools/kokoro/ (int8 quantized, ~80 MB, downloaded once).
 import os
 import sys
+import json
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -114,7 +115,11 @@ def main():
 
     import numpy as np
 
-    for entry in LINES:
+    source = open(os.path.join(os.path.dirname(HERE), 'src', 'dialogue-lines.js')).read()
+    dialogue = json.loads(source.split('export default ', 1)[1].strip().rstrip(';'))
+    extra = [(r['key'], r['voice'], r['text'], {'pitch': r.get('pitch', 1)}) for r in dialogue]
+    entries = extra if '--dialogue-only' in sys.argv else LINES + extra
+    for entry in entries:
         key, voice, text = entry[:3]
         opts = entry[3] if len(entry) > 3 else {}
         pitch = opts.get("pitch", 1.0)

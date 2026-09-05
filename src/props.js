@@ -1,3 +1,5 @@
+import {buildReferenceSchoolBoard} from './reference-schools.js';
+import { addChurchCharacterDetail } from './church-character-detail.js';
 import { surveyedTreeGeometry, leafSprayTexture } from './surveyed-tree-geometry.js';
 import { streetProfile } from './street-profile.js';
 // props.js — trees, streetlights, docks, ferries, gas station, landmark signs, beach clutter
@@ -1124,62 +1126,19 @@ export function buildReaderBoard(corridor, terrain, anchorPos, tex, opts = {}) {
   return { group: g, crossing: [base[0], base[1]], index: i, side };
 }
 
-// ---------- an elementary school: landmark block + school zone ----------
-// Both schools on the route are the same 1970s sprawl — single-storey ranges around a
-// gym, a reader board out at the kerb and a painted crossing in front of it — so they
-// come off one builder and differ only in colours, name board and how far back the
-// site sits. Returns { group, crossing } — crossing is the point on the road the kids
-// shuttle across.
+// ---------- school crossings and compact roadside boards ----------
+// Architectural geometry is built separately from the mapped City footprints.
 export function buildElementarySchool(map, corridor, terrain, opts = {}) {
   const pos = opts.pos || [-2360, -1410];
   const g = new THREE.Group();
   const [px, pz] = pos;
-  const gy = terrain.groundHeight(px, pz);
   const pr = corridor.projectExact(px, pz);
-  const [nx, nz] = corridor.normalAt(pr.i);
   const side = Math.sign(pr.lat) || 1;
-  const tan = corridor.tan[pr.i];
-  const faceAng = Math.atan2(-nx * side, -nz * side);       // front toward the road
-
-  const brick = new THREE.MeshStandardMaterial({ color: opts.brick ?? 0xa8593f, roughness: 0.92 });
-  const cream = new THREE.MeshStandardMaterial({ color: 0xe6dfcd, roughness: 0.85 });
-  const green = new THREE.MeshStandardMaterial({ color: opts.band ?? 0x1d5b3a, roughness: 0.7 });
-  const roofM = new THREE.MeshStandardMaterial({ color: 0x585d62, roughness: 0.9, metalness: 0.2 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x27414f, roughness: 0.2, metalness: 0.5 });
-
-  const put = (mesh, ax, ay, az) => {
-    // ax across the frontage, az back from the road
-    mesh.position.set(px + tan[0] * ax - nx * side * az, ay, pz + tan[1] * ax - nz * side * az);
-    mesh.rotation.y = faceAng;
-    g.add(mesh);
-    return mesh;
-  };
-  // single-storey ranges around a gym, the way these 1970s elementary schools sprawl
-  put(box(46, 5.4, 15, cream), 0, gy + 2.7, 16);
-  put(box(46.4, 0.7, 15.4, roofM), 0, gy + 5.7, 16);
-  put(box(22, 7.6, 18, brick), -30, gy + 3.8, 20);            // gym
-  put(box(22.4, 0.8, 18.4, roofM), -30, gy + 7.9, 20);
-  put(box(18, 4.6, 12, cream), 26, gy + 2.3, 14);             // kindergarten wing
-  put(box(18.4, 0.7, 12.4, roofM), 26, gy + 4.9, 14);
-  put(box(46.6, 1.1, 15.6, green), 0, gy + 1.2, 16);          // colour band
-  for (let i = -2; i <= 2; i++) put(box(7.2, 1.6, 0.3, glass), i * 8.6, gy + 3.4, 8.6);
-  // covered entry
-  put(box(9, 0.4, 4, green), 6, gy + 4.4, 7.2);
-  for (const s of [-1, 1]) put(cyl(0.16, 0.16, 4.2, cream, 8), 6 + s * 4, gy + 2.1, 5.6);
-  // playground: a little climbing frame and a ball court
-  const court = new THREE.Mesh(new THREE.BoxGeometry(26, 0.12, 18),
-    new THREE.MeshStandardMaterial({ map: TEX.concrete, roughness: 0.95 }));
-  put(court, 30, gy + 0.06, 34);
-  for (const s of [-1, 1]) {
-    const hoop = cyl(0.09, 0.09, 3.2, new THREE.MeshStandardMaterial({ color: 0x8d9298, roughness: 0.6 }), 6);
-    put(hoop, 30 + s * 11, gy + 1.6, 34);
-  }
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-
+  // School massing now comes from the City footprint in buildBuildings.
   // the reader board out on the road, and the crossing it guards
-  const board = buildReaderBoard(corridor, terrain, pos, opts.tex || TEX.rockCity, {
-    width: 7.8, height: 3.4, postColor: 0x6b5a45, trimColor: opts.band ?? 0x1d5b3a, setback: 3.6,
-  });
+  const board = {group:buildReferenceSchoolBoard(corridor,terrain,
+    Math.abs(px+2360)<1?'rockCity':'departureBay',opts.tex||TEX.rockCity),
+    index:pr.i,side,crossing:corridor.pts[pr.i]};
   g.add(board.group);
 
   // painted school crossing across the corridor, plus zone signs on both approaches
@@ -1539,7 +1498,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   robeMat.userData.holyColor = new THREE.Color(0xeee7d5);
   robeMat.userData.damnedColor = new THREE.Color(0x39090d);
   characterMaterials.push(robeMat);
-  const robeGeo = new THREE.CylinderGeometry(0.18,0.31,0.83,40,4,true);
+  const robeGeo = new THREE.CylinderGeometry(0.18,0.31,0.83,64,14,true);
   const robePositions = robeGeo.attributes.position;
   for(let i=0;i<robePositions.count;i++) {
     const x=robePositions.getX(i),z=robePositions.getZ(i),y=robePositions.getY(i);
@@ -1580,6 +1539,18 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     const panel = new THREE.Mesh(new THREE.BoxGeometry(0.1, jH * 0.145, 0.026), sash);
     panel.position.y = -jH * 0.07;
     joint.add(panel);
+    for (const edge of [-1, 1]) {
+      const stitch = new THREE.Mesh(new THREE.BoxGeometry(.004, jH * .14, .003), rope);
+      stitch.position.set(edge * .044, 0, .0145);
+      panel.add(stitch);
+    }
+    if (k === 0) {
+      for (const [w, h] of [[.027, .004], [.004, .039]]) {
+        const embroidery = new THREE.Mesh(new THREE.BoxGeometry(w, h, .003), rope);
+        embroidery.position.set(0, 0, .0145);
+        panel.add(embroidery);
+      }
+    }
     clothParent.add(joint);
     clothParent = joint;
     stoleJoints.push(joint);
@@ -1588,7 +1559,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   girdle.rotation.x = Math.PI / 2;
   girdle.position.y = jH * 0.52;
   rig.add(girdle);
-  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.04, 8, 22),
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.021, 12, 64),
     new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb400, emissiveIntensity: 1.1, roughness: 0.3, metalness: 0.5 }));
   halo.rotation.x = Math.PI / 2 - 0.25;
   halo.position.y = headY + 0.26;
@@ -1619,7 +1590,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   for (let k = 0; k < 7; k++) {
     const joint = new THREE.Group();
     joint.position.y = k ? 0.13 : 0;
-    const segment = new THREE.Mesh(new THREE.CylinderGeometry(0.036 - k * 0.0035, 0.04 - k * 0.0035, 0.145, 6), tailMat);
+    const segment = new THREE.Mesh(new THREE.CylinderGeometry(0.036 - k * 0.0035, 0.04 - k * 0.0035, 0.145, 12), tailMat);
     segment.position.y = 0.065;
     joint.add(segment);
     tailParent.add(joint);
@@ -1629,13 +1600,15 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
   const tip = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.18, 3), tailMat);
   tip.position.y = 0.18;
   tailParent.add(tip);
+  hair.visible=false;beard.visible=false;tache.visible=false;
+  const characterDetail=addChurchCharacterDetail({headDetails,rig,robe,sash,halo,horns,characterMaterials});
   jesus.position.set(jx, jgy, jz);
   jesus.rotation.y = faceAng + Math.PI;
   jesus.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   g.add(jesus);
   // enough to read as a halo, not enough to blow his face out under the bloom pass.
   // Parented to the rig, so when he goes down the light goes down with him.
-  const glow = new THREE.PointLight(0xfff0b8, 34, 22, 2);
+  const glow = new THREE.PointLight(0xfff0b8, 7, 12, 2);
   glow.position.set(0, jH + 0.7, 0);
   rig.add(glow);
 
@@ -1713,6 +1686,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     tail.visible = false;
     tail.scale.setScalar(1);
     jesusPhase = 0;
+    characterDetail.update(0,false,0);
     if (liveCharacter) liveCharacter.lastPosition.copy(jesus.position);
     headDetails.position.set(0, headY, 0);
     headDetails.quaternion.identity();
@@ -1728,7 +1702,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     halo.rotation.set(Math.PI / 2 - 0.25, 0, 0);
     halo.position.set(0, headY + 0.26, 0);
     glow.color.set(0xfff0b8);
-    glow.intensity = 34;
+    glow.intensity = 7;
     glow.distance = 22;
     rig.position.set(0, 0, 0);
     rig.rotation.set(0, 0, 0);
@@ -1879,6 +1853,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
     rig.position.y = liveCharacter ? 0 : Math.abs(Math.sin(jesusPhase * 0.5)) * 0.025;
     rig.rotation.y = Math.sin(t * (hell ? 1.1 : 0.42)) * (hell ? 0.2 : 0.1);
     rig.rotation.z = Math.sin(t * (hell ? 3.1 : 1.25)) * (hell ? 0.035 : 0.015);
+    characterDetail.update(t,hell,liveCharacter?.speed||0);
     robe.rotation.z = Math.sin(t * (hell ? 4.2 : 1.8)) * 0.025;
     robe.scale.z = 1 + Math.sin(jesusPhase) * (liveCharacter ? Math.min(0.16,liveCharacter.speed*0.055) : 0.03);
     for (let k = 0; k < stoleJoints.length; k++) {
@@ -1889,7 +1864,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
       const emerge = THREE.MathUtils.smoothstep(riseT, 0, 1.1);
       rig.rotation.x = -0.28 * (1 - emerge) + menace * 0.04;
       const flare = Math.max(0, 1 - riseT);
-      glow.intensity = 34 + flare * 90 + Math.sin(t * 9.1) * 10;
+      glow.intensity = 14 + flare * 25 + Math.sin(t * 9.1) * 3;
       rig.scale.setScalar(1.12 + flare * 0.1);
       tail.scale.setScalar(Math.max(tail.scale.x, 0.1, emerge));
       for (const h of horns) h.scale.setScalar(Math.max(h.scale.x, 0.12, emerge));
@@ -1901,7 +1876,7 @@ export function buildBaptistChurch(corridor, terrain, anchorPos, opts = {}) {
       rig.rotation.x = 0;
       halo.rotation.z += step * 0.9;
       halo.position.set(headDetails.position.x, headDetails.position.y + 0.26 + Math.sin(t * 2.1) * 0.025, headDetails.position.z);
-      glow.intensity = 34 + Math.sin(t * 1.7) * 7;
+      glow.intensity = 7 + Math.sin(t * 1.7) * 1.5;
     }
   };
 

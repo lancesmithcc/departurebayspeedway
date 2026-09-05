@@ -1,3 +1,4 @@
+import { PERSON_VOICES } from './dialogue.js';
 // peds.js — people on the sidewalks, kids crossing at the school zone, and the
 // congregation running around the Baptist church lawn.
 // They walk beside the corridor, they get out of the way, a Nanaimo bar puts them
@@ -810,12 +811,15 @@ export class Peds {
   // unbothered, mostly disappointed the hit was not more impressive. The party checks
   // first, so a child on the church lawn is congregation before it is a kid. Everybody
   // else on the road keeps the street lines they always had.
-  victimLine(ped) {
-    if (ped && ped.party) {
-      return `church_${this.jesusDead ? 'd' : 'a'}${1 + Math.floor(Math.random() * 8)}`;
-    }
-    if (ped && ped.kid) return `kid${1 + Math.floor(Math.random() * 10)}`;
-    return `ped${1 + Math.floor(Math.random() * 6)}`;
+  voiceSpeaker(ped) {
+    const url = this.variants?.[ped.variant || 0]?.url || '';
+    const authoredIndex = Number(url.match(/person-(\d+)\.glb/)?.[1]) - 1;
+    return {
+      voiceGender: ped.voiceGender || PERSON_VOICES[authoredIndex] || 'male',
+      voiceId: ped.special ? ped.name : `${ped.party ? 'party' : ped.kid ? 'kid' : 'street'}:${ped.variant}:${ped.slot}`,
+      kid: !!ped.kid, party: !!ped.party, hell: this.jesusDead,
+      persona: ped.name === 'jesus' ? (ped.risen ? 'satan' : 'jesus') : undefined,
+    };
   }
 
   // ---- a Nanaimo bar to the back of the head ----
@@ -847,9 +851,9 @@ export class Peds {
     // one pool on the pavement, one worn by the victim until they get up
     this.dropDecal(ped.x + fx * 1.4, ped.y, ped.z + fz * 1.4, rand(0.9, 1.35));
     this.dropDecal(ped.x, ped.y, ped.z, rand(0.7, 0.95), ped);
-    if (this.audio && this.voiceCool <= 0) {
+    if (this.audio && (ped.special || this.voiceCool <= 0)) {
       this.voiceCool = 1.6;
-      this.audio.voice(this.victimLine(ped), 0.9, 0.55, 1);
+      this.audio.dialogue('bar', this.voiceSpeaker(ped), ped.special ? 3 : 1);
     }
     if (ped.onDeath) ped.onDeath(ped);
     this.onSplat(ped);
@@ -882,9 +886,9 @@ export class Peds {
     }
     if (this.audio) {
       this.audio.splat && this.audio.splat();
-      if (this.voiceCool <= 0) {
+      if (ped.special || this.voiceCool <= 0) {
         this.voiceCool = 1.4;
-        this.audio.voice(this.victimLine(ped), 0.95, 0.55, 1);
+        this.audio.dialogue('bike', this.voiceSpeaker(ped), ped.special ? 3 : 1);
       }
     }
     if (ped.onDeath) ped.onDeath(ped);

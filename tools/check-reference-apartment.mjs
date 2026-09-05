@@ -1,0 +1,27 @@
+import {register} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const base=new URL('../',import.meta.url).href;
+register('data:text/javascript,'+encodeURIComponent(`export async function resolve(s,c,next){if(s==='three')return {url:${JSON.stringify(base)}+'lib/build/three.module.js',shortCircuit:true};if(s.startsWith('three/addons/'))return {url:${JSON.stringify(base)}+'lib/examples/jsm/'+s.slice(13),shortCircuit:true};return next(s,c)}`),import.meta.url);
+const {buildBuildings}=await import('../src/buildings.js');
+const {Corridor}=await import('../src/corridor.js');
+const {TEX}=await import('../src/textures.js');TEX.siding=TEX.facade=TEX.shingle=null;
+const map=JSON.parse(await readFile(new URL('../data/map.json',import.meta.url)));
+const city=JSON.parse(await readFile(new URL('../data/city-buildings.json',import.meta.url)));
+const b=city.buildings.find(b=>b.cityId===7037),before=JSON.stringify(b);
+// Rendering remains a browser check; the fake canvas supplies no image pixels.
+globalThis.document={createElement(){return {width:0,height:0,getContext(){return new Proxy({},{get:(o,k)=>o[k]??(()=>{}),set:(o,k,v)=>(o[k]=v,true)})}}}};
+const terrain={nearestRoad(){return null},meshHeight(x,z){return 90+x*.002+z*.003},groundHeight(x,z){return this.meshHeight(x,z)}};
+const corridor=new Corridor(map.route,terrain);
+map.buildings=[b];
+const result=buildBuildings(map,terrain,[map.circleK,map.fuelStation.p],corridor);
+const landmark=result.group.getObjectByName('Reference apartment and boundary wall');
+assert.ok(landmark,'gas station exclusion must not erase adjacent apartment');
+assert.equal(result.count,1);assert.equal(JSON.stringify(b),before,'survey footprint and height preserved');
+const x=b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z=b.p.reduce((s,p)=>s+p[1],0)/b.p.length;
+assert.ok(result.buildingGrid.query(x,z,4).length,'authored apartment retains collision footprint');
+let triangles=0;
+landmark.traverse(o=>{if(o.geometry){const g=o.geometry;assert.ok(g.attributes.position.array.every(Number.isFinite));assert.ok(g.attributes.normal.array.every(Number.isFinite));triangles+=(g.index?g.index.count:g.attributes.position.count)/3;}});
+assert.ok(triangles<150000,'landmark stays within geometry budget');
+console.log(JSON.stringify({result:'PASS',cityId:b.cityId,triangles,checks:['gas-station exclusion','survey preservation','collision registration','finite geometry']}));

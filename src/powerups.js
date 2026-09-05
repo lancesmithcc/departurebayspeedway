@@ -7,6 +7,7 @@
 // never has to explain a stack.
 import * as THREE from 'three';
 import { rand } from './util.js';
+import { createLuckyCase, createCoffee, createBarCrate, createBlessing } from './pickup-models.js';
 
 export const KINDS = {
   beer: {
@@ -43,76 +44,7 @@ export const KINDS = {
 const ORDER = ['beer', 'coffee', 'beer', 'bars', 'beer', 'blessed', 'coffee', 'bars', 'beer', 'blessed'];
 
 // ---------- the pickup models ----------
-function caseOfLucky() {
-  const g = new THREE.Group();
-  const card = new THREE.MeshStandardMaterial({ color: 0xb9873f, roughness: 0.95 });
-  const label = new THREE.MeshStandardMaterial({ color: 0xd6202c, roughness: 0.6, emissive: 0x3a0206 });
-  const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.72, 0.8), card);
-  g.add(box);
-  for (const s of [-1, 1]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.3, 0.02), label);
-    band.position.set(0, 0.02, s * 0.41);
-    g.add(band);
-  }
-  // necks poking out of the top, the way a torn case always looks
-  const glass = new THREE.MeshStandardMaterial({ color: 0x3f6a35, roughness: 0.25, metalness: 0.2 });
-  for (let i = 0; i < 4; i++) {
-    const n = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.3, 6), glass);
-    n.position.set(-0.36 + (i % 2) * 0.72, 0.5, -0.18 + Math.floor(i / 2) * 0.36);
-    g.add(n);
-  }
-  return g;
-}
-
-function doubleDouble() {
-  const g = new THREE.Group();
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.19, 0.7, 12),
-    new THREE.MeshStandardMaterial({ color: 0xefe6d8, roughness: 0.8 }));
-  g.add(cup);
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.265, 0.24, 0.24, 12),
-    new THREE.MeshStandardMaterial({ color: 0xb8322e, roughness: 0.6, emissive: 0x2a0605 }));
-  band.position.y = 0.06;
-  g.add(band);
-  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.28, 0.09, 12),
-    new THREE.MeshStandardMaterial({ color: 0x3b2b20, roughness: 0.7 }));
-  lid.position.y = 0.38;
-  g.add(lid);
-  return g;
-}
-
-function barCrate() {
-  const g = new THREE.Group();
-  const crate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.7),
-    new THREE.MeshStandardMaterial({ color: 0x7d5b33, roughness: 0.95 }));
-  g.add(crate);
-  const choco = new THREE.MeshStandardMaterial({ color: 0x3a2412, roughness: 0.5 });
-  const custard = new THREE.MeshStandardMaterial({ color: 0xf2cf6e, roughness: 0.6 });
-  for (let i = 0; i < 3; i++) {
-    const x = -0.3 + i * 0.3;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.5), custard);
-    b.position.set(x, 0.3, 0);
-    g.add(b);
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.07, 0.51), choco);
-    t.position.set(x, 0.38, 0);
-    g.add(t);
-  }
-  return g;
-}
-
-function blessing() {
-  const g = new THREE.Group();
-  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb400, emissiveIntensity: 1.8, roughness: 0.3, metalness: 0.6 }));
-  halo.rotation.x = Math.PI / 2;
-  g.add(halo);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.5, 1.6, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xfff0b8, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
-  beam.position.y = 0.8;
-  g.add(beam);
-  return g;
-}
-
-const BUILD = { beer: caseOfLucky, coffee: doubleDouble, bars: barCrate, blessed: blessing };
+const BUILD = { beer: createLuckyCase, coffee: createCoffee, bars: createBarCrate, blessed: createBlessing };
 
 export class Powerups {
   constructor(scene, corridor, terrain, opts = {}) {

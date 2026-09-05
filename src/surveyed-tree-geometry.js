@@ -35,7 +35,7 @@ export function surveyedTreeGeometry(kind) {
   [...wood,...leaves].forEach(g=>g.dispose());return {wood:woody,foliage};
 }
 
-export function leafSprayTexture() {
+export function leafSprayTexture(palette = ['#567244','#63824a','#435f38','#78925a','#4c6b40']) {
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const g=canvas.getContext('2d'),rand=randomFor(9451);
   g.lineCap='round';
   for(let branch=0;branch<11;branch++){
@@ -48,7 +48,7 @@ export function leafSprayTexture() {
         const spread=(1-t*.6)*(9+rand()*10),xx=x+side*spread,yy=y-5-rand()*8;
         g.strokeStyle='#3b4b2f';g.lineWidth=.8;g.beginPath();g.moveTo(x,y);g.lineTo(xx,yy);g.stroke();
         g.save();g.translate(xx,yy);g.rotate(side*.7+(rand()-.5)*.7);
-        g.fillStyle=['#567244','#63824a','#435f38','#78925a','#4c6b40'][Math.floor(rand()*5)];
+        g.fillStyle=palette[Math.floor(rand()*palette.length)];
         g.beginPath();g.ellipse(0,0,2.1+rand()*2,5+rand()*4,0,0,Math.PI*2);g.fill();g.restore();
       }
     }

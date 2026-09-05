@@ -1,5 +1,6 @@
 // traffic.js — AI cars driving lane paths on the real road network
 import * as THREE from 'three';
+import { buildReferenceVehicle, REFERENCE_VEHICLES } from './traffic-models.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, rand, choice, lerp, distPointToSeg } from './util.js';
 
@@ -143,36 +144,6 @@ function carPickup() {
   return parts;
 }
 
-function carBus() {
-  const parts = [];
-  const W = 2.5;
-  const body = profileGeo([
-    [-5.25, 0.5], [-5.2, 2.9], [-4.6, 3.25], [4.6, 3.25], [5.2, 2.9],
-    [5.25, 0.5], [4.4, 0.38], [-4.4, 0.38],
-  ], W);
-  parts.push({ g: body, c: [1, 1, 1] });
-  // windscreen + long window band, proud of the sides
-  const band = profileGeo([
-    [-5.14, 1.75], [-5.12, 2.62], [5.12, 2.62], [5.14, 1.75],
-  ], W + 0.04, 0.02);
-  parts.push({ g: band, c: GLASS });
-  // livery stripe + skirt
-  slab(parts, W + 0.05, 0.34, 10.2, 0, 1.34, 0, [0.09, 0.32, 0.58]);
-  slab(parts, W + 0.02, 0.3, 10.3, 0, 0.55, 0, TRIM);
-  slab(parts, W - 0.06, 0.5, 0.2, 0, 0.9, -5.24, TRIM);
-  slab(parts, W - 0.06, 0.5, 0.2, 0, 0.9, 5.24, TRIM);
-  for (const s of [-1, 1]) {
-    slab(parts, 0.4, 0.22, 0.12, s * 0.86, 1.0, -5.31, LAMP);
-    slab(parts, 0.34, 0.3, 0.12, s * 0.9, 1.15, 5.30, TAIL);
-  }
-  // destination board
-  slab(parts, 1.7, 0.34, 0.1, 0, 2.95, -5.29, [0.05, 0.05, 0.06]);
-  for (const [x, z] of [[-1.05, -3.5], [1.05, -3.5], [-1.05, 3.3], [1.05, 3.3]]) {
-    wheelParts(parts, 0.5, 0.36, x, 0.5, z);
-  }
-  return parts;
-}
-
 function bakeParts(parts) {
   const geos = [];
   for (const p of parts) {
@@ -195,11 +166,13 @@ function bakeParts(parts) {
   return mergeGeometries(geos, false);
 }
 
-const TYPES = [
+export const TYPES = [
   { name: 'sedan', build: carSedan, n: 34, len: 4.5, vmax: [14, 19] },
   { name: 'suv', build: carSUV, n: 20, len: 4.7, vmax: [13, 18] },
   { name: 'pickup', build: carPickup, n: 14, len: 5.2, vmax: [13, 18] },
-  { name: 'bus', build: carBus, n: 4, len: 10.5, vmax: [10, 13] },
+  { name: 'bus', n: 4, len: 12.6, width: 2.55, vmax: [10, 13] },
+  { name: 'cybertruck', n: 2, len: 5.7, width: 2.1, vmax: [13, 18] },
+  { name: 'rcmp', n: 2, len: 5.15, width: 2.05, vmax: [13, 18] },
 ];
 
 export class Traffic {
@@ -211,16 +184,14 @@ export class Traffic {
     this.matrices = { dummy: new THREE.Object3D() };
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.35, envMapIntensity: 1.0 });
     // Authored CC0 cars when the kit is available, the built-in shapes otherwise.
-    // The kit models are mapped onto the same four traffic classes so the AI, the
-    // collision boxes and the lane logic are untouched.
+    // Special reference vehicles always use their own models and collision sizes.
     this.usingModels = !!(carModels && carModels.length >= 4);
-    // spread the available models across the four traffic classes; the kit is generic
-    // so class only decides size, speed and collision length
+    // Generic kit fallback is reserved for ordinary passenger traffic.
     const order = ['sedan', 'suv', 'pickup', 'bus'];
     const pick = (name) => {
-      if (!this.usingModels) return null;
+      if (!this.usingModels || REFERENCE_VEHICLES[name]) return null;
       const named = { sedan: ['NormalCar1', 'sedan', 'car-4'], suv: ['SUV', 'suv', 'car-6'],
-        pickup: ['NormalCar2', 'truck', 'car-5'], bus: ['Taxi', 'taxi', 'car-3'] }[name] || [];
+        pickup: ['NormalCar2', 'truck', 'car-5'] }[name] || [];
       for (const w of named) {
         const hit = carModels.find(m => m.url.toLowerCase().includes(w.toLowerCase()));
         if (hit) return hit;
@@ -230,31 +201,33 @@ export class Traffic {
     this.meshes = {};
     for (const t of TYPES) {
       const model = pick(t.name);
-      const geo = model ? model.geometry : bakeParts(t.build());
-      const inst = new THREE.InstancedMesh(geo, model ? model.material : mat, t.n);
-      inst.castShadow = true;
-      inst.receiveShadow = true;
-      // instances are placed by matrix, so the geometry's own bounds sit at the origin
-      // and the whole fleet gets culled the moment the origin leaves the frustum
-      inst.frustumCulled = false;
-      inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      scene.add(inst);
-      this.meshes[t.name] = { inst, total: t.n };
+      const parts = buildReferenceVehicle(t.name) || [{ geometry: model ? model.geometry : bakeParts(t.build()), material: model ? model.material : mat }];
+      const instances = parts.map(part => {
+        const inst = new THREE.InstancedMesh(part.geometry, part.material, t.n);
+        inst.name = part.name || `Traffic ${t.name}`;
+        inst.castShadow = true; inst.receiveShadow = true;
+        inst.frustumCulled = false;
+        inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        scene.add(inst);
+        return inst;
+      });
+      this.meshes[t.name] = { inst: instances[0], instances, total: t.n };
       // Each car owns one instance slot for the whole session. Packing active cars
       // into the front of the buffer meant a car's slot — and therefore its baked
       // colour — changed whenever another car spawned, which read as flashing.
       this.cars.push(...Array.from({ length: t.n }, (_, slot) => ({
-        type: t.name, active: false, len: t.len, slot,
+        type: t.name, active: false, len: t.len, width: t.width || 1.95, maxSpeed: t.vmax[1], slot,
       })));
     }
     this.col = new THREE.Color();
     // colour belongs to the car, and its slot never moves, so it stays put
     for (const car of this.cars) {
-      if (this.usingModels) this.col.setHSL(Math.random(), 0.12, 0.62 + Math.random() * 0.3);
+      if (REFERENCE_VEHICLES[car.type]) this.col.set(0xffffff);
+      else if (this.usingModels) this.col.setHSL(Math.random(), 0.12, 0.62 + Math.random() * 0.3);
       else this.col.set(choice(CAR_COLORS));
-      this.meshes[car.type].inst.setColorAt(car.slot, this.col);
+      for (const inst of this.meshes[car.type].instances) inst.setColorAt(car.slot, this.col);
     }
-    for (const t of TYPES) this.meshes[t.name].inst.instanceColor.needsUpdate = true;
+    for (const t of TYPES) for (const inst of this.meshes[t.name].instances) inst.instanceColor.needsUpdate = true;
     this.nearMissEvents = [];
   }
 
@@ -326,7 +299,7 @@ export class Traffic {
       if (d > 330 && d < 780) {   // far enough out that nobody sees them appear
         car.path = path;
         car.s = s;
-        car.v = path.vmax * rand(0.75, 1);
+        car.v = Math.min(path.vmax, car.maxSpeed) * rand(0.75, 1);
         car.active = true;
         car.justSpawned = true;
         car.gen = (car.gen || 0) + 1;      // bumped each spawn, so tools can tell lives apart
@@ -401,12 +374,13 @@ export class Traffic {
       } else {
         const path = car.path;
         // ahead car check (same path only)
-        let vmaxNow = path.vmax;
+        let vmaxNow = Math.min(path.vmax, car.maxSpeed);
         for (const o of this.cars) {
           if (o === car || !o.active || o.path !== path || o.crashed) continue;
           let ds = o.s - car.s;
           if (ds < 0) ds += path.total;
-          if (ds > 0 && ds < 13) vmaxNow = Math.min(vmaxNow, Math.max(0, o.v * (ds - 4) / 8));
+          const gap = ds - (car.len + o.len) / 2;
+          if (ds > 0 && gap < 13) vmaxNow = Math.min(vmaxNow, Math.max(0, o.v * (gap - 2) / 10));
         }
         // brake for player ahead in lane
         const sm = this.sample(path, car.s);
@@ -526,7 +500,7 @@ export class Traffic {
         d.position.set(0, -500, 0);
         d.rotation.set(0, 0, 0);
         d.updateMatrix();
-        m.inst.setMatrixAt(car.slot, d.matrix);
+        for (const inst of m.instances) inst.setMatrixAt(car.slot, d.matrix);
         continue;
       }
       if (car.active) {
@@ -537,9 +511,9 @@ export class Traffic {
         d.rotation.set(0, 0, 0);
       }
       d.updateMatrix();
-      m.inst.setMatrixAt(car.slot, d.matrix);
+      for (const inst of m.instances) inst.setMatrixAt(car.slot, d.matrix);
     }
-    for (const name of Object.keys(this.meshes)) this.meshes[name].inst.instanceMatrix.needsUpdate = true;
+    for (const mesh of Object.values(this.meshes)) for (const inst of mesh.instances) inst.instanceMatrix.needsUpdate = true;
   }
 
   // player collision + near-miss; returns {type:'crash'|'scrape', relSpeed} | null
@@ -559,7 +533,7 @@ export class Traffic {
       const ac = clamp(along, -car.len / 2 - 0.2, car.len / 2 + 0.2);
       const cx = car.x + fx * ac, cz = car.z + fz * ac;
       const d = Math.hypot(px - cx, pz - cz);
-      if (d < 1.0 + 0.5) {
+      if (d < car.width / 2 + 0.5) {
         // true closing speed: |v_player_vec - v_car_vec|. The old sign trick turned
         // every same-direction rear-end into a head-on and made traffic unsurvivable.
         const pvx = -Math.sin(player.heading) * player.v, pvz = -Math.cos(player.heading) * player.v;
@@ -571,8 +545,8 @@ export class Traffic {
           break;
         } else {
           // scrape: push aside, slow down
-          player.pos.x = cx + (px - cx) / (d || 1) * 1.55;
-          player.pos.z = cz + (pz - cz) / (d || 1) * 1.55;
+          player.pos.x = cx + (px - cx) / (d || 1) * (car.width / 2 + 0.55);
+          player.pos.z = cz + (pz - cz) / (d || 1) * (car.width / 2 + 0.55);
           player.v *= 0.78;
           player.shake = Math.max(player.shake, 0.4);
           if (!car._scrapeT || performance.now() - car._scrapeT > 800) {

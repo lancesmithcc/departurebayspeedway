@@ -1,3 +1,7 @@
+import {buildReferenceUpperStreet} from './reference-upper-street.js';
+import {buildReferenceSchoolBoard} from './reference-schools.js';
+import {buildReferenceResidential} from './reference-residential.js';
+import {buildReferenceLowerStreet} from './reference-lower-street.js';
 import { ElevationGrid } from './elevation-grid.js';
 // main.js — bootstrap: load map data, build world, run loop
 import * as THREE from 'three';
@@ -11,7 +15,7 @@ import { applyStreetProfile } from './street-profile.js';
 import { buildStreetscape } from './streetscape.js';
 import { buildRoads } from './roads.js';
 import { buildBuildings, buildingCollide } from './buildings.js';
-import { buildTrees, buildStreetlights, buildPiers, buildFerry, buildGasStation, pylonSign, buildBeachClutter, buildSevenEleven, buildRoadEdges, buildJunctionSigns, buildTrafficFurniture, buildWellingtonSchool, buildWellingtonRoadSign, buildRockCitySchool, buildDepartureBaySchool, buildReaderBoard, buildBaptistChurch } from './props.js';
+import { buildTrees, buildStreetlights, buildPiers, buildFerry, buildGasStation, pylonSign, buildBeachClutter, buildSevenEleven, buildRoadEdges, buildJunctionSigns, buildTrafficFurniture, buildRockCitySchool, buildDepartureBaySchool, buildBaptistChurch } from './props.js';
 import { Corridor } from './corridor.js';
 import { Peds } from './peds.js';
 import { loadGLB, fitModel, flatten, decimate, levelModel, loadKit, triangleCount } from './models.js';
@@ -186,10 +190,11 @@ async function boot() {
     }
   }
   const keepClear = [
+    {x:-3045,z:-1184,r:38}, // observed apartment wall, hedge and ornamental tree row
     bapLawn,
-    { x: -2360, z: -1410, r: 78 },     // Rock City Elementary
-    { x: DB_SCHOOL[0], z: DB_SCHOOL[1], r: 78 },   // Departure Bay Elementary
-    { x: -2922, z: -1414, r: 86 },     // Wellington Secondary
+    { x: -2957, z: -1318, r: 29 }, // Subway parking forecourt
+
+
     { x: -2963, z: -1145, r: 34 },     // St. Andrew's
     { x: map.circleK[0], z: map.circleK[1], r: 40 },
     { x: map.sevenEleven ? map.sevenEleven.p[0] : 0, z: map.sevenEleven ? map.sevenEleven.p[1] : 0, r: 34 },
@@ -203,8 +208,7 @@ async function boot() {
   scene.add(buildStreetscape(map, corridor, terrain, keepClear));
   scene.add(buildPiers(map, terrain));
   // Wellington Secondary School at its real coordinates (Wildcats sign faces the road)
-  scene.add(buildWellingtonSchool(terrain));
-  scene.add(buildWellingtonRoadSign(corridor, terrain));
+  scene.add(buildReferenceSchoolBoard(corridor,terrain,'wellington',TEX.wellington));
 
   // Rock City Elementary: landmark block, reader board and a marked school crossing
   const rockCity = buildRockCitySchool(map, corridor, terrain);
@@ -215,11 +219,9 @@ async function boot() {
   const dbSchool = buildDepartureBaySchool(map, corridor, terrain, DB_SCHOOL);
   scene.add(dbSchool.group);
 
-  // St. Andrew's Presbyterian — Pastor Jeremy's reader board, right by the start
-  const church = buildReaderBoard(corridor, terrain, [-2963, -1145], TEX.stAndrews, {
-    width: 8.2, height: 3.6, postColor: 0x7a6550, trimColor: 0x5b1f2e, setback: 4.6,
-  });
-  scene.add(church.group);
+  scene.add(buildReferenceUpperStreet(map,corridor,terrain));
+  scene.add(buildReferenceResidential(map,corridor,terrain,keepClear));
+  scene.add(buildReferenceLowerStreet(map,corridor,terrain));
 
   // Departure Bay Baptist — lawn party in full swing on the water side, roughly half
   // way down the hill where the road opens out toward the bay
@@ -348,6 +350,7 @@ async function boot() {
         peds.damnEveryone();
         audio.setHellMusic(true);
         game.onSatanRisen();
+        audio.dialogue('rise', { persona: 'satan', voiceGender: 'male', voiceId: 'jesus' }, 4);
       },
       onRevive: () => {
         baptist.reviveJesus();
@@ -436,6 +439,7 @@ async function boot() {
     player.reset(p, Math.atan2(-tx, -tz)); player.cameraMode = 0;
     game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');
     qaCameraTarget = {x:p[0]+tx*16,z:p[1]+tz*16,y:player.pos.y+1.8,dx:-tx*23,dz:-tz*23,h:1.7};
+    if(qa.has('clean')){game.el.hud.classList.add('hidden');player.root.visible=false;qaCameraTarget.y=player.pos.y+1.7;qaCameraTarget.h=0;}
   } else if (inspect === 'seven' && map.sevenEleven) {
     player.reset(map.sevenEleven.p, 0); player.cameraMode = 3; player._orbitR = 42; player._orbitH = 14;
     game.el.title.classList.add('hidden'); game.el.hud.classList.remove('hidden');

@@ -505,7 +505,7 @@ export class Game {
       this.el.trick.textContent = this.trickText;
       this.el.trick.classList.remove('hidden');
     }
-    this.audio.reaction();
+    this.audio.dialogue('bar', { driver: true, voiceGender: car.slot % 2 ? 'female' : 'male', voiceId: `driver-${car.type}-${car.slot}` });
   }
 
   onPedSplat(ped) {
@@ -687,7 +687,7 @@ export class Game {
     if (col) {
       if (col.type === 'crash') {
         this.player.crash('car');
-        if (Math.random() < 0.45) this.audio.reaction();
+        if (Math.random() < 0.45) this.audio.dialogue('bike', { driver: true, voiceGender: col.car.slot % 2 ? 'female' : 'male', voiceId: `driver-${col.car.type}-${col.car.slot}` });
       } else if (col.type === 'scrape') {
         this.audio.scrape();
         this.effects.sparks(this.player.pos.x, this.player.pos.y, this.player.pos.z, 10);
@@ -766,7 +766,9 @@ export class Game {
         if (Math.hypot(this.player.pos.x - z.x, this.player.pos.z - z.z) > z.r) continue;
         z.done = true;
         if (z.caption) this.setCaption(z.caption, 2.6);
-        if (z.voice) this.audio.voice(z.voice, 0.9, 0.55, 2);
+        if (z.voice === 'church1') {
+          this.audio.dialogue('greet', { persona: this.peds?.jesusDead ? 'satan' : 'jesus', voiceGender: 'male', voiceId: 'jesus' }, 2);
+        } else if (z.voice) this.audio.voice(z.voice, 0.9, 0.55, 2);
       }
 
       // gulls near shore

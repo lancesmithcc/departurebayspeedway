@@ -1,3 +1,4 @@
+import { selectDialogue } from './dialogue.js';
 // audio.js — procedural WebAudio: engine, wind, surf, gulls, horns, crashes
 export class AudioSys {
   constructor() {
@@ -210,6 +211,7 @@ export class AudioSys {
       this.hellEl.play().catch(() => {});
     }
     this.applyMusicMix(0.35);
+    if (this.voiceUntil > this.now()) this.duckMusic(0.4, this.voiceUntil - this.now());
     if (!on && this.hellEl) {
       // let the crossfade finish before the element stops
       setTimeout(() => { if (!this.hellOn) this.hellEl.pause(); }, 1400);
@@ -223,6 +225,7 @@ export class AudioSys {
     if (!node) return;
     const t = this.now();
     const hellWas = this.hellOn;
+    seconds = Math.max(seconds, this.voiceUntil - t);
     this.rampGain(node, this.musicVol * amount, 0.12, t);
     // The recovery is scheduled, so it has to be checked when it lands rather than
     // when it was booked: if the other track took over in the meantime, the mix has
@@ -405,17 +408,24 @@ export class AudioSys {
     } catch { /* already stopped */ }
   }
 
-  async voice(key, vol = 0.95, wet = 0.55, priority = 1) {
+  async voice(key, vol = 0.95, wet = 0.55, priority = 1, performance = {}) {
     if (!this.ready || this.muted) return;
     if (!this.voiceFree(priority)) return;         // cheap reject before the fetch
     try {
-      if (!this.voiceBufs) this.voiceBufs = {};
+      this.voiceBufs ||= {};
+      this.voiceLoads ||= {};
+      this.voiceFailures ||= {};
+      if ((this.voiceFailures[key] || 0) > Date.now()) return;
       let buf = this.voiceBufs[key];
       if (!buf) {
-        const res = await fetch(`./audio/voices/${key}.wav`);
-        if (!res.ok) return;
-        buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
-        this.voiceBufs[key] = buf;
+        this.voiceLoads[key] ||= (async () => {
+          const res = await fetch(new URL(`../audio/voices/${key}.wav`, import.meta.url));
+          if (!res.ok) throw new Error(`Voice HTTP ${res.status}`);
+          return this.ctx.decodeAudioData(await res.arrayBuffer());
+        })();
+        try { buf = this.voiceBufs[key] = await this.voiceLoads[key]; }
+        catch { this.voiceFailures[key] = Date.now() + 30000; return; }
+        finally { delete this.voiceLoads[key]; }
       }
       if (this.muted) return;
       if (!this.voiceFree(priority)) return;       // something took the channel while we fetched
@@ -423,11 +433,15 @@ export class AudioSys {
       const t = this.now();
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
-      src.playbackRate.value = 0.97 + Math.random() * 0.07;
+      const rate = Math.max(0.8, Math.min(1.2, performance.rate ?? 1));
+      const pitch = Math.max(0.8, Math.min(1.25, performance.pitch ?? 1));
+      src.playbackRate.value = rate;
+      src.detune.value = 1200 * Math.log2(pitch);
+      const duration = buf.duration / (rate * pitch);
       const g = this.ctx.createGain();
       g.gain.setValueAtTime(vol, t);
-      g.gain.setValueAtTime(vol, t + buf.duration - 0.15);
-      g.gain.linearRampToValueAtTime(0.001, t + buf.duration);
+      g.gain.setValueAtTime(vol, t + Math.max(0, duration - 0.15));
+      g.gain.linearRampToValueAtTime(0.001, t + duration);
       src.connect(g); g.connect(this.master);
       // dry to the master, a tap to the plate — the tail is what makes the line land
       if (this.verbSend) {
@@ -440,10 +454,19 @@ export class AudioSys {
       this.voiceGain = g;
       this.voicePriority = priority;
       // a beat of silence on the end, so the next line does not tread on this one
-      this.voiceUntil = t + buf.duration + 0.2;
+      this.voiceUntil = t + duration + 0.2;
       src.onended = () => { if (this.voiceSrc === src) { this.voiceSrc = null; this.voiceGain = null; this.voiceUntil = 0; this.voicePriority = 0; } };
-      this.duckMusic(0.4, Math.min(3, buf.duration));
+      this.duckMusic(0.4, duration + 0.2);
+      return { key, duration, rate, pitch };
     } catch { /* voice files missing — silent */ }
+  }
+
+  dialogue(event, speaker = {}, priority = 1) {
+    if (!this.ready || this.muted || !this.voiceFree(priority)) return;
+    this.dialogueHistory ||= new Map();
+    const take = selectDialogue(event, speaker, this.dialogueHistory);
+    if (!take) return;
+    return this.voice(take.key, 0.95, speaker.persona ? 0.35 : 0.18, priority, take);
   }
 
   // priority 1: background chatter — whoever the bike just hit

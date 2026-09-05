@@ -11,6 +11,9 @@
     "serve:prod": "node tools/serve-prod.mjs",
     "check:scene": "node tools/check-street.mjs",
     "check:rider": "node tools/check-authored-rider.mjs",
-    "check:geography": "node tools/check-geography.mjs"
+    "check:geography": "node tools/check-geography.mjs",
+    "check:characters": "node tools/check-church-character.mjs",
+    "check:voices": "node tools/check-dialogue.mjs && node tools/check-dialogue-events.mjs",
+    "check:traffic": "node tools/check-reference-vehicles.mjs"
   }
 }
