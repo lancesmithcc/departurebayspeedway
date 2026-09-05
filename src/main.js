@@ -16,6 +16,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { PowerupPostPass } from './powerup-post.js';
 import { buildTextures, TEX } from './textures.js';
 import { Terrain } from './terrain.js';
 import { applyStreetProfile } from './street-profile.js';
@@ -407,6 +408,8 @@ async function boot() {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.26, 0.5, 0.86);
   composer.addPass(bloom);
+  const powerupPost = new PowerupPostPass();
+  composer.addPass(powerupPost);
   composer.addPass(new OutputPass());
 
   window.addEventListener('resize', () => {
@@ -517,6 +520,11 @@ async function boot() {
       ferry2.position.x += 3.4 * dt;
       ferry2.position.z -= 2.2 * dt;
       if (ferry2.position.x > 3600) { ferry2.position.set(1600, 0, 1400); }
+      powerupPost.update(game.state, powerups.active, dt);
+      const coffeeVision = powerupPost.kind === 'coffee';
+      bloom.strength = coffeeVision ? 0.48 : 0.26;
+      bloom.radius = coffeeVision ? 0.65 : 0.5;
+      bloom.threshold = coffeeVision ? 0.72 : 0.86;
       composer.render();
     } catch (e) {
       if (loopErr !== e.message) {

@@ -1,0 +1,26 @@
+import {register} from 'node:module';import assert from 'node:assert/strict';
+const base=new URL('../',import.meta.url).href;
+register('data:text/javascript,'+encodeURIComponent(`export async function resolve(s,c,next){if(s==='three')return {url:${JSON.stringify(base)}+'lib/build/three.module.js',shortCircuit:true};if(s.startsWith('three/addons/'))return {url:${JSON.stringify(base)}+'lib/examples/jsm/'+s.slice(13),shortCircuit:true};return next(s,c)}`),import.meta.url);
+const THREE=await import('three');const {BlessingEffects}=await import('../src/blessing-effects.js');const {Peds}=await import('../src/peds.js');
+const scene=new THREE.Scene(),effects=new BlessingEffects(scene,{maxAscensions:2});
+const geometry=new THREE.BoxGeometry(1,2,1);geometry.translate(0,1,0);const material=new THREE.MeshStandardMaterial({color:0x336699});
+const root=new THREE.Group(),body=new THREE.Mesh(geometry,material);root.add(body);scene.add(root);
+const player={root};effects.updateRider(player,true,.1);assert.equal(effects.halo.visible,true);assert.notEqual(body.material,material);assert.equal(material.emissive.getHex(),0);assert.equal(body.material.emissive.getHex(),0xffd26a);
+root.position.set(8,3,-5);effects.updateRider(player,true,.1);assert.equal(effects.halo.position.x,8);assert.equal(effects.halo.position.z,-5);assert.ok(effects.halo.position.y>5);
+effects.updateRider(player,false,.1);assert.equal(body.material,material);assert.equal(effects.halo.visible,false);
+let sourceDisposed=0;geometry.addEventListener('dispose',()=>sourceDisposed++);
+const first=effects.ascend(root);assert.equal(first.root.children[0].geometry,geometry);assert.notEqual(first.root.children[0].material,material);
+effects.updateAscensions(1);assert.ok(first.root.position.y>2);assert.ok(first.mat.opacity<1);effects.ascend(root);effects.ascend(root);assert.equal(effects.ascensions.length,2);assert.equal(first.root.parent,null);
+effects.updateAscensions(4);assert.equal(effects.ascensions.length,0);assert.equal(sourceDisposed,0,'shared authored geometry never disposed');
+const peds=new Peds(scene,{}, {}, {partySpot:{x:8,z:8,r:6}});let deaths=0,ascended=0;peds.onAscend=()=>ascended++;
+const adult=peds.people[0],kid=peds.kids[0],party=peds.party[0];
+for(const p of [adult,kid,party])Object.assign(p,{active:true,x:0,y:0,z:0,heading:0,phase:0});
+const named=new THREE.Group();named.add(new THREE.Mesh(geometry,material));scene.add(named);
+const jesus=peds.addSpecial(named,0,0,{name:'jesus',onDeath:()=>deaths++});jesus.y=0;jesus.immortal=true;
+assert.equal(peds.raptureTouch({x:0,y:0,z:0}),4,'all touched people ascend in same scan');assert.equal(ascended,4);assert.equal(deaths,0);assert.equal(peds.jesusDead,false);
+assert.equal(peds.bumpTest(0,0,0),null);assert.equal(peds.hitTest(0,0,0),null);assert.equal(named.visible,false);assert.equal(peds.rapture(adult),false);
+for(const p of [adult,kid,party,jesus]){assert.equal(p.active,false);assert.equal(p.ascended,true);assert.equal(p.dead,false);}
+peds.reset();assert.equal(peds.blessingEffects.ascensions.length,0);assert.equal(named.visible,true);assert.equal(jesus.active,true);assert.equal(kid.active,true);assert.equal(party.active,true);assert.equal(adult.ascended,false);assert.equal(adult.active,false);
+Object.assign(adult,{active:true,x:0,y:0,z:0});assert.equal(peds.bump(adult,{mods:{invuln:true}}),0);assert.equal(adult.ascended,true);assert.equal(deaths,0);
+effects.dispose();peds.blessingEffects.dispose();assert.equal(sourceDisposed,0);
+console.log(JSON.stringify({result:'PASS',checks:['rider glow isolation and restore','halo follows avatar','actual character silhouette','bounded ascending/fading effects','shared geometry retained','dense touch scan','immortal ascension without death hook','collision removal','reset restores all populations']}));

@@ -24,6 +24,7 @@ CHILD = {"pitch": 1.34}
 CHILD_BOY = {"pitch": 1.62}
 
 LINES = [
+    ('police_defeated', 'am_adam', 'The law will catch up with you soon, you little punk!'),
     ('intro', 'am_michael', 'Well hey there, bud! Welcome to Departure Bay Speedway!'),
     ('intro2', 'am_michael', 'Country Club to the beach, pal! Keep the rubber side down, eh!'),
     ('sendit', 'am_michael', 'Hit that ramp, bud! Send it through the frickin fire!'),

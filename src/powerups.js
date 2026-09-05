@@ -6,6 +6,7 @@
 // Only one is ever active — grabbing a second one replaces the first, so the HUD
 // never has to explain a stack.
 import * as THREE from 'three';
+import { BlessingEffects } from './blessing-effects.js';
 import { rand } from './util.js';
 import { createLuckyCase, createCoffee, createBarCrate, createBlessing } from './pickup-models.js';
 
@@ -48,6 +49,7 @@ const BUILD = { beer: createLuckyCase, coffee: createCoffee, bars: createBarCrat
 
 export class Powerups {
   constructor(scene, corridor, terrain, opts = {}) {
+    this.blessingEffects = new BlessingEffects(scene);
     this.corridor = corridor;
     this.terrain = terrain;
     this.effects = opts.effects || null;
@@ -87,6 +89,7 @@ export class Powerups {
 
   reset() {
     this.active = null;
+    this.blessingEffects.reset();
     for (const it of this.items) {
       it.taken = 0;
       it.group.visible = true;
@@ -136,6 +139,8 @@ export class Powerups {
       if (dx * dx + dz * dz < 3.6 * 3.6 && Math.abs(player.pos.y - it.y) < 3.5) this.take(it, player);
     }
 
+    this.blessingEffects.updateRider(player, riding && this.active?.kind === 'blessed', dt);
+
     // a case of Lucky is not a subtle powerup: it fizzes off the back wheel
     if (this.active && this.effects && riding && Math.random() < 0.55) {
       const d = this.active.def;
@@ -166,6 +171,7 @@ export class Powerups {
       // still the thing you hear
       this.audio.powerupLine && this.audio.powerupLine(it.kind);
     }
+    this.blessingEffects.updateRider(player, it.kind === 'blessed', 0);
     this.onPickup(it.kind, null);
   }
 }

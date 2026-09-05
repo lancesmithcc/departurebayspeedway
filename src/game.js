@@ -76,11 +76,13 @@ export class Game {
 
     // Nanaimo bar combat
     this.bars = new BarThrower(refs.scene, {
-      traffic, effects, audio,
+      traffic, effects, audio, police: this.police,
+      onOfficerHit: () => { this.player.trickScore += 150; this.setCaption("THE LAW WILL CATCH UP WITH YOU SOON YOU LITTLE PUNK", 5); },
       onHit: (car) => this.onBarHit(car),
       peds: refs.peds || null,
       onPedHit: (ped) => this.onPedSplat(ped),
     });
+    if (this.peds) this.peds.onAscend = () => this.setCaption("RAPTURED — SEE YOU UP THERE, BUD!", 2);
     if (this.peds) this.peds.onBump = (ped, speed) => this.onPedBump(ped, speed);
     if (this.powerups) this.powerups.onPickup = (kind, ended) => this.onPowerup(kind, ended);
     traffic.onCarCrash = (car, justDied) => this.onCarWreck(car, justDied);
@@ -741,7 +743,7 @@ export class Game {
     } else this.player.update(dt, riding ? this.input : { throttle: 0, brake: 1, steer: 0, hop: false });
 
     // people on the sidewalks, the school crossing and the church lawn
-    if (this.peds) this.peds.update(dt, this.player.pos, Math.abs(this.player.v));
+    if (this.peds) this.peds.update(dt, this.player.pos, Math.abs(this.player.v), riding && this.powerups?.active?.kind === 'blessed');
 
     // traffic
     this.traffic.update(dt, this.player, playerActive);
@@ -760,6 +762,7 @@ export class Game {
         this.effects.sparks(this.player.pos.x, this.player.pos.y, this.player.pos.z, 10);
       }
     }
+    if (riding && this.powerups?.active?.kind === 'blessed') this.police?.raptureTouch(this.player.pos, this.peds?.blessingEffects);
     this.police?.update(dt, this.player, this.state === 'riding');
     this.deer?.update(dt, this.player, this.state === 'riding');
     // near-miss events

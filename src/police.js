@@ -53,11 +53,76 @@ export class Police {
     const a=car.headingSmooth??car.heading??0;let x=car.x-1.55*Math.cos(a),z=car.z+1.55*Math.sin(a);if(this.isBlocked(x,z)){x=car.x+1.55*Math.cos(a);z=car.z-1.55*Math.sin(a);}if(this.isBlocked(x,z)){dispose(officer);dispose(lights);return false;}
     officer.position.set(x,this.ground(x,z),z);officer.rotation.y=a;this.scene.add(officer,lights);car.policeStopped=true;car.v=0;
     this.audio?.blip?.(740,.18,.12,'sine');this.encounters.push({car,gen:car.gen,officer,lights,age:0,state:'exit',timer:1.1,cooldown:0,flash:0,shots:0,id:++this.serial,aim:new THREE.Vector3()});return true;}
-  clear(e){if(e.car.gen===e.gen)e.car.policeStopped=false;dispose(e.officer);dispose(e.lights);if(e.tracer)dispose(e.tracer);this.encounters.splice(this.encounters.indexOf(e),1);}
+  clear(e){if(e.car.gen===e.gen)e.car.policeStopped=false;dispose(e.officer);dispose(e.lights);if(e.tracer)dispose(e.tracer);e.fallGeometry?.dispose();this.encounters.splice(this.encounters.indexOf(e),1);}
+  // Swept collision avoids fast bars passing through an officer between frames.
+  // Only the nearest live encounter is defeated by one projectile.
+  hitSegment(from,to,radius=.14){
+    if(![from.x,from.y,from.z,to.x,to.y,to.z,radius].every(Number.isFinite)||radius<0)return null;
+    const start=new THREE.Vector3().copy(from),delta=new THREE.Vector3().copy(to).sub(start),length=delta.length();
+    const ray=new THREE.Ray(start,length?delta.clone().divideScalar(length):new THREE.Vector3(0,0,1));
+    const box=new THREE.Box3(),point=new THREE.Vector3();let hit=null,nearest=Infinity;
+    for(const e of this.encounters){
+      if(e.state==='defeated'||!e.car.active||e.car.gen!==e.gen)continue;
+      const p=e.officer.position;
+      box.min.set(p.x-.38-radius,p.y-radius,p.z-.38-radius);
+      box.max.set(p.x+.38+radius,p.y+1.9+radius,p.z+.38+radius);
+      const distance=box.containsPoint(start)?0:ray.intersectBox(box,point)?start.distanceTo(point):Infinity;
+      if(distance<=length&&distance<nearest){nearest=distance;hit=e;}
+    }
+    if(hit)this.defeat(hit);
+    return hit;
+  }
+  raptureTouch(pos, effects) {
+    if (!effects) return 0;
+    let count=0;
+    for (const e of this.encounters) {
+      const p=e.officer.position;
+      if (e.state==='defeated' || !e.car.active || e.car.gen!==e.gen || Math.abs(pos.y-p.y)>2.1 || Math.hypot(pos.x-p.x,pos.z-p.z)>1.45) continue;
+      effects.ascend(e.officer);
+      e.state='defeated';e.raptured=true;e.flash=0;e.officer.visible=false;
+      e.officer.userData.rig.muzzle.visible=false;
+      if(e.tracer){dispose(e.tracer);e.tracer=null;}
+      count++;
+    }
+    return count;
+  }
+  defeat(e){
+    if(!this.encounters.includes(e)||e.state==='defeated')return false;
+    e.state='defeated';e.flash=0;e.cooldown=Infinity;e.fallTime=0;
+    e.officer.userData.rig.muzzle.visible=false;
+    if(e.tracer){dispose(e.tracer);e.tracer=null;}
+    e.fallOrigin=e.officer.position.clone();e.fallHeading=e.officer.rotation.y;
+    // Cache the frozen articulated pose in root space for actual body support.
+    // Dense directional extrema retain curved boots and elbows while avoiding
+    // a scan of every mesh vertex on each falling frame.
+    e.officer.updateMatrixWorld(true);
+    const inverse=e.officer.matrixWorld.clone().invert(),v=new THREE.Vector3(),positions=[];
+    e.officer.traverse(o=>{if(!o.isMesh||!o.visible)return;const matrix=new THREE.Matrix4().multiplyMatrices(inverse,o.matrixWorld),a=o.geometry.attributes.position;for(let i=0;i<a.count;i++){v.fromBufferAttribute(a,i).applyMatrix4(matrix);positions.push(v.x,v.y,v.z);}});
+    e.fallGeometry=new THREE.BufferGeometry();e.fallGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    const indices=new Set();
+    for(let x=-3;x<=3;x++)for(let y=-3;y<=3;y++)for(let z=-3;z<=3;z++){
+      if(Math.max(Math.abs(x),Math.abs(y),Math.abs(z))!==3)continue;
+      let best=-Infinity,index=0;
+      for(let i=0;i<positions.length;i+=3){const dot=x*positions[i]+y*positions[i+1]+z*positions[i+2];if(dot>best){best=dot;index=i;}}
+      indices.add(index);
+    }
+    e.supportPoints=[...indices].map(i=>new THREE.Vector3(positions[i],positions[i+1],positions[i+2]));
+    this.audio?.voice?.('police_defeated',1,.18,5);
+    return true;
+  }
   clearLine(a,b){for(let t=.08;t<1;t+=.08){const x=THREE.MathUtils.lerp(a.x,b.x,t),z=THREE.MathUtils.lerp(a.z,b.z,t);if(this.isBlocked(x,z)||this.ground(x,z)>THREE.MathUtils.lerp(a.y+1.4,b.y+1,t))return false;}return true;}
   update(dt,player,active=true){if(!active)return;dt=Math.min(.1,Math.max(0,dt));this.time+=dt;const p=player.pos??player;
-    for(const e of [...this.encounters]){const o=e.officer,c=e.car;e.age+=dt;if(e.age<1.25&&Math.floor(e.age/.22)!==Math.floor((e.age-dt)/.22))this.audio?.blip?.(Math.floor(e.age/.22)%2?980:740,.18,.1,'sine');if(!c.active||c.gen!==e.gen||e.age>25||o.position.distanceTo(p)>160){this.clear(e);continue;}
+    for(const e of [...this.encounters]){const o=e.officer,c=e.car;e.age+=dt;if(e.state!=='defeated'&&e.age<1.25&&Math.floor(e.age/.22)!==Math.floor((e.age-dt)/.22))this.audio?.blip?.(Math.floor(e.age/.22)%2?980:740,.18,.1,'sine');if(!c.active||c.gen!==e.gen||e.age>25||o.position.distanceTo(p)>160){this.clear(e);continue;}
       e.lights.position.set(c.x,c.ySmooth??c.y??this.ground(c.x,c.z),c.z);if(c.groundQuaternion)e.lights.quaternion.copy(c.groundQuaternion);else e.lights.rotation.set(c.pitch??0,c.headingSmooth??c.heading??0,c.tilt??0);e.lights.children.forEach((m,i)=>m.visible=(Math.floor(this.time*12)%4<2)===(i===0));
+      if(e.raptured)continue;
+      if(e.state==='defeated'){
+        e.fallTime+=dt;const t=Math.min(1,e.fallTime/.55),angle=-Math.PI/2*t*t*(3-2*t);
+        o.rotation.set(angle,e.fallHeading,0,'YXZ');o.position.copy(e.fallOrigin);o.position.y=this.ground(o.position.x,o.position.z);
+        const vertex=new THREE.Vector3();let lift=0;
+        for(const point of e.supportPoints){vertex.copy(point).multiply(o.scale).applyQuaternion(o.quaternion).add(o.position);lift=Math.max(lift,this.ground(vertex.x,vertex.z)+.008-vertex.y);}
+        o.position.y+=lift;
+        continue;
+      }
       e.flash=Math.max(0,e.flash-dt);if(e.tracer){e.tracer.visible=e.flash>0;}
       const dx=p.x-o.position.x,dz=p.z-o.position.z,dist=Math.hypot(dx,dz);o.rotation.y=Math.atan2(-dx,-dz);e.timer-=dt;e.cooldown-=dt;
       if(e.state==='exit'){if(e.timer<=0)e.state='run';}

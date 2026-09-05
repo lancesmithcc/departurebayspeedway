@@ -20,6 +20,7 @@
     "check:physics": "node tools/check-crash-contact.mjs && node tools/check-traffic-grounding.mjs && node tools/check-body-support.mjs && node tools/check-road-junctions.mjs",
     "check:cast": "node tools/check-character-cast.mjs",
     "check:multiplayer": "node tools/check-multiplayer.mjs && node tools/check-multiplayer-client.mjs && node tools/check-player-colors.mjs && node tools/check-restart.mjs",
-    "check:roadside-grounding": "node tools/check-roadside-grounding.mjs"
+    "check:roadside-grounding": "node tools/check-roadside-grounding.mjs",
+    "check:power-effects": "node tools/check-blessing.mjs && node tools/check-powerup-post.mjs && node tools/check-police-bars.mjs && node tools/check-officer-bars.mjs"
   }
 }

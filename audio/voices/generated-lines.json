@@ -1254,5 +1254,13 @@
     "sha256": "1342c0b7213664574ae3fd663d63da9c9723f99f89927a29690207096fbb2bb5",
     "seconds": 2.4747,
     "sampleRate": 24000
+  },
+  "police_defeated": {
+    "text": "The law will catch up with you soon, you little punk!",
+    "voice": "am_adam",
+    "pitch": 1.0,
+    "sha256": "6f813fa1b8960fa014af83db2b3580a47f3f9965f5b2ffe3cb64b2da01f9a744",
+    "seconds": 2.5173,
+    "sampleRate": 24000
   }
 }

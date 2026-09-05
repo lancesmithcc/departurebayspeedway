@@ -12,6 +12,9 @@ export class BarThrower {
     this.audio = opts.audio;
     this.onHit = opts.onHit || (() => {});
     this.peds = opts.peds || null;
+    this.police = opts.police || null;
+    this.onOfficerHit = opts.onOfficerHit || (() => {});
+    this.previousBarPosition = new THREE.Vector3();
     this.onPedHit = opts.onPedHit || (() => {});
     this.cool = 0;
     this.thrown = 0;
@@ -80,6 +83,12 @@ export class BarThrower {
       }
     }
 
+    for (const encounter of this.police?.encounters || []) {
+      if (encounter.state === 'defeated') continue;
+      const p = encounter.officer.position;
+      consider(p, 0, 0, p.y);
+    }
+
     const startY = player.pos.y + 1.25;
     let vy = 3.1;
     if (best) {
@@ -117,6 +126,7 @@ export class BarThrower {
     this.cool = Math.max(0, this.cool - dt);
     for (const bar of this.bars) {
       if (!bar.active) continue;
+      this.previousBarPosition.copy(bar.pos);
       bar.life -= dt;
       bar.vel.y -= 11.5 * dt;
       bar.pos.addScaledVector(bar.vel, dt);
@@ -124,6 +134,17 @@ export class BarThrower {
       bar.mesh.rotation.x += bar.spin.x * dt;
       bar.mesh.rotation.y += bar.spin.y * dt;
       bar.mesh.rotation.z += bar.spin.z * dt;
+
+      // Swept officer contact catches fast throws between frames.
+      const officer = this.police?.hitSegment(this.previousBarPosition, bar.pos);
+      if (officer) {
+        bar.active = false;
+        bar.mesh.visible = false;
+        this.hits++;
+        this.onOfficerHit(officer);
+        this.audio.splat?.();
+        continue;
+      }
 
       // ---- hit a car? ----
       let hitCar = null, hx = 0, hz = 0;

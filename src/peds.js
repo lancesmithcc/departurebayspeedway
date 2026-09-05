@@ -1,4 +1,5 @@
 import { settleBody } from './body-support.js';
+import { BlessingEffects } from './blessing-effects.js';
 import { PERSON_VOICES } from './dialogue.js';
 // peds.js — people on the sidewalks, kids crossing at the school zone, and the
 // congregation running around the Baptist church lawn.
@@ -49,6 +50,8 @@ function personGeometry(scale = 1, palette = null) {
 
 export class Peds {
   constructor(scene, corridor, terrain, opts = {}) {
+    this.blessingEffects = new BlessingEffects(scene, {riderHalo:false});
+    this.onAscend = opts.onAscend || (() => {});
     this.corridor = corridor;
     this.terrain = terrain;
     this.audio = opts.audio || null;
@@ -439,7 +442,9 @@ export class Peds {
     return true;
   }
 
-  update(dt, playerPos, playerV) {
+  update(dt, playerPos, playerV, blessed = false) {
+    this.blessingEffects.updateAscensions(dt);
+    if (blessed) this.raptureTouch(playerPos);
     this.voiceCool = Math.max(0, this.voiceCool - dt);
     const cp = this.corridor.pts;
 
@@ -456,7 +461,7 @@ export class Peds {
     }
     for (const ped of this.people) {
       if (live >= 26) break;
-      if (ped.active || ped.dead) continue;
+      if (ped.active || ped.dead || ped.ascended) continue;
       if (this.spawnWalker(ped, playerPos)) live++;
     }
 
@@ -535,6 +540,7 @@ export class Peds {
     if (this.partySpot) {
       const c = this.partySpot;
       for (const p of this.party) {
+        if (p.ascended || !p.active) continue;
         if (p.splat > 0) { this.downed(p, dt); continue; }
         p.wobble += dt * 1.7;
         p.orbit += (p.spin * p.speed / Math.max(2, p.radius)) * dt;
@@ -765,6 +771,7 @@ export class Peds {
     // named characters get the same pose written onto their own object
     for (const sp of this.specials) {
       if (!sp.object || sp.y === undefined) continue;
+      if (sp.ascended) { sp.object.visible = false; continue; }
       if (sp.splat > 0) {
         const fall = clamp(sp.tumble ?? 1, 0, 1.6);
         const pitch = (Math.PI / 2) * fall;
@@ -804,10 +811,10 @@ export class Peds {
   }
 
   // whoever the bike is about to run into, if anyone
-  bumpTest(x, y, z, radius = 1.2) {
+  bumpTest(x, y, z, radius = 1.2, allowImmortal = false) {
     for (const list of [this.people, this.kids, this.party, this.specials]) {
       for (const ped of list) {
-        if (!ped.active || ped.splat > 0 || ped.y === undefined || ped.immortal) continue;
+        if (!ped.active || ped.splat > 0 || ped.y === undefined || (ped.immortal && !allowImmortal)) continue;
         if (y - ped.y > 2.0 || ped.y - y > 1.4) continue;
         if (Math.hypot(x - ped.x, z - ped.z) < Math.max(radius, ped.hitRadius || 0)) return ped;
       }
@@ -887,11 +894,36 @@ export class Peds {
     this.onSplat(ped);
   }
 
+  // A blessing is an ascension, not a death: never call onDeath or apocalypse hooks.
+  raptureTouch(pos, radius = 1.45) {
+    let count=0;
+    for(const list of [this.people,this.kids,this.party,this.specials])for(const p of list){
+      if(p.active && !p.ascended && Number.isFinite(p.y) && Math.abs(pos.y-p.y)<2.1 && Math.hypot(pos.x-p.x,pos.z-p.z)<Math.max(radius,p.hitRadius||0))count+=this.rapture(p,false)?1:0;
+    }
+    return count;
+  }
+
+  rapture(ped, refresh = true) {
+    if (!ped?.active || ped.ascended) return false;
+    let source=ped.object;
+    if (!source) {
+      const frames=(ped.party?this.partyMeshes:ped.kid?this.kidMeshes:this.meshes)[ped.variant] || this.meshes[0];
+      const fi=ped.splat>0?0:((Math.floor(((ped.phase||0)/(Math.PI*2))*frames.length)%frames.length)+frames.length)%frames.length;
+      source=new THREE.Mesh(frames[fi].geometry,frames[fi].material);
+      source.position.set(ped.x,ped.y,ped.z);source.rotation.y=ped.heading||0;source.scale.copy(ped.kid?this._sKid:this._s);
+    }
+    this.blessingEffects.ascend(source);
+    ped.ascended=true;ped.active=false;ped.dead=false;ped.splat=0;ped.riseT=0;
+    if(ped.object){ped.ascendedVisibility=ped.object.visible;ped.object.visible=false;}
+    this.onAscend(ped);if(refresh)this.writeMatrices();return true;
+  }
+
   // ---- run down by the bike ----
   // Momentum transfer, not teleportation: the launch velocity comes from the bike's
   // own speed and heading, so a 20 km/h nudge trips them over and a 100 km/h hit puts
   // them over the handlebars. Returns the speed the rider should lose.
   bump(ped, player) {
+    if (player.mods?.invuln) { this.rapture(ped); return 0; }
     const speed = Math.abs(player.v);
     ped.splat = 1;
     ped.dead = true;
@@ -997,6 +1029,12 @@ export class Peds {
   }
 
   reset() {
+    this.blessingEffects.reset();
+    for(const list of [this.people,this.kids,this.party,this.specials])for(const p of list){
+      if(p.ascended && (p.kid || p.party || p.special))p.active=true;
+      p.ascended=false;
+      if(p.object && p.ascendedVisibility!==undefined){p.object.visible=p.ascendedVisibility;delete p.ascendedVisibility;}
+    }
     for (const ped of this.people) {
       ped.active = false; ped.dead = false; ped.splat = 0; ped.choc = 0;
       ped.tumble = 0; ped.grounded = false; ped.vy = undefined;
