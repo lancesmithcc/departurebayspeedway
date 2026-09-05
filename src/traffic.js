@@ -1,5 +1,6 @@
 // traffic.js — AI cars driving lane paths on the real road network
 import * as THREE from 'three';
+import { BlessingEffects } from './blessing-effects.js';
 import { buildReferenceVehicle, REFERENCE_VEHICLES } from './traffic-models.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, rand, choice, lerp, distPointToSeg } from './util.js';
@@ -247,6 +248,7 @@ function modelContacts(geometry, fallback) {
 
 export class Traffic {
   constructor(scene, map, terrain, carModels = null) {
+    this.blessingEffects = new BlessingEffects(scene, {riderHalo:false});
     this.terrain = terrain;
     this.map = map;
     this.buildLanePaths(map);
@@ -427,10 +429,12 @@ export class Traffic {
   }
 
   update(dt, player, playerActive) {
+    this.blessingEffects?.updateAscensions(dt);
     this.frameNo = (this.frameNo || 0) + 1;
     const pos = player.pos;
     for (const car of this.cars) {
       if (!car.active) {
+        if (car.ascended) continue;
         if (Math.random() < 0.13) this.spawnNear(car, pos, 400);
         continue;
       }
@@ -607,6 +611,28 @@ export class Traffic {
     for (const mesh of Object.values(this.meshes)) for (const inst of mesh.instances) inst.instanceMatrix.needsUpdate = true;
   }
 
+  rapture(car) {
+    if (!car.active || car.ascended) return false;
+    const source = new THREE.Group();
+    source.position.set(car.x, car.ySmooth ?? car.y, car.z);
+    if (car.groundQuaternion) source.quaternion.copy(car.groundQuaternion);
+    else source.rotation.y = car.headingSmooth ?? car.heading ?? 0;
+    // Copy only this vehicle's geometry, never the fleet's InstancedMesh.
+    for (const instance of this.meshes[car.type].instances) {
+      source.add(new THREE.Mesh(instance.geometry, instance.material));
+    }
+    this.blessingEffects.ascend(source);
+    car.ascended = true; car.active = false; car.v = 0;
+    car.drawX = undefined; car.drawZ = undefined;
+    this.writeMatrices();
+    return true;
+  }
+
+  resetAscensions() {
+    this.blessingEffects?.reset();
+    for (const car of this.cars) car.ascended = false;
+  }
+
   // player collision + near-miss; returns {type:'crash'|'scrape', relSpeed} | null
   checkPlayer(player, playerActive) {
     if (!playerActive) { this.nearMissEvents.length = 0; return null; }
@@ -625,6 +651,7 @@ export class Traffic {
       const cx = car.x + fx * ac, cz = car.z + fz * ac;
       const d = Math.hypot(px - cx, pz - cz);
       if (d < car.width / 2 + 0.5) {
+        if (player.mods?.invuln) { this.rapture(car); continue; }
         // true closing speed: |v_player_vec - v_car_vec|. The old sign trick turned
         // every same-direction rear-end into a head-on and made traffic unsurvivable.
         const pvx = -Math.sin(player.heading) * player.v, pvz = -Math.cos(player.heading) * player.v;

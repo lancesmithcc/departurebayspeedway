@@ -451,6 +451,7 @@ export class Game {
     this.player.topSpeed = 0;
     this.pedsHit = 0;
     if (this.peds) this.peds.reset();
+    this.traffic?.resetAscensions?.();
     this.police?.reset();
     this.deer?.reset();
     this.policeHits = 0;

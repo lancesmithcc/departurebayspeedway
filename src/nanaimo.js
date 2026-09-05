@@ -198,6 +198,7 @@ export class BarThrower {
     for (const s of this.splats) {
       if (!s.car) continue;
       const car = s.car;
+      if (car.ascended) { s.car = null; s.mesh.visible = false; continue; }
       const dl = Math.hypot(car.dx, car.dz) || 1;
       const fx = car.dx / dl, fz = car.dz / dl;
       const wx = car.x - fx * (car.len * 0.28) + s.off.x;
