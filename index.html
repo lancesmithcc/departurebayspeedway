@@ -7,7 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0e12">
-<title>Departure Bay Speedway</title>
+<title>Departure Bay Speedway | Nanaimo Dirtbike Game</title>
+<meta id="game-seo" name="description" content="Play Departure Bay Speedway, a free Nanaimo dirtbike browser game. Ride from Country Club to the beach with seven players, flying Nanaimo bars and local attitude.">
+<link rel="canonical" href="https://departurebayspeedway.scroggygames.com/"><meta property="og:type" content="website"><meta property="og:title" content="Departure Bay Speedway — Give ’er, Nanaimo"><meta property="og:description" content="A fictional Departure Bay Road dirtbike simulator. Seven riders, Nanaimo bars and a beach finish."><meta property="og:url" content="https://departurebayspeedway.scroggygames.com/"><meta property="og:image" content="https://departurebayspeedway.scroggygames.com/openingscreen.jpg"><meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Place", "@id": "https://departurebayspeedway.scroggygames.com/#departure-bay", "name": "Departure Bay Road, Nanaimo", "description": "The Nanaimo, British Columbia road and coastal neighbourhood depicted in Departure Bay Speedway.", "address": {"@type": "PostalAddress", "streetAddress": "Departure Bay Road", "addressLocality": "Nanaimo", "addressRegion": "BC", "addressCountry": "CA"}, "containedInPlace": {"@type": "City", "name": "Nanaimo", "sameAs": "https://www.nanaimo.ca/"}}, {"@type": "VideoGame", "@id": "https://departurebayspeedway.scroggygames.com/#game", "name": "Departure Bay Speedway", "url": "https://departurebayspeedway.scroggygames.com/", "description": "A free browser dirtbike game inspired by Departure Bay Road in Nanaimo, from Country Club to the beach. Ride with up to seven named players and throw Nanaimo bars in a fictional local satire.", "genre": ["Racing", "Arcade"], "gamePlatform": "Web browser", "applicationCategory": "GameApplication", "operatingSystem": "Any with a modern WebGL-capable browser", "inLanguage": "en-CA", "isAccessibleForFree": true, "playMode": "https://schema.org/MultiPlayer", "numberOfPlayers": {"@type": "QuantitativeValue", "minValue": 1, "maxValue": 7}, "contentLocation": {"@id": "https://departurebayspeedway.scroggygames.com/#departure-bay"}, "gameLocation": {"@id": "https://departurebayspeedway.scroggygames.com/#departure-bay"}, "image": "https://departurebayspeedway.scroggygames.com/openingscreen.jpg", "screenshot": ["https://departurebayspeedway.scroggygames.com/assets/promo/game-downhill.jpg", "https://departurebayspeedway.scroggygames.com/assets/promo/game-beach.jpg"]}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Road+Rage&display=swap" rel="stylesheet">
@@ -341,6 +344,7 @@
     /* the rings badge and the waypoint arrow collide once the HUD gets this narrow */
     #rings { transform: scale(0.8); transform-origin: top right; }
   }
+.promo-links{font:12px/1.7 Arial,sans-serif;margin-top:15px;pointer-events:auto;color:#d5dfe4}.promo-links a{color:inherit;padding:6px;display:inline-block}.promo-links a:focus-visible{outline:2px solid #ffd23f}
 </style>
 </head>
 <body>
@@ -354,7 +358,7 @@
   </div>
 
   <div id="title" class="hidden">
-    <div class="logo">Departure Bay<br>Speedway</div>
+    <h1 class="logo">Departure Bay<br>Speedway</h1>
     <div class="sub">Country Club &nbsp;→&nbsp; The Beach</div>
     <div class="press">— PRESS ENTER TO RIDE —</div>
     <div class="press press-touch">— TAP TO RIDE —</div>
@@ -372,7 +376,8 @@
       <b>M</b><span>mute</span>
       <b>pickups</b><span>Lucky · double-double · bar crate · blessing</span>
     </div>
-    <div class="credit">Map data © OpenStreetMap contributors · Elevation: NRCan · Buildings: City of Nanaimo · <a href="./assets/CREDITS.md" target="_blank" rel="noopener" style="color:inherit">Data credits</a> · Not affiliated with Rockstar Games</div>
+    <nav class="promo-links" aria-label="About Departure Bay Speedway"><a href="/nanaimo-dirtbike-game.html">About the game</a> · <a href="/departure-bay-road.html">Explore the road</a> · <a href="/loud-dirtbikes-nanaimo.html">Neighbourhood noise</a></nav>
+    <!-- Map data © OpenStreetMap contributors. Elevation: NRCan. Buildings: City of Nanaimo. Full sources: assets/CREDITS.md. Not affiliated with Rockstar Games. -->
   </div>
 
   <div id="hud" class="hidden">
@@ -418,6 +423,8 @@
   </div>
 
   <script>
+    document.querySelector(".promo-links")?.addEventListener("pointerdown",e=>e.stopPropagation());
+    document.querySelector(".promo-links")?.addEventListener("keydown",e=>e.stopPropagation());
     // The game is ES modules + fetch('./data/map.json'). Both are blocked by the
     // browser over file://, so opening index.html directly can never work — say so
     // instead of hanging on the loading spinner forever.
