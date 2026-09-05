@@ -21,7 +21,7 @@ export default [
     "bank": "street_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Holy shnikeys, bud! What in the heck!",
+    "text": "Dang bro! What in the heck!",
     "pitch": 1
   },
   {
@@ -85,7 +85,7 @@ export default [
     "bank": "street_bar",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Holy shnikeys! That bar nearly took my moustache off!",
+    "text": "Dang bro! That bar nearly took my moustache off!",
     "pitch": 1
   },
   {
@@ -165,7 +165,7 @@ export default [
     "bank": "kid_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! Watch the school zone, bud!",
+    "text": "Dang bro! Watch the school zone, bud!",
     "pitch": 1.2
   },
   {
@@ -245,7 +245,7 @@ export default [
     "bank": "kid_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! Flying dessert, eh!",
+    "text": "Dang bro! Flying dessert, eh!",
     "pitch": 1.2
   },
   {
@@ -293,7 +293,7 @@ export default [
     "bank": "church_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! You flattened the church picnic, bud!",
+    "text": "Dang bro! You flattened the church picnic, bud!",
     "pitch": 1
   },
   {
@@ -357,7 +357,7 @@ export default [
     "bank": "church_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! Three layers of blessings in my hair!",
+    "text": "Dang bro! Three layers of blessings in my hair!",
     "pitch": 1
   },
   {
@@ -421,7 +421,7 @@ export default [
     "bank": "hell_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! You flattened me twice, you bugger!",
+    "text": "Dang bro! You flattened me twice, you bugger!",
     "pitch": 1
   },
   {
@@ -509,7 +509,7 @@ export default [
     "bank": "hell_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys, bud! That bar tastes downright heavenly!",
+    "text": "Dang bro! That bar tastes downright heavenly!",
     "pitch": 1
   },
   {
@@ -565,7 +565,7 @@ export default [
     "bank": "driver_bar",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! Flying Nanaimo bars again, eh!",
+    "text": "Dang bro! Flying Nanaimo bars again, eh!",
     "pitch": 1
   },
   {
@@ -581,7 +581,7 @@ export default [
     "bank": "jesus_bike",
     "gender": "male",
     "voice": "am_michael",
-    "text": "Holy shnikeys, bud! Walk on water, ride on the road!",
+    "text": "Dang bro! Walk on water, ride on the road!",
     "pitch": 1
   },
   {
@@ -773,7 +773,7 @@ export default [
     "bank": "driver_bike",
     "gender": "female",
     "voice": "af_bella",
-    "text": "Holy shnikeys! You nearly spilled my double-double!",
+    "text": "Dang bro! You nearly spilled my double-double!",
     "pitch": 1
   },
   {

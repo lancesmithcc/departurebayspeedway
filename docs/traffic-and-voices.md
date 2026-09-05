@@ -21,3 +21,7 @@ Validation:
 - Existing scene, rider and character lifecycle checks pass.
 - Browser decoded all 100 new WAVs (1.00–3.63 seconds each). Signal checks found no silent or clipped renders. The voice studio played a Jesus dessert reaction through AudioSys with measured pitch and duration.
 - Integrated demo reached all 8 gates and finished, exercising crash recovery (12 crashes in this random traffic run); no browser console errors. This is not a performance benchmark or a crash-free autopilot claim.
+
+## Dang bro recording revision
+
+Replaced every “Holy shnikeys” opening with “Dang bro!” in the legacy and event-specific scripts. Regenerated 16 affected WAV recordings with the existing speaker and pitch settings; unchanged recordings were verified and reused. `check:voices` passes source text, casting, playback timing and recording hashes. All replacement recordings contain finite, non-silent audio.

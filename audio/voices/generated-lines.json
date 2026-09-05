@@ -24,11 +24,11 @@
     "sampleRate": 24000
   },
   "ring": {
-    "text": "Holy shnikeys, bud! Right through the fire!",
+    "text": "Dang bro! Right through the fire!",
     "voice": "am_michael",
-    "pitch": 1,
-    "sha256": "215a6cffec349f407c22f780ff1ef3a50856631d8bc8112aa8e209f87f11252a",
-    "seconds": 3.2,
+    "pitch": 1.0,
+    "sha256": "a371db646e2a2d72c75b7f1f5c54c76922aa14204062df59b7b648fc7dbbc8e4",
+    "seconds": 2.048,
     "sampleRate": 24000
   },
   "finish": {
@@ -72,11 +72,11 @@
     "sampleRate": 24000
   },
   "crash5": {
-    "text": "Holy shnikeys! Save the Nanaimo bars, bud!",
+    "text": "Dang bro! Save the Nanaimo bars, bud!",
     "voice": "af_nicole",
-    "pitch": 1,
-    "sha256": "91c2e79e8ef1a2c1734328a3dd67f17de039b36c690a20007205759aabadb411",
-    "seconds": 4.7573,
+    "pitch": 1.0,
+    "sha256": "9e0c4c9182ffbc84fc0e1b1b1feb6797d3e8f8c3bb99a99fe9b5d0414cd20c8b",
+    "seconds": 3.5413,
     "sampleRate": 24000
   },
   "crash6": {
@@ -208,11 +208,11 @@
     "sampleRate": 24000
   },
   "kid5": {
-    "text": "Holy shnikeys, bud! What in the heck!",
+    "text": "Dang bro! What in the heck!",
     "voice": "am_puck",
     "pitch": 1.62,
-    "sha256": "c75fd4a0860a6bb8f3d69a9cab1c8618cca2a45f26c422dbef99f92d52b13541",
-    "seconds": 2.2782,
+    "sha256": "0027016b1869b03234371136a7bc6a38e41b0f702707ecd2204884e31a2e64cc",
+    "seconds": 1.4354,
     "sampleRate": 24000
   },
   "kid6": {
@@ -280,11 +280,11 @@
     "sampleRate": 24000
   },
   "church_a3": {
-    "text": "Holy shnikeys, bud! Those tires leave a mark!",
+    "text": "Dang bro! Those tires leave a mark!",
     "voice": "af_nicole",
-    "pitch": 1,
-    "sha256": "2c27c02e5061e82cfb91de6b00888a8110516ff3ffb2b0544a823b7935d47e8a",
-    "seconds": 4.416,
+    "pitch": 1.0,
+    "sha256": "70421fd77ba213037e1ed8314212593128f9771b923076f5026659c7ee5f0be4",
+    "seconds": 3.2853,
     "sampleRate": 24000
   },
   "church_a4": {
@@ -344,11 +344,11 @@
     "sampleRate": 24000
   },
   "church_d3": {
-    "text": "Holy shnikeys! The lawn is lava now, bud!",
+    "text": "Dang bro! The lawn is lava now, bud!",
     "voice": "bf_emma",
-    "pitch": 1,
-    "sha256": "7037c437dc7618abc0a518cb81f4527884f2f74d5aa1a459d3058a806381d5ea",
-    "seconds": 3.1147,
+    "pitch": 1.0,
+    "sha256": "969f3d427f1587a4e6705283343d21abbe2e74251472bdb8641cfbc567d4da21",
+    "seconds": 2.1547,
     "sampleRate": 24000
   },
   "church_d4": {
@@ -472,11 +472,11 @@
     "sampleRate": 24000
   },
   "dlg_street_bike_male_3": {
-    "text": "Holy shnikeys, bud! What in the heck!",
+    "text": "Dang bro! What in the heck!",
     "voice": "am_michael",
     "pitch": 1,
-    "sha256": "36b3dd0f5087d25a680f6407030ddb3b194c4726309bbb566fc54fd2040d03d3",
-    "seconds": 2.8373,
+    "sha256": "fff5f059be8a4427b2e95e5dc7aaea502b595b1fd0a254504af8e53f80cf0729",
+    "seconds": 1.664,
     "sampleRate": 24000
   },
   "dlg_street_bike_male_4": {
@@ -536,11 +536,11 @@
     "sampleRate": 24000
   },
   "dlg_street_bar_male_3": {
-    "text": "Holy shnikeys! That bar nearly took my moustache off!",
+    "text": "Dang bro! That bar nearly took my moustache off!",
     "voice": "am_michael",
     "pitch": 1,
-    "sha256": "0c50a44f545fc031f34024e4cb06195d7cb5434558045b51c32ab437f9a9de27",
-    "seconds": 4.0107,
+    "sha256": "eb95ffed83ece516007303c7c93e995e85821216db0644f4792bd26708fe60f8",
+    "seconds": 3.136,
     "sampleRate": 24000
   },
   "dlg_street_bar_male_4": {
@@ -616,11 +616,11 @@
     "sampleRate": 24000
   },
   "dlg_kid_bike_female_1": {
-    "text": "Holy shnikeys! Watch the school zone, bud!",
+    "text": "Dang bro! Watch the school zone, bud!",
     "voice": "af_bella",
     "pitch": 1.2,
-    "sha256": "dc04e769656c3e62f7cb2092fb487e3cf7e7ee147ae5f4e01a5cf8071e6d2f08",
-    "seconds": 2.8444,
+    "sha256": "18740ead5c19c4b6e6e64cfd834e99bb3755a588be85abe5973dd6497c7b3215",
+    "seconds": 2.2755,
     "sampleRate": 24000
   },
   "dlg_kid_bike_female_2": {
@@ -696,11 +696,11 @@
     "sampleRate": 24000
   },
   "dlg_kid_bar_female_3": {
-    "text": "Holy shnikeys! Flying dessert, eh!",
+    "text": "Dang bro! Flying dessert, eh!",
     "voice": "af_bella",
     "pitch": 1.2,
-    "sha256": "4e5c7709fc8eb922badffde2be2c04bb58a8f33cf46e77b11ff7c9d993ca325f",
-    "seconds": 2.5955,
+    "sha256": "501465c63107a51641921af9298edf870cf05ee0c8b7dd707ab8a44b01fd1329",
+    "seconds": 1.92,
     "sampleRate": 24000
   },
   "dlg_kid_bar_female_4": {
@@ -744,11 +744,11 @@
     "sampleRate": 24000
   },
   "dlg_church_bike_female_1": {
-    "text": "Holy shnikeys! You flattened the church picnic, bud!",
+    "text": "Dang bro! You flattened the church picnic, bud!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "c74f5bd90e7288631a413bf7a5b5cec167d20711d0dfb7af6089cb70cf3198c7",
-    "seconds": 3.4133,
+    "sha256": "e73eafde1b9e2d3814aa6e035307e2fe6e9d6d0945b7d2f9a16c50f050e6026f",
+    "seconds": 2.688,
     "sampleRate": 24000
   },
   "dlg_church_bike_female_2": {
@@ -808,11 +808,11 @@
     "sampleRate": 24000
   },
   "dlg_church_bar_female_1": {
-    "text": "Holy shnikeys! Three layers of blessings in my hair!",
+    "text": "Dang bro! Three layers of blessings in my hair!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "69e27f19732e76476fed1f75702a9fd862f337c34e3ec759f82aa472536a103f",
-    "seconds": 3.5627,
+    "sha256": "d8b4e8490864325448a5da94aff575fe09bb603e149bff721a86f0273e3b63ce",
+    "seconds": 2.7307,
     "sampleRate": 24000
   },
   "dlg_church_bar_female_2": {
@@ -872,11 +872,11 @@
     "sampleRate": 24000
   },
   "dlg_hell_bike_female_1": {
-    "text": "Holy shnikeys! You flattened me twice, you bugger!",
+    "text": "Dang bro! You flattened me twice, you bugger!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "c8c19f850fc8b011186702fbed6dd1a2e238176e726ce2e9e34e0580b1768750",
-    "seconds": 3.2213,
+    "sha256": "77d63df9f1eff979e5b23174c312c355d99bbbbbdcf64faa18b2393e7ddb0138",
+    "seconds": 2.5387,
     "sampleRate": 24000
   },
   "dlg_hell_bike_female_2": {
@@ -960,11 +960,11 @@
     "sampleRate": 24000
   },
   "dlg_hell_bar_female_4": {
-    "text": "Holy shnikeys, bud! That bar tastes downright heavenly!",
+    "text": "Dang bro! That bar tastes downright heavenly!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "cb91a212f745f74d5b1af2a2ce92c81b8b77e91183e94448bf5bfa25a55a689b",
-    "seconds": 3.9467,
+    "sha256": "7501fd438c37b3bce97aae82eaa565a96ee02d425d5f55544d702c351d745ced",
+    "seconds": 2.8373,
     "sampleRate": 24000
   },
   "dlg_driver_bar_male_1": {
@@ -1016,11 +1016,11 @@
     "sampleRate": 24000
   },
   "dlg_driver_bar_female_3": {
-    "text": "Holy shnikeys! Flying Nanaimo bars again, eh!",
+    "text": "Dang bro! Flying Nanaimo bars again, eh!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "b330aaed9772eba34af14bf0f2f2b91e17997189ff8cc38e52759ef1ef97e5d9",
-    "seconds": 3.5413,
+    "sha256": "8ed51368f17b7ac80ac4981cb2bbe6e4ac7d1b9b577253a398113dfc04b761cb",
+    "seconds": 2.816,
     "sampleRate": 24000
   },
   "dlg_driver_bar_female_4": {
@@ -1032,11 +1032,11 @@
     "sampleRate": 24000
   },
   "dlg_jesus_bike_1": {
-    "text": "Holy shnikeys, bud! Walk on water, ride on the road!",
+    "text": "Dang bro! Walk on water, ride on the road!",
     "voice": "am_michael",
     "pitch": 1,
-    "sha256": "bd89bdd55223213f92f4bb42b12fc717c166c0e3b494f9fd1d19f0ac1394bf72",
-    "seconds": 3.968,
+    "sha256": "ba06ffa85b05a9ce13a33e6283b6e93a3bbaeb0319d0de0d3578bafd2e47ab11",
+    "seconds": 2.752,
     "sampleRate": 24000
   },
   "dlg_jesus_bike_2": {
@@ -1224,11 +1224,11 @@
     "sampleRate": 24000
   },
   "dlg_driver_bike_female_1": {
-    "text": "Holy shnikeys! You nearly spilled my double-double!",
+    "text": "Dang bro! You nearly spilled my double-double!",
     "voice": "af_bella",
     "pitch": 1,
-    "sha256": "271d2bc3a795b21e07ad9f20a9cdb16b2b4365ea4ad305a0f5d6c37e89a268bb",
-    "seconds": 3.3493,
+    "sha256": "fc89def2119c99c5fa2fae5fd9424e9f67fc42b670197a167242d49436840d0c",
+    "seconds": 2.624,
     "sampleRate": 24000
   },
   "dlg_driver_bike_female_2": {
