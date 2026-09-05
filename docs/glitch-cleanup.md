@@ -13,3 +13,9 @@ The four junctions pass 2,491 full-lane raster samples with zero rendered height
 - Clear rider lean, wheelie, air time and ramp/offroad flags on reset so a previous crash/jump does not carry into the next spawn.
 
 Checks: `check:physics`, `check:geography`, `check:rider`, `check:scene`, `check:multiplayer`. Tests use the real map and rendered road geometry, plus delayed admission and fresh-run/respawn cases.
+
+## Mexicana follow-up audit
+
+An open production game was running version `298b63dd1343`, without junction reconciliation or rendered junction support. The public entry point serves `570d9b648498`, which includes both fixes. Existing open sessions require a page reload; the active ride was left untouched.
+
+`npm run check:roadside-grounding` compares visible terrain/road/sidewalk triangles to support at 798 roadside points around stations 200–500 and tests 4,110 lane/model poses around Departure Bay, Mexicana and Wassell. No phantom elevated support was reproduced in the current version. This audit does not prove every actor pose or all locations are issue-free.
