@@ -43,54 +43,31 @@
     background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.38) 100%);
   }
 
-  /* ---------- scroggygames.com corner link ---------- */
-  /* Permanent above every screen (loading z50, title z40, hud z10). Stars sleep
-     until hover; touch devices have no hover, so they twinkle there always. */
+  /* ---------- scroggygames.com brand link ---------- */
+  /* Exact copy of the scroggygames.com masthead brand: Henny Penny wordmark,
+     #d5ed58 star + .com, star spins 180° and pops on hover/focus. Sits
+     bottom-right above the speedo, over every screen (loading z50, title z40). */
   #scroggy-link {
-    position: absolute; top: 12px; right: 20px; z-index: 60;
-    font-family: 'Henny Penny', cursive; font-size: 17px; line-height: 1.35;
-    text-decoration: none; white-space: nowrap; letter-spacing: 0.5px;
+    position: absolute; right: 26px; bottom: 106px; z-index: 60;
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: 'Henny Penny', Georgia, serif; font-size: 19px;
+    white-space: nowrap; text-decoration: none; color: #f0f0e6;
+    text-shadow: 0 2px 0 #000, 0 0 14px rgba(0,0,0,0.6);
     pointer-events: auto;
   }
-  #scroggy-link .brand { color: #f4ff3f; text-shadow: 0 0 10px rgba(244,255,63,0.65), 0 2px 0 #000; }
-  #scroggy-link .tld { color: #8a7dff; text-shadow: 0 0 10px rgba(138,125,255,0.6), 0 2px 0 #000; }
-  #scroggy-link .star {
-    position: absolute; opacity: 0; pointer-events: none;
-    text-shadow: 0 0 6px currentColor, 0 1px 0 #000;
+  #scroggy-link > svg {
+    color: #d5ed58; width: 22px; height: 22px; flex: none;
+    filter: drop-shadow(0 2px 0 #000);
+    transition: rotate 0.6s cubic-bezier(0.16, 1, 0.3, 1), scale 0.3s;
   }
-  #scroggy-link .star.sy { color: #f4ff3f; }
-  #scroggy-link .star.si { color: #8a7dff; }
-  #scroggy-link .s1 { top: -10px; left: 3px; font-size: 10px; }
-  #scroggy-link .s2 { top: -4px; left: 34%; font-size: 13px; }
-  #scroggy-link .s3 { top: 9px; left: 62%; font-size: 9px; }
-  #scroggy-link .s4 { bottom: -9px; left: 18%; font-size: 12px; }
-  #scroggy-link .s5 { top: 13px; left: 85%; font-size: 11px; }
-  #scroggy-link .s6 { bottom: -7px; left: 70%; font-size: 9px; }
-  @keyframes twinkle {
-    0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
-    50% { opacity: 1; transform: scale(1) rotate(25deg); }
-  }
-  /* longhands, not the animation shorthand — a shorthand here (higher specificity)
-     would zero out the per-star animation-delay stagger below */
-  #scroggy-link:hover .star, body.touch #scroggy-link .star {
-    animation-name: twinkle; animation-duration: 1.2s;
-    animation-timing-function: ease-in-out; animation-iteration-count: infinite;
-  }
-  #scroggy-link .s2 { animation-delay: 0.2s; }
-  #scroggy-link .s3 { animation-delay: 0.4s; }
-  #scroggy-link .s4 { animation-delay: 0.6s; }
-  #scroggy-link .s5 { animation-delay: 0.8s; }
-  #scroggy-link .s6 { animation-delay: 1s; }
-  @keyframes neon-pulse {
-    0%, 100% { text-shadow: 0 0 6px currentColor, 0 2px 0 #000; }
-    50% { text-shadow: 0 0 16px currentColor, 0 0 26px currentColor, 0 2px 0 #000; }
-  }
-  #scroggy-link:hover .brand, #scroggy-link:hover .tld { animation: neon-pulse 1.2s ease-in-out infinite; }
+  #scroggy-link:is(:hover, :focus-visible) > svg { rotate: 180deg; scale: 1.2; }
+  #scroggy-link .brand-dot { color: #d5ed58; }
   #scroggy-link:focus-visible { outline: 2px solid #ffd23f; outline-offset: 3px; }
-  @media (prefers-reduced-motion: reduce) {
-    #scroggy-link .star, #scroggy-link .brand, #scroggy-link .tld { animation: none; }
+  body.touch #scroggy-link {
+    right: 12px; bottom: calc(136px + env(safe-area-inset-bottom, 0px));
+    font-size: 17px; gap: 9px;
   }
-  body.touch #scroggy-link { font-size: 15px; top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.touch #scroggy-link > svg { width: 19px; height: 19px; }
 
 
   /* ---------- touch controls ---------- */
@@ -266,7 +243,7 @@
   }
   #speedo .unit { font-size: 16px; color: #ffd23f; letter-spacing: 3px; text-shadow: 0 2px 0 #000; }
   #rings {
-    position: absolute; top: 46px; right: 22px; font-size: 24px; color: #ff8a2a;
+    position: absolute; top: 14px; right: 22px; font-size: 24px; color: #ff8a2a;
     text-shadow: 0 2px 0 #000, 0 0 18px rgba(255,90,0,0.8); letter-spacing: 1px;
   }
   #minimap {
@@ -288,7 +265,7 @@
     animation: pop 0.28s ease-out;
   }
   #scorebox {
-    position: absolute; top: 86px; right: 22px; text-align: right;
+    position: absolute; top: 74px; right: 22px; text-align: right;
   }
   #scorebox .lbl { font-size: 11px; color: #9fb0bd; letter-spacing: 3px; font-family: Arial, sans-serif; margin-bottom: 2px; }
   #score { font-size: 26px; color: #fff; text-shadow: 0 2px 0 #000, 0 0 16px rgba(255,140,0,0.5); }
@@ -409,9 +386,7 @@
   <div id="app"></div>
   <div id="vignette"></div>
 
-  <a id="scroggy-link" href="https://www.scroggygames.com/" target="_blank" rel="noopener" aria-label="scroggygames.com — Scroggy Games">
-    <span class="star sy s1">✦</span><span class="star sy s2">✧</span><span class="star si s3">✦</span><span class="star sy s4">✧</span><span class="star si s5">✦</span><span class="star sy s6">✧</span><span class="brand">scroggygames</span><span class="tld">.com</span>
-  </a>
+  <a id="scroggy-link" class="brand" href="https://www.scroggygames.com/" target="_blank" rel="noopener" aria-label="Scroggygames.com home"><svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><path d="m20 0 5 14 15 6-15 5-5 15-6-15L0 20l14-6Z"/></svg><span>Scroggygames<span class="brand-dot">.com</span></span></a>
 
   <div id="loading">
     <div class="spin"></div>
