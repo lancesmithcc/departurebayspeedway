@@ -21,7 +21,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Place", "@id": "https://departurebayspeedway.scroggygames.com/#departure-bay", "name": "Departure Bay Road, Nanaimo", "description": "The Nanaimo, British Columbia road and coastal neighbourhood depicted in Departure Bay Speedway.", "address": {"@type": "PostalAddress", "streetAddress": "Departure Bay Road", "addressLocality": "Nanaimo", "addressRegion": "BC", "addressCountry": "CA"}, "containedInPlace": {"@type": "City", "name": "Nanaimo", "sameAs": "https://www.nanaimo.ca/"}}, {"@type": "VideoGame", "@id": "https://departurebayspeedway.scroggygames.com/#game", "name": "Departure Bay Speedway", "url": "https://departurebayspeedway.scroggygames.com/", "description": "A free browser dirtbike game inspired by Departure Bay Road in Nanaimo, from Country Club to the beach. Ride with up to seven named players and throw Nanaimo bars in a fictional local satire.", "genre": ["Racing", "Arcade"], "gamePlatform": "Web browser", "applicationCategory": "GameApplication", "operatingSystem": "Any with a modern WebGL-capable browser", "inLanguage": "en-CA", "isAccessibleForFree": true, "playMode": "https://schema.org/MultiPlayer", "numberOfPlayers": {"@type": "QuantitativeValue", "minValue": 1, "maxValue": 7}, "contentLocation": {"@id": "https://departurebayspeedway.scroggygames.com/#departure-bay"}, "gameLocation": {"@id": "https://departurebayspeedway.scroggygames.com/#departure-bay"}, "image": "https://departurebayspeedway.scroggygames.com/openingscreen.jpg", "screenshot": ["https://departurebayspeedway.scroggygames.com/assets/promo/game-downhill.jpg", "https://departurebayspeedway.scroggygames.com/assets/promo/game-beach.jpg"]}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Road+Rage&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Henny+Penny&family=Road+Rage&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -42,6 +42,56 @@
     position: absolute; inset: 0; pointer-events: none; z-index: 5;
     background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.38) 100%);
   }
+
+  /* ---------- scroggygames.com corner link ---------- */
+  /* Permanent above every screen (loading z50, title z40, hud z10). Stars sleep
+     until hover; touch devices have no hover, so they twinkle there always. */
+  #scroggy-link {
+    position: absolute; top: 12px; right: 20px; z-index: 60;
+    font-family: 'Henny Penny', cursive; font-size: 17px; line-height: 1.35;
+    text-decoration: none; white-space: nowrap; letter-spacing: 0.5px;
+    pointer-events: auto;
+  }
+  #scroggy-link .brand { color: #f4ff3f; text-shadow: 0 0 10px rgba(244,255,63,0.65), 0 2px 0 #000; }
+  #scroggy-link .tld { color: #8a7dff; text-shadow: 0 0 10px rgba(138,125,255,0.6), 0 2px 0 #000; }
+  #scroggy-link .star {
+    position: absolute; opacity: 0; pointer-events: none;
+    text-shadow: 0 0 6px currentColor, 0 1px 0 #000;
+  }
+  #scroggy-link .star.sy { color: #f4ff3f; }
+  #scroggy-link .star.si { color: #8a7dff; }
+  #scroggy-link .s1 { top: -10px; left: 3px; font-size: 10px; }
+  #scroggy-link .s2 { top: -4px; left: 34%; font-size: 13px; }
+  #scroggy-link .s3 { top: 9px; left: 62%; font-size: 9px; }
+  #scroggy-link .s4 { bottom: -9px; left: 18%; font-size: 12px; }
+  #scroggy-link .s5 { top: 13px; left: 85%; font-size: 11px; }
+  #scroggy-link .s6 { bottom: -7px; left: 70%; font-size: 9px; }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+    50% { opacity: 1; transform: scale(1) rotate(25deg); }
+  }
+  /* longhands, not the animation shorthand — a shorthand here (higher specificity)
+     would zero out the per-star animation-delay stagger below */
+  #scroggy-link:hover .star, body.touch #scroggy-link .star {
+    animation-name: twinkle; animation-duration: 1.2s;
+    animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+  }
+  #scroggy-link .s2 { animation-delay: 0.2s; }
+  #scroggy-link .s3 { animation-delay: 0.4s; }
+  #scroggy-link .s4 { animation-delay: 0.6s; }
+  #scroggy-link .s5 { animation-delay: 0.8s; }
+  #scroggy-link .s6 { animation-delay: 1s; }
+  @keyframes neon-pulse {
+    0%, 100% { text-shadow: 0 0 6px currentColor, 0 2px 0 #000; }
+    50% { text-shadow: 0 0 16px currentColor, 0 0 26px currentColor, 0 2px 0 #000; }
+  }
+  #scroggy-link:hover .brand, #scroggy-link:hover .tld { animation: neon-pulse 1.2s ease-in-out infinite; }
+  #scroggy-link:focus-visible { outline: 2px solid #ffd23f; outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    #scroggy-link .star, #scroggy-link .brand, #scroggy-link .tld { animation: none; }
+  }
+  body.touch #scroggy-link { font-size: 15px; top: calc(8px + env(safe-area-inset-top, 0px)); }
+
 
   /* ---------- touch controls ---------- */
   /* Small, low-contrast and out of the way: the bike is the thing being watched, not
@@ -216,7 +266,7 @@
   }
   #speedo .unit { font-size: 16px; color: #ffd23f; letter-spacing: 3px; text-shadow: 0 2px 0 #000; }
   #rings {
-    position: absolute; top: 14px; right: 22px; font-size: 24px; color: #ff8a2a;
+    position: absolute; top: 46px; right: 22px; font-size: 24px; color: #ff8a2a;
     text-shadow: 0 2px 0 #000, 0 0 18px rgba(255,90,0,0.8); letter-spacing: 1px;
   }
   #minimap {
@@ -238,7 +288,7 @@
     animation: pop 0.28s ease-out;
   }
   #scorebox {
-    position: absolute; top: 74px; right: 22px; text-align: right;
+    position: absolute; top: 86px; right: 22px; text-align: right;
   }
   #scorebox .lbl { font-size: 11px; color: #9fb0bd; letter-spacing: 3px; font-family: Arial, sans-serif; margin-bottom: 2px; }
   #score { font-size: 26px; color: #fff; text-shadow: 0 2px 0 #000, 0 0 16px rgba(255,140,0,0.5); }
@@ -359,6 +409,10 @@
   <div id="app"></div>
   <div id="vignette"></div>
 
+  <a id="scroggy-link" href="https://www.scroggygames.com/" target="_blank" rel="noopener" aria-label="scroggygames.com — Scroggy Games">
+    <span class="star sy s1">✦</span><span class="star sy s2">✧</span><span class="star si s3">✦</span><span class="star sy s4">✧</span><span class="star si s5">✦</span><span class="star sy s6">✧</span><span class="brand">scroggygames</span><span class="tld">.com</span>
+  </a>
+
   <div id="loading">
     <div class="spin"></div>
     <div style="font-size:20px;letter-spacing:2px;">LOADING DEPARTURE BAY</div>
@@ -433,6 +487,10 @@
   <script>
     document.querySelector(".promo-links")?.addEventListener("pointerdown",e=>e.stopPropagation());
     document.querySelector(".promo-links")?.addEventListener("keydown",e=>e.stopPropagation());
+    // same for the corner brand link — otherwise a tap on it also starts a run
+    const scroggy = document.getElementById("scroggy-link");
+    scroggy?.addEventListener("pointerdown", e => e.stopPropagation());
+    scroggy?.addEventListener("keydown", e => e.stopPropagation());
     // The game is ES modules + fetch('./data/map.json'). Both are blocked by the
     // browser over file://, so opening index.html directly can never work — say so
     // instead of hanging on the loading spinner forever.
