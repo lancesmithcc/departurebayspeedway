@@ -307,6 +307,11 @@ export class Game {
       if (now - (this._lastW || 0) < 330) this.player.startWheelie();
       this._lastW = now;
     }
+    if (code === 'KeyE') {
+      // a dedicated pop — the phone's WHEELIE button lands here, and the keyboard
+      // gets it too, no double-tap timing required
+      this.player.startWheelie();
+    }
     if (code === 'KeyF') {
       if (this.state === 'riding') this.bars.throw(this.player);
     }
@@ -327,11 +332,20 @@ export class Game {
 
   readInput() {
     const k = this.keys;
-    const thr = (k['KeyW'] || k['ArrowUp']) ? 1 : 0;
-    const brk = (k['KeyS'] || k['ArrowDown']) ? 1 : 0;
+    let thr = (k['KeyW'] || k['ArrowUp']) ? 1 : 0;
+    let brk = (k['KeyS'] || k['ArrowDown']) ? 1 : 0;
     let steer = 0;
     if (k['KeyA'] || k['ArrowLeft']) steer += 1;
     if (k['KeyD'] || k['ArrowRight']) steer -= 1;
+    // the tilt driver is analog, so it blends over the keys rather than faking them:
+    // the phone steers by leaning, the keyboard still steers by holding, both at once
+    // simply add up. Until the sensor is live, tilt.active is false and this is a no-op.
+    const t = this.tilt;
+    if (t && t.active) {
+      thr = Math.max(thr, t.throttle);
+      brk = Math.max(brk, t.brake);
+      steer = clamp(steer + t.steer, -1, 1);
+    }
     this.input.throttle = thr;
     this.input.brake = brk;
     this.input.steer = steer;

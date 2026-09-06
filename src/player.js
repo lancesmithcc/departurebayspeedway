@@ -648,16 +648,23 @@ export class Player {
     }
 
     // visuals
-    // grounded wheelie trick (double-tap W): hold it on the back wheel for points
+    // grounded wheelie trick (double-tap W / the phone's WHEELIE button): hold it on
+    // the back wheel for points. It bails the moment the throttle drops — holding gas
+    // is what keeps the front end up.
     if (this.wheelieTrick) {
       const wt = this.wheelieTrick;
       wt.t += dt; wt.dist += this.v * dt;
       if (input.throttle < 0.4 || this.v < 3 || input.brake > 0.4) this.endWheelie(true);
+      else if (this.ctx.effects && Math.random() < dt * 22) {
+        // rear tire breaking traction under the load, right where it would
+        const back = forwardOf(this.heading);
+        this.ctx.effects.dust(this.pos.x - back.x * 1.15, this.pos.y + 0.3, this.pos.z - back.z * 1.15, 1);
+      }
     }
     const wheelieTarget = this.wheelieTrick
-      ? 0.55 + Math.sin((this.wheelieTrick.t || 0) * 6.5) * 0.06   // balance wobble
+      ? 0.95 + Math.sin((this.wheelieTrick.t || 0) * 6.0) * 0.09   // big sky point, balance wobble
       : (this.grounded && input.throttle > 0.6 && this.v > 2 && this.v < 14 ? 0.42 : (input.brake > 0.6 && this.v > 5 ? -0.12 : 0));
-    this.wheelie = damp(this.wheelie, wheelieTarget, this.wheelieTrick ? 5 : 4, dt);
+    this.wheelie = damp(this.wheelie, wheelieTarget, this.wheelieTrick ? 7.5 : 4, dt);
     this.lean = damp(this.lean, input.steer * clamp(this.v / 22, 0, 1) * 0.55, 7, dt);
     this.steerVis = damp(this.steerVis, input.steer, 9, dt);
     this.wheelSpin += this.v * dt / 0.33;
@@ -667,6 +674,7 @@ export class Player {
   startWheelie() {
     if (this.state !== 'riding' || this.wheelieTrick || !this.grounded || this.v < 4) return;
     this.wheelieTrick = { t: 0, dist: 0 };
+    this.shake = Math.max(this.shake, 0.25);   // the front end comes up with a bang
   }
 
   endWheelie(scored) {

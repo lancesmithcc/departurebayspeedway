@@ -24,6 +24,7 @@ tab title.
 | S / ↓ | brake |
 | A D / ← → | lean & steer |
 | W W | double-tap to pop a wheelie (hold it for style) |
+| E | pop a wheelie, no double-tap needed |
 | SPACE | jump — tap again in the air for a no-hander |
 | air A/D | whip |
 | air S | backflip · a fresh W stab frontflips |
@@ -41,13 +42,27 @@ gas, jump, brake and bars on the right, and a thin strip of camera / respawn / m
 between them. Turn the phone sideways — portrait still works and still fits, but it is
 a letterbox of road under a lot of sky, so there is a hint saying so until you do.
 
+Steering, gas and brake are on the tilt once the motion sensor is up: lean the phone
+left or right to steer, tip the top edge away to throttle, tip it back toward you to
+brake. Whatever angle the hand sits in comfortably counts as neutral — it is measured
+when the ride starts, and the LVL button in the utility strip re-takes it whenever the
+phone has migrated in the grip. While the tilt is driving, those thumb buttons stand
+down and the pad keeps only BAR, JUMP and WHEELIE; with no gyroscope, permission
+denied, or before calibration, the full button pad is there instead. iOS asks for
+motion permission on the first tap (the same one that starts the ride).
+
+The WHEELIE button holds the gas for you — the trick bails the moment the throttle
+drops, and a thumb on one button can't also tip the phone — and a tap pops it
+outright, no double-tap timing needed.
+
 The pad writes the same key codes the keyboard listener does and calls the same
 handler, so everything built on top of the keys works untouched: double-tap GAS still
 pops a wheelie, JUMP in the air is still a no-hander, holding a steer button in the
 air is still a whip, and BAR still goes full auto under a bar crate. Every button
 captures its own pointer, because without that a thumb sliding off the gas mid-corner
 sends the release to whatever was underneath and the throttle sticks on for the rest
-of the run.
+of the run. `?tilt` fakes the sensor on a desktop, so the tilt path can be exercised
+without a phone in hand.
 
 The scene is identical on a phone; what gives is how it is drawn — pixel ratio capped
 at 1.5, a 1024 shadow map instead of 2048, and no multisampling, which a tile-based

@@ -100,6 +100,11 @@
     width: 17vmin; height: 17vmin; min-width: 62px; min-height: 62px; font-size: 3.4vmin;
     border-color: rgba(255,180,90,0.55); background: rgba(60,26,4,0.45);
   }
+  .tp-btn.wheelie { border-color: rgba(255,180,90,0.55); background: rgba(60,26,4,0.45); }
+  /* The tilt has steering, gas and brake, so the drive buttons stand down and the
+     thumbs keep only the things a button genuinely does better. Until the sensor is
+     calibrated (or if it never comes up) the full pad is back. */
+  #touchpad.tilt .drive, #touchpad.tilt .tp-left { display: none; }
   .tp-util-btn {
     width: 9vmin; height: 6.5vmin; min-width: 38px; min-height: 28px;
     font-size: 1.9vmin; opacity: 0.6; border-radius: 8px;
@@ -404,6 +409,7 @@
       <b>S / ↓</b><span>brake</span>
       <b>A D / ← →</b><span>lean &amp; steer</span>
       <b>W W</b><span>pop a wheelie (hold it!)</span>
+      <b>E</b><span>pop a wheelie, no double-tap</span>
       <b>SPACE</b><span>jump (tap in air = no-hander)</span>
       <b>air A/D</b><span>whip</span>
       <b>air S / W</b><span>backflip / frontflip</span>

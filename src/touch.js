@@ -5,21 +5,26 @@
 // double-tap, the air tricks, the bar trigger — knows or cares that a thumb pressed
 // it rather than a key, so there is one control path to keep working instead of two.
 //
-// Every button captures its own pointer. Without that, sliding a thumb off the gas
-// mid-corner sends the pointerup to whatever is underneath and the throttle sticks on
-// for the rest of the run.
+// Steering and throttle live on the device tilt: tilt left/right to steer, tip the
+// top edge away to gas, tip it toward you to brake. Tilt is analog, so it goes into
+// game.tilt (steer/throttle/brake, -1..1) and readInput blends it over the keys.
+// The buttons keep the things a thumb genuinely does better: BAR, JUMP and WHEELIE.
+// Until the sensor is up and calibrated — permission denied, no gyroscope, or the
+// ?touch desktop fallback — the old thumb buttons stay on screen instead.
 
 const PAD = [
-  // side, code, label, class
-  { side: 'left', code: 'ArrowLeft', label: '◀', cls: 'steer' },
-  { side: 'left', code: 'ArrowRight', label: '▶', cls: 'steer' },
+  // side, code, label, class — drive: true stands down once the tilt is in charge
+  { side: 'left', code: 'ArrowLeft', label: '◀', cls: 'steer', drive: true },
+  { side: 'left', code: 'ArrowRight', label: '▶', cls: 'steer', drive: true },
   { side: 'right', code: 'KeyF', label: 'BAR', cls: 'small' },
-  { side: 'right', code: 'ArrowDown', label: 'BRAKE', cls: 'small' },
+  { side: 'right', code: 'KeyW', label: 'WHEELIE', cls: 'small', pop: true, accent: true },
+  { side: 'right', code: 'ArrowDown', label: 'BRAKE', cls: 'small', drive: true },
   { side: 'right', code: 'Space', label: 'JUMP', cls: 'small' },
-  { side: 'right', code: 'KeyW', label: 'GAS', cls: 'gas' },
+  { side: 'right', code: 'KeyW', label: 'GAS', cls: 'gas', drive: true },
 ];
 
-// camera, respawn and mute: needed, but not mid-corner, so they get the thin strip
+// camera, respawn, recalibrate and mute: needed, but not mid-corner, so they get the
+// thin strip. LVL re-captures the neutral pose, for when the phone migrates laps.
 const UTIL = [
   { code: 'KeyC', label: 'CAM' },
   { code: 'KeyR', label: 'R' },
@@ -41,6 +46,33 @@ export function isTouchDevice() {
   // has a keyboard attached and should stay on the keyboard path.
   return Math.min(screen.width, screen.height) <= 820;
 }
+
+// beta/gamma are measured in the device's own frame; this screen is usually sideways,
+// so re-express them against gravity in what the player is doing: +roll is leaned
+// right, +pitch is top-edge-toward-you (the brake direction). angle is the screen
+// orientation (screen.orientation.angle, or window.orientation as the fallback).
+export function tiltFromOrientation(beta, gamma, angle) {
+  let roll, pitch;
+  switch (((angle % 360) + 360) % 360) {
+    case 90: roll = beta; pitch = -gamma; break;
+    case 180: roll = -gamma; pitch = -beta; break;
+    case 270: roll = -beta; pitch = gamma; break;
+    default: roll = gamma; pitch = beta; break;   // portrait, and any angle we don't know
+  }
+  return { roll, pitch };
+}
+
+// ---- the tilt driver ----
+// deadzone first, then an eased ramp: a small unconscious wobble must be nothing, and
+// a hard lean must reach the rail before the wrist gets uncomfortable. Signed — past
+// the deadzone it returns the shaped magnitude with its original sign, so gas and
+// brake (opposite tips of the same axis) can never both be on. Degrees.
+const ROLL_DEAD = 3, ROLL_RANGE = 20;       // full lock at 23° of lean
+const PITCH_DEAD = 2.5, PITCH_RANGE = 9;    // full gas / full brake at ~11.5° of tip
+const shape = (deg, dead, range) => {
+  const x = Math.min(1, Math.max(0, (Math.abs(deg) - dead) / range));
+  return Math.sign(deg) * x * x * (3 - 2 * x);    // smoothstep, so the ramp eases in
+};
 
 export function initTouchControls(game) {
   const pad = document.createElement('div');
@@ -69,6 +101,7 @@ export function initTouchControls(game) {
       game.audio.init();                         // first touch unlocks WebAudio
       game.keys[code] = true;
       game.onKey(code);
+      if (opts.pop) game.onKey('KeyE');          // pop now — the double-tap is a keyboard thing
       if (navigator.vibrate && opts.buzz !== false) navigator.vibrate(8);
     };
     const release = (e) => {
@@ -90,9 +123,11 @@ export function initTouchControls(game) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = `tp-btn tp-${b.cls}`;
+    if (b.drive) el.classList.add('drive');
+    if (b.accent) el.classList.add('wheelie');
     el.textContent = b.label;
     el.setAttribute('aria-label', b.label);
-    wire(el, b.code);
+    wire(el, b.code, { pop: b.pop });
     clusters[b.side].appendChild(el);
   }
   for (const u of UTIL) {
@@ -104,11 +139,31 @@ export function initTouchControls(game) {
     wire(el, u.code, { buzz: false });
     util.appendChild(el);
   }
+  // LVL re-takes the neutral pose. Not a key, so it steps outside wire().
+  const lvl = document.createElement('button');
+  lvl.type = 'button';
+  lvl.className = 'tp-btn tp-util-btn';
+  lvl.textContent = 'LVL';
+  lvl.setAttribute('aria-label', 'recalibrate tilt');
+  lvl.addEventListener('pointerdown', (e) => { e.preventDefault(); tilt.calibrate(); });
+  lvl.addEventListener('contextmenu', (e) => e.preventDefault());
+  util.appendChild(lvl);
 
   pad.appendChild(clusters.left);
   pad.appendChild(util);
   pad.appendChild(clusters.right);
   document.body.appendChild(pad);
+
+  // ---- tilt ----
+  // WHEELIE holds GAS (the trick bails the moment throttle drops, and a thumb holding
+  // one button can't also tip the phone), so that button survives tilt and the drive
+  // buttons stand down instead. They stay in the DOM — the sensor can be revoked or
+  // lost mid-run, and the sync timer is happier never having to rebuild them.
+  const tilt = initTilt(game, (on) => {
+    pad.classList.toggle('tilt', on);
+    // anything the drive buttons still owe gets paid before they vanish
+    if (on) for (const b of PAD) if (b.drive) game.keys[b.code] = false;
+  });
 
   // ---- turn it sideways ----
   // Portrait on a phone leaves a letterbox of road under most of a sky. The hint sits
@@ -138,6 +193,8 @@ export function initTouchControls(game) {
       if (!want) {
         for (const b of PAD) game.keys[b.code] = false;
         for (const el of pad.querySelectorAll('.down')) el.classList.remove('down');
+      } else {
+        tilt.calibrate();      // neutral is wherever the hand happens to be holding it now
       }
     }
   };
@@ -157,4 +214,79 @@ export function initTouchControls(game) {
   const again = document.getElementById('lb-prompt');
   if (again) again.textContent = 'TAP TO RIDE AGAIN';
   return pad;
+}
+
+// ---- tilt: from sensor to game.tilt ----
+// game.tilt = { steer, throttle, brake, active }. Analog, so readInput blends it over
+// the keys instead of pretending to be one. Calibration takes the average of the next
+// handful of samples as "neutral" — a phone is never held at exactly factory zero, and
+// wherever the hand sits comfortably is the pose that should mean "straight and
+// coasting". Until a baseline exists, active stays false and the thumb pad drives.
+function initTilt(game, onActive) {
+  const t = game.tilt = { steer: 0, throttle: 0, brake: 0, active: false };
+  const q = new URLSearchParams(location.search);
+
+  let roll = 0, pitch = 0;            // smoothed, in tiltFromOrientation's frame
+  let baseRoll = 0, basePitch = 0;
+  let samples = [];
+  let pending = true;                 // a baseline is wanted (first run, or a recalibrate)
+  let driven = false;                 // pad told the drive buttons to stand down
+
+  const calibrate = () => { samples = []; pending = true; };
+  t.calibrate = calibrate;
+
+  const ingest = (rawRoll, rawPitch) => {
+    roll += (rawRoll - roll) * 0.3;             // sensor jitter smoothing
+    pitch += (rawPitch - pitch) * 0.3;
+    if (samples.length < 14) samples.push([roll, pitch]);
+    if (pending && samples.length >= 14) {
+      baseRoll = samples.reduce((s, v) => s + v[0], 0) / samples.length;
+      basePitch = samples.reduce((s, v) => s + v[1], 0) / samples.length;
+      pending = false;
+      t.active = true;                          // stays true through a recalibrate
+    }
+    if (!t.active) return;
+    if (!driven) { driven = true; onActive(true); }
+    const dRoll = roll - baseRoll, dPitch = pitch - basePitch;
+    // steer: +roll is a lean right, and input.steer is +1 for left
+    t.steer = -shape(dRoll, ROLL_DEAD, ROLL_RANGE);
+    // pitch: tipping the top edge away is throttle, toward you is brake — one axis,
+    // so each side clamps the other off at zero
+    t.throttle = Math.max(0, shape(-dPitch, PITCH_DEAD, PITCH_RANGE));
+    t.brake = Math.max(0, shape(dPitch, PITCH_DEAD, PITCH_RANGE));
+  };
+
+  // ?tilt: no sensor needed — a slow figure drives the inputs so a desk can feel it
+  if (q.has('tilt')) {
+    t.sim = true;
+    const t0 = performance.now();
+    setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      ingest(16 * Math.sin(s * 0.9), 7 * Math.sin(s * 1.7 + 1.2));
+    }, 66);
+    return t;
+  }
+
+  if (!window.DeviceOrientationEvent) return t;
+  const listen = () => window.addEventListener('deviceorientation', (e) => {
+    if (e.beta == null || e.gamma == null) return;   // desktops fire a hollow event
+    const angle = (screen.orientation && typeof screen.orientation.angle === 'number')
+      ? screen.orientation.angle
+      : (window.orientation || 0);
+    const r = tiltFromOrientation(e.beta, e.gamma, angle);
+    ingest(r.roll, r.pitch);
+  });
+  // iOS 13+ gates the sensor behind a permission ask that has to happen inside a
+  // gesture — the same tap that starts the ride is the natural one. Everywhere else
+  // the sensor just listens.
+  if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+    window.addEventListener('pointerdown', () => {
+      window.DeviceOrientationEvent.requestPermission()
+        .then((state) => { if (state === 'granted') listen(); })
+        .catch(() => { /* no tilt, no problem: the thumb pad is still there */ });
+    }, { once: true });
+  } else {
+    listen();
+  }
+  return t;
 }
