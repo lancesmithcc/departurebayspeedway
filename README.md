@@ -44,12 +44,21 @@ a letterbox of road under a lot of sky, so there is a hint saying so until you d
 
 Steering, gas and brake are on the tilt once the motion sensor is up: lean the phone
 left or right to steer, tip the top edge away to throttle, tip it back toward you to
-brake. Whatever angle the hand sits in comfortably counts as neutral — it is measured
-when the ride starts, and the LVL button in the utility strip re-takes it whenever the
-phone has migrated in the grip. While the tilt is driving, those thumb buttons stand
-down and the pad keeps only BAR, JUMP and WHEELIE; with no gyroscope, permission
-denied, or before calibration, the full button pad is there instead. iOS asks for
-motion permission on the first tap (the same one that starts the ride).
+brake. The pose is read as a single gravity vector off `devicemotion` rather than the
+orientation events' Euler angles — Euler hits a gimbal lock exactly where a phone sits
+in a gaming grip (device top near vertical), and that made the throttle flake out in
+the field. Whatever angle the hand sits in comfortably counts as neutral — it is
+measured when the ride starts, and the LVL button in the utility strip re-takes it
+whenever the phone has migrated in the grip. While the tilt is driving, those thumb
+buttons stand down and the pad keeps only BAR, JUMP and WHEELIE; with no gyroscope,
+permission denied, or before calibration, the full button pad is there instead. iOS
+asks for motion permission on the first tap (the same one that starts the ride).
+
+The ride-start tap also takes the page fullscreen and locks the screen orientation to
+landscape where the platform allows it (Android does; no web page can lock an iPhone),
+because tipping toward the gas swings the phone through the attitudes where auto-rotate
+likes to flip the screen. If a screen does flip, the steer signs follow it, so nothing
+breaks — but the letterbox hint appears until it is turned back.
 
 The WHEELIE button holds the gas for you — the trick bails the moment the throttle
 drops, and a thumb on one button can't also tip the phone — and a tap pops it

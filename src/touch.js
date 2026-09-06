@@ -6,11 +6,14 @@
 // it rather than a key, so there is one control path to keep working instead of two.
 //
 // Steering and throttle live on the device tilt: tilt left/right to steer, tip the
-// top edge away to gas, tip it toward you to brake. Tilt is analog, so it goes into
-// game.tilt (steer/throttle/brake, -1..1) and readInput blends it over the keys.
-// The buttons keep the things a thumb genuinely does better: BAR, JUMP and WHEELIE.
-// Until the sensor is up and calibrated — permission denied, no gyroscope, or the
-// ?touch desktop fallback — the old thumb buttons stay on screen instead.
+// top edge away to gas, tip it toward you to brake. The pose comes off the motion
+// sensor as one gravity vector rather than Euler angles — Euler beta/gamma has a
+// gimbal lock exactly where a phone sits in a gaming grip (device top near vertical),
+// and that made the throttle flake out on real phones. Tilt is analog: it goes into
+// game.tilt (steer/throttle/brake) and readInput blends it over the keys. The buttons
+// keep the things a thumb genuinely does better: BAR, JUMP and WHEELIE. Until the
+// sensor is up and calibrated — permission denied, no gyroscope, or the ?touch
+// desktop fallback — the old thumb buttons stay on screen instead.
 
 const PAD = [
   // side, code, label, class — drive: true stands down once the tilt is in charge
@@ -47,32 +50,129 @@ export function isTouchDevice() {
   return Math.min(screen.width, screen.height) <= 820;
 }
 
-// beta/gamma are measured in the device's own frame; this screen is usually sideways,
-// so re-express them against gravity in what the player is doing: +roll is leaned
-// right, +pitch is top-edge-toward-you (the brake direction). angle is the screen
-// orientation (screen.orientation.angle, or window.orientation as the fallback).
-export function tiltFromOrientation(beta, gamma, angle) {
-  let roll, pitch;
-  switch (((angle % 360) + 360) % 360) {
-    case 90: roll = beta; pitch = -gamma; break;
-    case 180: roll = -gamma; pitch = -beta; break;
-    case 270: roll = -beta; pitch = gamma; break;
-    default: roll = gamma; pitch = beta; break;   // portrait, and any angle we don't know
-  }
-  return { roll, pitch };
-}
-
-// ---- the tilt driver ----
+// ---- tilt shaping ----
 // deadzone first, then an eased ramp: a small unconscious wobble must be nothing, and
 // a hard lean must reach the rail before the wrist gets uncomfortable. Signed — past
 // the deadzone it returns the shaped magnitude with its original sign, so gas and
 // brake (opposite tips of the same axis) can never both be on. Degrees.
-const ROLL_DEAD = 3, ROLL_RANGE = 20;       // full lock at 23° of lean
-const PITCH_DEAD = 2.5, PITCH_RANGE = 9;    // full gas / full brake at ~11.5° of tip
+const ROLL_DEAD = 3, ROLL_RANGE = 20;        // full lock at 23° of lean
+const TIP_DEAD = 2.5, TIP_RANGE = 8;         // full gas at ~10.5° of tip
+const BRAKE_DEAD = 3, BRAKE_RANGE = 10;      // a shade stiffer, so braking is deliberate
 const shape = (deg, dead, range) => {
   const x = Math.min(1, Math.max(0, (Math.abs(deg) - dead) / range));
   return Math.sign(deg) * x * x * (3 - 2 * x);    // smoothstep, so the ramp eases in
 };
+const D = (r) => r * 180 / Math.PI;
+
+// which of the four ways round the content is. The steer sign per angle is not
+// guesswork — it was solved against geometry (roll right = the screen's left edge
+// rises) and checked for every angle at grips from near-vertical to near-flat.
+const STEER_SIGN = { 0: 1, 90: 1, 180: -1, 270: 1 };
+const screenAngle = () => {
+  const a = (screen.orientation && typeof screen.orientation.angle === 'number')
+    ? screen.orientation.angle
+    : (window.orientation || 0);
+  return ((a % 360) + 360) % 360;
+};
+
+// ---- tilt: from motion sensor to game.tilt ----
+// game.tilt = { steer, throttle, brake, active }. The sensor hands us
+// accelerationIncludingGravity — at rest that is the chair pushing back, which points
+// along world-up, so its unit vector IS "up" expressed in the phone's frame. One
+// vector yields both controls, with no singularities at any grip angle:
+//
+//   tip  = asin(up·screen-normal) − baseline.  How flat the glass is versus neutral:
+//                                              tipping the top edge away turns the
+//                                              glass toward the sky, which is gas.
+//                                              Same sign in all four orientations.
+//   roll = angle of up's in-glass projection   Which way the phone is leaned, read
+//                                              around the glass from the baseline.
+//                                              A pure tip slides that projection along
+//                                              its own ray, so steering and throttle
+//                                              never cross-talk.
+//
+// The baseline is the average of the first samples after the pad appears (and after
+// LVL) — a phone is never held at factory zero, and wherever the hand sits
+// comfortably is the pose that should mean "straight and coasting".
+function initTilt(game, onActive) {
+  const t = game.tilt = { steer: 0, throttle: 0, brake: 0, active: false };
+  const q = new URLSearchParams(location.search);
+
+  let up = [0, 0, 1];            // smoothed, device frame; normalized on use
+  let base = null;               // neutral up vector
+  let sign = 1;                  // +1: platform reports proper acceleration per spec
+  let samples = [];
+  let pending = true;            // a baseline is wanted (first run, or a recalibrate)
+  let driven = false;            // pad told the drive buttons to stand down
+
+  const calibrate = () => { samples = []; pending = true; };
+  t.calibrate = calibrate;
+
+  const wrap = (d) => { while (d > 180) d -= 360; while (d < -180) d += 360; return d; };
+
+  const ingest = (raw) => {
+    const m = Math.hypot(raw[0], raw[1], raw[2]);
+    if (!m) return;
+    for (let i = 0; i < 3; i++) up[i] += (raw[i] / m - up[i]) * 0.3;   // jitter smoothing
+    const n = Math.hypot(up[0], up[1], up[2]) || 1;
+    const g = [up[0] / n * sign, up[1] / n * sign, up[2] / n * sign];
+    if (samples.length < 14) samples.push(g);
+    if (pending && samples.length >= 14) {
+      const avg = [0, 1, 2].map((i) => samples.reduce((s, v) => s + v[i], 0) / samples.length);
+      // The spec convention puts +z out of the glass on a face-up phone. In a gaming
+      // grip the glass always faces somewhat skyward, so a baseline with negative
+      // normal component means the platform reports it inverted — accept either.
+      sign = avg[2] < 0 ? -1 : 1;
+      base = avg.map((v) => v * sign);
+      pending = false;
+      t.active = true;                          // stays true through a recalibrate
+    }
+    if (!t.active || !base) return;
+    if (!driven) { driven = true; onActive(true); }
+    const tip = D(Math.asin(Math.max(-1, Math.min(1, g[2]))))
+              - D(Math.asin(Math.max(-1, Math.min(1, base[2]))));
+    const dRoll = wrap(D(Math.atan2(g[1], g[0])) - D(Math.atan2(base[1], base[0])));
+    const roll = dRoll * (STEER_SIGN[screenAngle()] ?? 1);
+    t.steer = -shape(roll, ROLL_DEAD, ROLL_RANGE);          // steer +1 is left
+    t.throttle = Math.max(0, shape(tip, TIP_DEAD, TIP_RANGE));
+    t.brake = Math.max(0, shape(-tip, BRAKE_DEAD, BRAKE_RANGE));
+  };
+
+  // ?tilt: no sensor needed — the phone leans and tips on a slow figure, so a desk
+  // can exercise the whole path, baseline included
+  if (q.has('tilt')) {
+    t.sim = true;
+    const t0 = performance.now();
+    const R = (d) => d * Math.PI / 180;
+    setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      const V = R(60 + 7 * Math.sin(s * 1.1 + 1.2));        // glass angle from vertical
+      const th = R(90 + 16 * Math.sin(s * 0.9));            // lean around the glass
+      ingest([Math.sin(V) * Math.cos(th), Math.sin(V) * Math.sin(th), Math.cos(V)]);
+    }, 66);
+    return t;
+  }
+
+  if (!window.DeviceMotionEvent) return t;
+  const listen = () => window.addEventListener('devicemotion', (e) => {
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x == null) return;               // desktops fire hollow events
+    ingest([a.x, a.y, a.z]);
+  });
+  // iOS 13+ gates the sensors behind a permission ask that has to happen inside a
+  // gesture — the same tap that starts the ride is the natural one. Everywhere else
+  // the sensor just listens.
+  if (typeof window.DeviceMotionEvent.requestPermission === 'function') {
+    window.addEventListener('pointerdown', () => {
+      window.DeviceMotionEvent.requestPermission()
+        .then((state) => { if (state === 'granted') listen(); })
+        .catch(() => { /* no tilt, no problem: the thumb pad is still there */ });
+    }, { once: true });
+  } else {
+    listen();
+  }
+  return t;
+}
 
 export function initTouchControls(game) {
   const pad = document.createElement('div');
@@ -165,6 +265,25 @@ export function initTouchControls(game) {
     if (on) for (const b of PAD) if (b.drive) game.keys[b.code] = false;
   });
 
+  // ---- hold the screen in landscape ----
+  // A tilt game and auto-rotate do not mix: tipping toward the gas swings the phone
+  // through the attitudes where the OS likes to flip the screen over. Android hands
+  // the screen over for good once the page is fullscreen, so the ride-start tap asks
+  // for both. iPhones expose neither, so there the steer signs simply follow the
+  // screen if it does flip.
+  const lockLandscape = async () => {
+    if (!window.matchMedia('(pointer: coarse)').matches) return;   // desktop QA: hands off
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+      await screen.orientation?.lock?.('landscape');
+    } catch { /* refused or unsupported — the rotate hint still copes */ }
+  };
+  window.addEventListener('pointerdown', () => {
+    if (game.state === 'title' || game.state === 'finished') lockLandscape();
+  });
+
   // ---- turn it sideways ----
   // Portrait on a phone leaves a letterbox of road under most of a sky. The hint sits
   // above the pad and a media query drops it the moment the aspect ratio goes
@@ -214,79 +333,4 @@ export function initTouchControls(game) {
   const again = document.getElementById('lb-prompt');
   if (again) again.textContent = 'TAP TO RIDE AGAIN';
   return pad;
-}
-
-// ---- tilt: from sensor to game.tilt ----
-// game.tilt = { steer, throttle, brake, active }. Analog, so readInput blends it over
-// the keys instead of pretending to be one. Calibration takes the average of the next
-// handful of samples as "neutral" — a phone is never held at exactly factory zero, and
-// wherever the hand sits comfortably is the pose that should mean "straight and
-// coasting". Until a baseline exists, active stays false and the thumb pad drives.
-function initTilt(game, onActive) {
-  const t = game.tilt = { steer: 0, throttle: 0, brake: 0, active: false };
-  const q = new URLSearchParams(location.search);
-
-  let roll = 0, pitch = 0;            // smoothed, in tiltFromOrientation's frame
-  let baseRoll = 0, basePitch = 0;
-  let samples = [];
-  let pending = true;                 // a baseline is wanted (first run, or a recalibrate)
-  let driven = false;                 // pad told the drive buttons to stand down
-
-  const calibrate = () => { samples = []; pending = true; };
-  t.calibrate = calibrate;
-
-  const ingest = (rawRoll, rawPitch) => {
-    roll += (rawRoll - roll) * 0.3;             // sensor jitter smoothing
-    pitch += (rawPitch - pitch) * 0.3;
-    if (samples.length < 14) samples.push([roll, pitch]);
-    if (pending && samples.length >= 14) {
-      baseRoll = samples.reduce((s, v) => s + v[0], 0) / samples.length;
-      basePitch = samples.reduce((s, v) => s + v[1], 0) / samples.length;
-      pending = false;
-      t.active = true;                          // stays true through a recalibrate
-    }
-    if (!t.active) return;
-    if (!driven) { driven = true; onActive(true); }
-    const dRoll = roll - baseRoll, dPitch = pitch - basePitch;
-    // steer: +roll is a lean right, and input.steer is +1 for left
-    t.steer = -shape(dRoll, ROLL_DEAD, ROLL_RANGE);
-    // pitch: tipping the top edge away is throttle, toward you is brake — one axis,
-    // so each side clamps the other off at zero
-    t.throttle = Math.max(0, shape(-dPitch, PITCH_DEAD, PITCH_RANGE));
-    t.brake = Math.max(0, shape(dPitch, PITCH_DEAD, PITCH_RANGE));
-  };
-
-  // ?tilt: no sensor needed — a slow figure drives the inputs so a desk can feel it
-  if (q.has('tilt')) {
-    t.sim = true;
-    const t0 = performance.now();
-    setInterval(() => {
-      const s = (performance.now() - t0) / 1000;
-      ingest(16 * Math.sin(s * 0.9), 7 * Math.sin(s * 1.7 + 1.2));
-    }, 66);
-    return t;
-  }
-
-  if (!window.DeviceOrientationEvent) return t;
-  const listen = () => window.addEventListener('deviceorientation', (e) => {
-    if (e.beta == null || e.gamma == null) return;   // desktops fire a hollow event
-    const angle = (screen.orientation && typeof screen.orientation.angle === 'number')
-      ? screen.orientation.angle
-      : (window.orientation || 0);
-    const r = tiltFromOrientation(e.beta, e.gamma, angle);
-    ingest(r.roll, r.pitch);
-  });
-  // iOS 13+ gates the sensor behind a permission ask that has to happen inside a
-  // gesture — the same tap that starts the ride is the natural one. Everywhere else
-  // the sensor just listens.
-  if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
-    window.addEventListener('pointerdown', () => {
-      window.DeviceOrientationEvent.requestPermission()
-        .then((state) => { if (state === 'granted') listen(); })
-        .catch(() => { /* no tilt, no problem: the thumb pad is still there */ });
-    }, { once: true });
-  } else {
-    listen();
-  }
-  return t;
 }
