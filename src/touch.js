@@ -51,13 +51,14 @@ export function isTouchDevice() {
 }
 
 // ---- tilt shaping ----
-// deadzone first, then an eased ramp: a small unconscious wobble must be nothing, and
-// a hard lean must reach the rail before the wrist gets uncomfortable. Signed — past
-// the deadzone it returns the shaped magnitude with its original sign, so gas and
-// brake (opposite tips of the same axis) can never both be on. Degrees.
-const ROLL_DEAD = 3, ROLL_RANGE = 20;        // full lock at 23° of lean
-const TIP_DEAD = 2.5, TIP_RANGE = 8;         // full gas at ~10.5° of tip
-const BRAKE_DEAD = 3, BRAKE_RANGE = 10;      // a shade stiffer, so braking is deliberate
+// Kept hair-trigger on purpose: a couple of degrees is a full control, so the phone
+// never leaves the palm. Signed — past the deadzone it returns the shaped magnitude
+// with its original sign, so gas and brake (opposite tips of the same axis) can never
+// both be on. Degrees.
+const ROLL_DEAD = 1, ROLL_RANGE = 7;         // full lock at 8° of lean
+const TIP_DEAD = 1, TIP_RANGE = 4;           // full gas at 5° of tip
+const BRAKE_DEAD = 1, BRAKE_RANGE = 5;       // full brake at 6°
+const TILT_SMOOTH = 0.25;                    // calmer at tiny deadzones, still snappy
 const shape = (deg, dead, range) => {
   const x = Math.min(1, Math.max(0, (Math.abs(deg) - dead) / range));
   return Math.sign(deg) * x * x * (3 - 2 * x);    // smoothstep, so the ramp eases in
@@ -113,7 +114,7 @@ function initTilt(game, onActive) {
   const ingest = (raw) => {
     const m = Math.hypot(raw[0], raw[1], raw[2]);
     if (!m) return;
-    for (let i = 0; i < 3; i++) up[i] += (raw[i] / m - up[i]) * 0.3;   // jitter smoothing
+    for (let i = 0; i < 3; i++) up[i] += (raw[i] / m - up[i]) * TILT_SMOOTH;   // jitter smoothing
     const n = Math.hypot(up[0], up[1], up[2]) || 1;
     const g = [up[0] / n * sign, up[1] / n * sign, up[2] / n * sign];
     if (samples.length < 14) samples.push(g);
