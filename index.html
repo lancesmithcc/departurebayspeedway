@@ -175,6 +175,14 @@
   .press-touch { display: none; }
   body.touch .press-touch { display: block; }
   body.touch #title .press:not(.press-touch) { display: none; }
+  /* a controller in hand trumps both: its own prompt and its own legend. The class
+     goes on only once a pad has actually been pressed (gamepad.js). */
+  .press-pad, #title .controls.controls-pad { display: none; }
+  body.gamepad #title .press { display: none; }
+  body.gamepad #title .press-pad { display: block; }
+  body.gamepad #title .controls:not(.controls-pad) { display: none; }
+  body.gamepad #title .controls.controls-pad { display: grid; }
+  body.gamepad #touchpad { display: none; }
 
   #title .controls {
     margin-top: 30px; display: grid; grid-template-columns: auto auto; gap: 6px 22px;
@@ -404,6 +412,7 @@
     <div class="sub">Country Club &nbsp;→&nbsp; The Beach</div>
     <div class="press">— PRESS ENTER TO RIDE —</div>
     <div class="press press-touch">— TAP TO RIDE —</div>
+    <div class="press press-pad">— PRESS Ⓐ TO RIDE —</div>
     <div class="controls">
       <b>W / ↑</b><span>throttle</span>
       <b>S / ↓</b><span>brake</span>
@@ -418,6 +427,19 @@
       <b>R</b><span>respawn at checkpoint</span>
       <b>M</b><span>mute</span>
       <b>pickups</b><span>Lucky · double-double · bar crate · blessing</span>
+    </div>
+    <div class="controls controls-pad">
+      <b>RT</b><span>throttle</span>
+      <b>LT</b><span>brake</span>
+      <b>L-stick / D-pad</b><span>lean &amp; steer</span>
+      <b>X</b><span>pop a wheelie (hold RT!)</span>
+      <b>A</b><span>jump (tap in air = no-hander)</span>
+      <b>air stick</b><span>whip</span>
+      <b>air LT / RT</b><span>backflip / frontflip</span>
+      <b>B</b><span>throw a Nanaimo bar</span>
+      <b>Y</b><span>camera</span>
+      <b>View</b><span>respawn at checkpoint</span>
+      <b>D-pad ▲</b><span>mute</span>
     </div>
     <nav class="promo-links" aria-label="About Departure Bay Speedway"><a href="/nanaimo-dirtbike-game.html">About the game</a> · <a href="/departure-bay-road.html">Explore the road</a> · <a href="/loud-dirtbikes-nanaimo.html">Neighbourhood noise</a></nav>
     <!-- Map data © OpenStreetMap contributors. Elevation: NRCan. Buildings: City of Nanaimo. Full sources: assets/CREDITS.md. Not affiliated with Rockstar Games. -->

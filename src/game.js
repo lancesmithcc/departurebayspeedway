@@ -331,6 +331,9 @@ export class Game {
   }
 
   readInput() {
+    // a controller has no events, only a snapshot: read it first so any press it
+    // turns into onKey() (the jump edge, a wheelie pop) lands in this same frame
+    this.pad?.poll?.();
     const k = this.keys;
     let thr = (k['KeyW'] || k['ArrowUp']) ? 1 : 0;
     let brk = (k['KeyS'] || k['ArrowDown']) ? 1 : 0;
@@ -346,12 +349,19 @@ export class Game {
       brk = Math.max(brk, t.brake);
       steer = clamp(steer + t.steer, -1, 1);
     }
+    // the controller blends the same way: triggers and stick are analog too
+    const p = this.pad;
+    if (p && p.active) {
+      thr = Math.max(thr, p.throttle);
+      brk = Math.max(brk, p.brake);
+      steer = clamp(steer + p.steer, -1, 1);
+    }
     this.input.throttle = thr;
     this.input.brake = brk;
     this.input.steer = steer;
-    this.input.hop = !!(k['Space']);
+    this.input.hop = !!(k['Space'] || p?.hop);
     // a crate of bars turns F from a tap into a trigger
-    if (this.state === 'riding' && k['KeyF'] && this.powerups && this.powerups.barCooldown) {
+    if (this.state === 'riding' && (k['KeyF'] || p?.bar) && this.powerups && this.powerups.barCooldown) {
       this.bars.throw(this.player, this.powerups.barCooldown);
     }
     this.input.jump = this._jumpEdge;      // one frame per Space press

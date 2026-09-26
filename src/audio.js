@@ -13,7 +13,9 @@ export class AudioSys {
   }
 
   init() {
-    if (this.ready) return;
+    // a context made before the page had a real gesture (a controller press does not
+    // count as one in most browsers) comes up suspended; the next gesture wakes it
+    if (this.ready) { if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {}); return; }
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = ctx.createGain();
     this.master.gain.value = 0.8;

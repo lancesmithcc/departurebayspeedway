@@ -36,6 +36,7 @@ import { AudioSys } from './audio.js';
 import { Game } from './game.js';
 import { Apocalypse } from './apocalypse.js';
 import { initTouchControls, isTouchDevice } from './touch.js';
+import { initGamepad } from './gamepad.js';
 
 async function boot() {
   // ---- renderer ----
@@ -436,6 +437,8 @@ async function boot() {
   // expose for debugging
   // the on-screen pad writes the same key codes the keyboard listener does
   if (touch) initTouchControls(game);
+  // an Xbox pad (or any standard-mapped controller) drives the same input path
+  initGamepad(game);
 
   window.DBG = { game, player, terrain, effects, traffic, scene, camera, map, corridor, peds, powerups, baptist, apocalypse, skyWater, audio, touch, police, deer, multiplayer };
 
